@@ -347,7 +347,7 @@ export default function ProductDetailsPage() {
              {/* Mobile Persistent Footer */}
              {/* FIX: Ensure productData exists before accessing its properties */}
             {productData && (
-                <div className={`fixed bottom-0 left-0 right-0 md:hidden transition-transform duration-300 ease-in-out z-40 ${ showMobileFooter ? "translate-y-0" : "translate-y-full" }`} >
+                <div className={`fixed bottom-16 left-0 right-0 md:hidden transition-transform duration-300 ease-in-out z-40 ${ showMobileFooter ? "translate-y-0" : "translate-y-full" }`} >
                     <div className="bg-[#1a1c23] p-3 shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.3)] border-t border-[#2a2d36]">
                         <div className="flex space-x-3">
                             {/* Use optional chaining on productData.o_product_id just in case, though it should exist here */}
