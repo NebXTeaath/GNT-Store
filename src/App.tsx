@@ -1,9 +1,8 @@
 // src/App.tsx
 import React, { useEffect } from "react";
-import { BrowserRouter as Router } from "react-router-dom";
+import {BrowserRouter as Router } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from 'sonner';
-
 // Import providers
 import { AuthProvider } from "@/context/AuthContext";
 import { LoadingProvider, useLoading } from "@/context/LoadingContext";

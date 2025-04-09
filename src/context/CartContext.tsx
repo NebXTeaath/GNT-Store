@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import debounce from 'lodash.debounce';
 import { client, databases, APPWRITE_DATABASE_ID } from "@/lib/appwrite";
-import { Account, Query } from "appwrite";
+import { Account, ID, Query } from "appwrite";
 import { toast } from "sonner";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/lib/supabase";
@@ -195,17 +195,25 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
               creationDate: new Date().toISOString()
             }
           );
-          /*
-          toast.success("Cart updated", { 
+         /* toast.success("Cart updated", {
             id: "cart-update-toast",
             description: "Your cart has been successfully updated.",
             duration: 3000,
-          });
-          */
+          });*/
         } else {
-          /*
+          const newCart = await databases.createDocument(
+            APPWRITE_DATABASE_ID,
+            'cart',
+            ID.unique(),
+            {
+              userId,
+              productUUID: productUUIDs,
+              productDetails,
+              creationDate: new Date().toISOString()
+            }
+          );
           setCartId(newCart.$id);
-          toast.success("Cart created", {
+          /*toast.success("Cart created", {
             id: "cart-create-toast",
             description: "A new cart has been created for your account.",
             duration: 3000,
@@ -215,7 +223,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         console.error('Error saving cart to Appwrite:', error);
         toast.error("Failed to save cart to database", {
           id: "save-cart-error",
-          description: "Your cart could not be updated. Please try again.",
+          description: "Your cart could not be updated on the server.",
           duration: 3000
         });
       }
@@ -226,11 +234,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           'cart',
           cartId
         );
-        /*
         setCartId(null);
         setCartCount(0);
         localStorage.removeItem(CART_COUNT_STORAGE_KEY);
-        toast.success("Cart cleared", {
+        /*toast.success("Cart cleared", {
           id: "clear-cart-toast",
           description: "Your cart has been cleared.",
           duration: 3000
@@ -239,7 +246,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         console.error('Error deleting empty cart from Appwrite:', error);
         toast.error("Failed to clear cart from database", {
           id: "delete-cart-error",
-          description: "There was an issue clearing your cart. Please try again.",
+          description: "There was an issue clearing your cart from the server.",
           duration: 3000
         });
       }
@@ -435,11 +442,11 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
 
     setBasicCartItems([]);
-    toast.success("Cart cleared", {
+    /*toast.success("Cart cleared", {
       id: "clear-cart-toast",
       description: "All items have been removed from your cart.",
       duration: 3000,
-    });
+    });*/
     return true;
   };
 

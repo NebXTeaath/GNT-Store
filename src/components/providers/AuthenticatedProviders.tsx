@@ -8,6 +8,7 @@ import { CartProvider } from "../../context/CartContext";
 import GlobalLayout from "../global/layout";
 
 // Import your pages
+import NotFound from "../../pages/NotFound";
 import GNTStore from "../../pages/HomePage/GNTStore";
 import RepairServices from "../../pages/repairPage/index";
 import TrackRepairHistory from "@/pages/repairPage/history/TrackRepairHistory.tsx";
@@ -33,6 +34,7 @@ const AuthenticatedProviders: React.FC = () => {
         <AuthAwareDiscountProvider>
           <CartProvider>
             <Routes>
+            <Route path="*" element={<NotFound />} />
               <Route path="/" element={<GlobalLayout />}>
                 <Route path="repair-home/*" element={<RepairServices />} />
                 <Route path="repair/new-request" element={<NewRequestWrapper />} />
@@ -50,6 +52,7 @@ const AuthenticatedProviders: React.FC = () => {
                 <Route path="/profile" element={<ProfileRouteHandler />} />
                 <Route path="search" element={<SearchPage />} /> 
                 <Route path="*" element={<Navigate to="/" />} />
+                
               </Route>
             </Routes>
           </CartProvider>
