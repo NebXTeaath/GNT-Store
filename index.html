@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/index.css" />
+    <title>GNT</title>
+    <style>
+      @keyframes backgroundAnimation {
+    0% { background: rgba(5, 4, 4, 0.9); }
+    33% { background: rgba(102, 138, 102, 0.9); }
+    66% { background: rgba(248, 181, 218, 0.9); }
+    100% { background: rgba(5, 4, 4, 0.9); }
+  }
+      #initial-loading {
+        animation: backgroundAnimation 10s ease-in-out infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Custom animated splash screen -->
+    <div
+      id="initial-loading"
+      class="fixed inset-0 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-opacity duration-300"
+    >
+      <!-- Insert Logo -->
+      <img src="logo.svg" alt="GNT" class="w-80 h-25 mb-4" />
+      <div class="flex space-x-2">
+        <div class="h-4 w-4 bg-[#5865f2] rounded-full animate-pulse"></div>
+        <div class="h-4 w-4 bg-[#5865f2] rounded-full animate-pulse"></div>
+        <div class="h-4 w-4 bg-[#5865f2] rounded-full animate-pulse"></div>
+      </div>
+      <p class="mt-6 text-base font-medium text-gray-150">
+        Loading your Experience...
+      </p>
+    </div>
+
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
