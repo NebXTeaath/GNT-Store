@@ -1,8 +1,6 @@
 // src/pages/repairPage/NewRequest.tsx
 "use client";
-import { useNavigate } from "react-router-dom";
 import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { CheckCircle, Loader2, AlertCircle } from "lucide-react"; // Removed unused MapPin, X
 import { toast } from "sonner";
 // UI Components
@@ -44,7 +42,6 @@ interface TouchedFields {
 }
 
 export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) {
-    const navigate = useNavigate(); // Keep navigate if used elsewhere
     const [repairForm, setRepairForm] = useState({ deviceType: "", deviceModel: "", issueDescription: "" });
     const [formErrors, setFormErrors] = useState<FormErrors>({ deviceType: false, deviceModel: false, issueDescription: false, termsAccepted: false });
     const [touched, setTouched] = useState<TouchedFields>({ deviceType: false, deviceModel: false, issueDescription: false, termsAccepted: false });
@@ -52,14 +49,14 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     const issueDescriptionRef = useRef<HTMLTextAreaElement>(null);
     const termsRef = useRef<HTMLInputElement>(null);
     const profileRef = useRef<HTMLDivElement>(null);
-    const [deviceTypeSelectOpen, setDeviceTypeSelectOpen] = useState(false); // Keep if needed for Select logic
+    const [, setDeviceTypeSelectOpen] = useState(false); // Keep if needed for Select logic
     const [acceptedTerms, setAcceptedTerms] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [submittedRequestId, setSubmittedRequestId] = useState<string>("");
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
 
     // ----- Context -----
-    const { data: userProfileData, isLoading: isProfileLoading, isFetching: isProfileFetching, isError: isProfileError } = useUserProfileQuery();
+    const { data: userProfileData, isLoading: isProfileLoading, isFetching: isProfileFetching } = useUserProfileQuery();
     const { user } = useAuth();
 
   // ----- Field Validation -----
@@ -160,12 +157,6 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     }
   };
 
-  const handleTermsChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setAcceptedTerms(e.target.checked);
-    if (touched.termsAccepted) {
-      validateField("termsAccepted");
-    }
-  };
 
   // ----- Effects (Keep implementations) -----
     useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);

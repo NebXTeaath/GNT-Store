@@ -13,17 +13,7 @@ interface UseProductsParams {
   condition?: string;
 }
 
-// Define the expected structure of the data returned by the RPC functions
-// Adjust these based on the actual return types of your Supabase RPCs
-interface ProductListData {
-  // Assuming get_products_list returns an array of Product objects
-  products: Product[];
-}
 
-interface ProductCountData {
-  // Assuming count_products returns a number
-  count: number;
-}
 
 export function useProducts({
   category,

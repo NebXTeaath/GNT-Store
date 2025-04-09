@@ -1,5 +1,4 @@
 // src/components/global/LoadingScreen.tsx
-import React from 'react';
 import { motion } from 'framer-motion';
 
 // Animation variants for the container

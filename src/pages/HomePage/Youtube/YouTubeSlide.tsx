@@ -312,7 +312,7 @@ const YouTubeSlide: React.FC<YouTubeSlideProps> = ({
   };
   
   // Handle errors
-  const onError: YouTubeProps['onError'] = (event) => {
+  const onError: YouTubeProps['onError'] = () => {
     setIsLoaded(true); // Still mark as loaded to remove spinner
     
     // Notify parent component even if there's an error

@@ -1,6 +1,6 @@
 // src/pages/Profile/ProfileRouteHandler.tsx
 import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileIndex } from '@/pages/Profile/components/ProfileIndex';
 

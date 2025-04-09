@@ -53,7 +53,6 @@ export const ProductCarouselSkeleton = () => {
 export function ProductCarousel({
   products,
   autoplayDelay = 3000,
-  stopOnInteraction = true,
 }: ProductCarouselProps) {
   // ... (Keep all the hooks and effects logic the same as before) ...
   const autoplayPlugin = React.useRef(

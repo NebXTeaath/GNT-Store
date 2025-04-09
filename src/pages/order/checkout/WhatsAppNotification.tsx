@@ -1,5 +1,4 @@
 // src/pages/order/checkout/WhatsAppNotification.tsx
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";

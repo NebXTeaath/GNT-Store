@@ -1,5 +1,5 @@
 // src/pages/repairPage/index.tsx
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { PlusCircle, History } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";

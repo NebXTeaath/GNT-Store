@@ -1,7 +1,7 @@
 // src/pages/searchPage/searchPage.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile";
 import { Button } from "@/components/ui/button";

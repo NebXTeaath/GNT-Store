@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { AlertCircle, Search, Wrench } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useUserProfileQuery } from '@/components/global/hooks/useUserProfileData'; // Import the TanStack hook
 import { RepairHistorySkeleton } from "@/pages/repairPage/history/RepairHistorySkeleton";
@@ -15,7 +14,7 @@ import { Pagination } from "@/pages/searchPage/search/Pagination";
 
 export default function TrackHistory() {
     // Use TanStack Query hook for profile data
-    const { data: userProfile, isLoading: isProfileLoading, isError: isProfileError } = useUserProfileQuery();
+    const { isLoading: isProfileLoading, isError: isProfileError } = useUserProfileQuery();
     const { user } = useAuth(); // Auth context still needed for user ID
     const [repairRequests, setRepairRequests] = useState<RepairRequest[]>([]);
     const [isLoadingRepairs, setIsLoadingRepairs] = useState<boolean>(false); // Renamed loading state

@@ -1,7 +1,6 @@
 // src/components/ShopDrawer.tsx
 "use client";
 
-import React from "react";
 import { useNavigate } from "react-router-dom";
 // Import Accordion components from your UI library
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";

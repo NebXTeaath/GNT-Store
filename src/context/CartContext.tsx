@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import debounce from 'lodash.debounce';
 import { client, databases, APPWRITE_DATABASE_ID } from "@/lib/appwrite";
-import { Account, ID, Query } from "appwrite";
+import { Account, Query } from "appwrite";
 import { toast } from "sonner";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/lib/supabase";
@@ -203,17 +203,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           });
           */
         } else {
-          const newCart = await databases.createDocument(
-            APPWRITE_DATABASE_ID,
-            'cart',
-            ID.unique(),
-            {
-              userId,
-              productUUID: productUUIDs,
-              productDetails,
-              creationDate: new Date().toISOString()
-            }
-          );
           /*
           setCartId(newCart.$id);
           toast.success("Cart created", {

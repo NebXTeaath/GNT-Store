@@ -73,10 +73,10 @@ async function executeAccessControlFunction(operation: string, documentId?: stri
  * Retrieves a user profile document based on the provided user ID.
  * Uses the access control function to enforce security rules.
  *
- * @param userId - The unique user ID from Appwrite's account service.
+ * @param _userId - The unique user ID from Appwrite's account service.
  * @returns The first matching user profile document or null if not found.
  */
-export async function getUserProfile(userId: string): Promise<any> {
+export async function getUserProfile(_userId: string): Promise<any> {
   try {
     // Use the access control function to list documents
     const response = await executeAccessControlFunction('read');
@@ -113,11 +113,11 @@ interface ProfileData {
  * Creates a new user profile document in the Appwrite database.
  * Uses the access control function to enforce security rules.
  *
- * @param userId - The unique Appwrite user ID.
+ * @param _userId - The unique Appwrite user ID.
  * @param profileData - An object containing profile fields to store.
  * @returns The newly created user profile document.
  */
-export async function createUserProfile(userId: string, profileData: ProfileData = {}): Promise<any> {
+export async function createUserProfile(_userId: string, profileData: ProfileData = {}): Promise<any> {
   try {
     // Prepare data for the access control function
     const data = {

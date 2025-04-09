@@ -1,7 +1,7 @@
 // src\components\global\Mobile\mobile-navigation.tsx
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Grid, Wrench, Search, ShoppingCart, User, Library, Warehouse, Store, LogIn } from "lucide-react";
+import { Home, Wrench, Search, ShoppingCart, Store } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext"; // Import useCart
 import { SearchDrawer } from "@/components/global/Mobile/search-drawer";
@@ -73,13 +73,6 @@ export function MobileNavigation() {
   ) : null;
   
   // For authenticated users, account button opens account sheet; otherwise, trigger login modal.
-  const accountOnClick = () => {
-    if (isAuthenticated) {
-      setAccountOpen(true);
-    } else {
-      setLoginOpen(true);
-    }
-  };
 
   return (
     <>

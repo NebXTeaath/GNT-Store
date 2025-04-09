@@ -1,6 +1,6 @@
 //src/pages/repairPage/History.tsx
-import React, { useState, useEffect } from "react";
-import { Clock, Calendar, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,7 +44,7 @@ interface HistoryProps {
 
 export default function History({ onViewDetails }: HistoryProps) {
   // States for history requests
-  const [historyRequests, setHistoryRequests] = useState<RepairRequest[]>([]);
+  const [historyRequests] = useState<RepairRequest[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   // Retrieve the user profile from the context

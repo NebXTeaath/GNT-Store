@@ -1,6 +1,6 @@
 // src/pages/checkout/cart-details.tsx
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Minus, Plus, ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";

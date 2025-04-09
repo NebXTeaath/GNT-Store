@@ -1,7 +1,7 @@
 // src/pages/Profile/components/MobileDrawerProfileView.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Save, User, LogOut, Loader2, Info, RefreshCcw, PenSquare, X } from "lucide-react";
+import { User, Loader2, Info, RefreshCcw, PenSquare, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from "@/components/ui/drawer";
 import { useProfileService } from "../profileService";
 import { EmailEditDialog } from "../EmailEditDialog";
-import { toast } from "sonner";
 
 interface MobileDrawerProfileViewProps {
     open: boolean;
@@ -22,10 +21,10 @@ interface MobileDrawerProfileViewProps {
 
 export function MobileDrawerProfileView({ open, onOpenChange }: MobileDrawerProfileViewProps) {
     const navigate = useNavigate();
-    const { isAuthenticated, user, logout } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const { validatePincode } = usePincodeValidator();
     const { setIsLoading: setIsLoadingGlobal, setLoadingMessage } = useLoading();
-    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+    const [isKeyboardOpen] = useState(false);
     const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
 
     const {
@@ -68,18 +67,8 @@ export function MobileDrawerProfileView({ open, onOpenChange }: MobileDrawerProf
         }
     }, [isAuthenticated, open, onOpenChange, navigate]);
 
-    const handleLogout = async () => {
-        try {
-            await logout();
-            onOpenChange(false);
-            navigate("/");
-        } catch (error) {
-            console.error("Logout failed:", error);
-            toast.error("Logout failed. Please try again.");
-        }
-    };
 
-     const handleEmailUpdated = (newEmail: string) => {
+     const handleEmailUpdated = (_newEmail: string) => {
         setIsEmailDialogOpen(false);
         // No need to manually update localProfile here if service effect handles it
     };

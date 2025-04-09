@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link, useLocation } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 
@@ -23,7 +22,6 @@ export default function LoginForm({
   onTabChange,
   onForgotPassword
 }: LoginFormProps) {
-  const location = useLocation();
   const { login, register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

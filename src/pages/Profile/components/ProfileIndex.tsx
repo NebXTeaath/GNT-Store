@@ -1,5 +1,4 @@
 // src/pages/Profile/components/ProfileIndex.tsx
-import React from "react";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile.tsx";
 import { DesktopModalProfileView } from "./DesktopModalProfileView";
 import { MobileDrawerProfileView } from "./MobileDrawerProfileView";

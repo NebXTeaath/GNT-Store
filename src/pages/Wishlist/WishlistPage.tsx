@@ -1,6 +1,6 @@
 //src\pages\Wishlist\WishlistPage.tsx
-import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Trash2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWishlist } from "@/context/WishlistContext";

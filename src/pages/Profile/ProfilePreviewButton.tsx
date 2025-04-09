@@ -4,7 +4,7 @@
 import React, { useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserRound, AlertCircle, Loader2 } from "lucide-react";
+import { UserRound, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ProfileIndex } from "@/pages/Profile/components/ProfileIndex";

@@ -6,7 +6,7 @@ import NewRequest from './NewRequest';
 const NewRequestWrapper: React.FC = () => {
   const navigate = useNavigate();
   
-  const handleSuccessfulSubmission = (requestId: string) => {
+  const handleSuccessfulSubmission = () => {
     // Navigate to repair history page after successful submission
     navigate("/repair/history");
   };

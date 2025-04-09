@@ -8,7 +8,6 @@ import {
   Wrench,
   User,
   History,
-  HelpCircle,
   LogIn,
   Heart,
   MessageSquareDot,

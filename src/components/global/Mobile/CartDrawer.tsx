@@ -1,7 +1,6 @@
 //src\components\global\Mobile\CartDrawer.tsx
 "use client";
 
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";

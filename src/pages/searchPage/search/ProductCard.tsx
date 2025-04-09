@@ -1,6 +1,5 @@
 //src/pages/searchPage/search/ProductCard.tsx
 import { useNavigate } from "react-router-dom";
-import { X } from "lucide-react";
 import { calculateDiscountPercentage } from "@/pages/searchPage/search/discountUtils";
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
 

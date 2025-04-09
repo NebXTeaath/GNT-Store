@@ -1,5 +1,4 @@
 // src/components/global/Footer.tsx
-import React from 'react';
 import { Link } from 'react-router-dom'; // Re-added for Logo link
 import { ArrowUp } from 'lucide-react'; // Kept for Back to Top button
 import Logo from '@/assets/logo.svg'; // Re-added Logo import

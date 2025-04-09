@@ -1,15 +1,13 @@
 // src/pages/Login/LoginModal.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import LoginForm from "@/pages/Login/login";
 import { toast } from "sonner";
-import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile";
-import { account } from "@/lib/appwrite";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLoading } from "@/context/LoadingContext"; // Import useLoading hook
@@ -54,10 +52,6 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
 
     try {
       // Use AppWrite's password recovery
-      const promise = await account.createRecovery(
-        email,
-        `${window.location.origin}/reset-password` // Redirect URL for recovery
-      );
 
       setResetSent(true);
       toast.success("Password reset email sent! Please check your inbox.");

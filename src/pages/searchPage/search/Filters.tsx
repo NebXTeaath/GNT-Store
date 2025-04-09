@@ -45,8 +45,6 @@ export function FilterContent({
   activeLabels,
   activeConditions,
   toggleFilterOption,
-  updateFilters,
-  handleClearFilters,
   isDiscountFilterEnabled,
   handleDiscountFilterToggle,
   discountPriceRange,

@@ -1,18 +1,14 @@
 //src\components\global\Mobile\mobile-account-sheet.tsx
 import { useNavigate } from "react-router-dom";
 import { User, Heart, History, Wrench, LogOut } from "lucide-react";
-import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
-  SheetTitle,
-  SheetTrigger
-} from "@/components/ui/sheet";
+  SheetTitle} from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 

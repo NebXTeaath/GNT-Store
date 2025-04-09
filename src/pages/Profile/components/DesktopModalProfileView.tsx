@@ -1,7 +1,7 @@
 // src/pages/Profile/components/DesktopModalProfileView.tsx
 import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Save, User, LogOut, Loader2, Info, RefreshCcw, PenSquare, X } from "lucide-react";
+import { User, Loader2, Info, RefreshCcw, PenSquare, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useProfileService } from "../profileService";
 import { EmailEditDialog } from "../EmailEditDialog";
-import { toast } from "sonner";
 
 interface DesktopModalProfileViewProps {
     open: boolean;
@@ -22,7 +21,7 @@ interface DesktopModalProfileViewProps {
 
 export function DesktopModalProfileView({ open, onOpenChange }: DesktopModalProfileViewProps) {
     const navigate = useNavigate();
-    const { isAuthenticated, user, logout } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const { validatePincode } = usePincodeValidator();
     const { setIsLoading: setIsLoadingGlobal, setLoadingMessage } = useLoading();
     const [isEmailDialogOpen, setIsEmailDialogOpen] = React.useState(false);
@@ -64,25 +63,12 @@ export function DesktopModalProfileView({ open, onOpenChange }: DesktopModalProf
         }
     }, [isAuthenticated, open, onOpenChange, navigate]);
 
-    const handleLogout = async () => {
-        try {
-            await logout();
-            onOpenChange(false);
-            navigate("/");
-        } catch (error) {
-            console.error("Logout failed:", error);
-            toast.error("Logout failed. Please try again.");
-        }
-    };
 
-    const handleEmailUpdated = (newEmail: string) => {
+    const handleEmailUpdated = () => {
         setIsEmailDialogOpen(false);
         // No need to manually update localProfile here if service effect handles it
     };
 
-    const scrollToSection = (ref: React.RefObject<HTMLDivElement>) => {
-        ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
 
     // ----- MODIFIED RENDER CONDITION -----
     // Show Skeleton if data is loading OR if loading is done, no error, but profile state is still null

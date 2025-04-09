@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { ChevronDown, Package, Calendar } from "lucide-react";
 import { Order } from "@/pages/order/orderHistory/orderService";
 import { Button } from "@/components/ui/button";
-import { useIsMobile } from "@/components/global/Mobile/use-mobile.tsx";
 import { OrderDetailsModal } from "./OrderDetailsPopup";
 
 // Updated formatCurrency to support thousands separator and locale-specific formatting
@@ -23,7 +22,6 @@ interface OrderCardProps {
 
 export const OrderCard = ({ order }: OrderCardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const isMobile = useIsMobile();
   
   // Format the order date
   const orderDate = new Date(order.orderdetails.order_date);

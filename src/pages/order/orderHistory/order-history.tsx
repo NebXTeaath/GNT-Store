@@ -1,15 +1,14 @@
 // src/pages/checkout/order-history.tsx
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, Package, Clock } from "lucide-react";
+import { Search, Package, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { OrderCard } from "@/pages/order/orderHistory/OrderCard";
 import { EmptyOrderState } from "@/pages/order/orderHistory/EmptyOrderState";
 import { OrderHistorySkeleton } from "@/pages/order/orderHistory/OrderHistorySkeleton";
-import { useUserProfileQuery, useUpdateProfileMutation } from '@/components/global/hooks/useUserProfileData';
+import { useUserProfileQuery } from '@/components/global/hooks/useUserProfileData';
 import { databases, APPWRITE_DATABASE_ID } from "@/lib/appwrite";
 import { Order } from "@/pages/order/orderHistory/orderService";
 import { toast } from "sonner";
@@ -48,7 +47,7 @@ const getUserOrders = async (userId: string): Promise<Order[]> => {
 };
 
 const OrderHistory = () => {
-  const { data: userProfileData } = useUserProfileQuery();
+  useUserProfileQuery();
   const [activeTab, setActiveTab] = useState("active-orders");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);

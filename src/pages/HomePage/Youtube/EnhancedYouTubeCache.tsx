@@ -1,7 +1,7 @@
 // src/pages/HomePage/Youtube/EnhancedYouTubeCache.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { HeroSlide, heroSlidesConfig } from './heroCarouselConfig';
-import { extractVideoId, extractTimeParams, createPlayerVars } from './YouTubeUtils';
+import { heroSlidesConfig } from './heroCarouselConfig';
+import { extractVideoId, extractTimeParams } from './YouTubeUtils';
 
 interface EnhancedYouTubeCacheProps {
   currentIndex: number;

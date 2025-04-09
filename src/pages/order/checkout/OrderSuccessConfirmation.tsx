@@ -1,8 +1,8 @@
 // src/pages/order/checkout/OrderSuccessConfirmation.tsx
 "use client" // Required for Framer Motion hooks
 
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Copy, CheckCheck, Home, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion"; // Import motion
@@ -92,7 +92,6 @@ const OrderSuccessConfirmation = ({
   onClose,
   isModal = false,
 }: OrderSuccessConfirmationProps) => {
-  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {

@@ -1,7 +1,7 @@
 // src/pages/order/checkout/order-summary.tsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react"; // Removed Check
+import { ArrowLeft, Loader2 } from "lucide-react"; // Removed Check
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import ProfilePreviewButton from "@/pages/Profile/ProfilePreviewButton";

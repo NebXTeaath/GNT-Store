@@ -1,7 +1,6 @@
 // --- File: src/context/AuthContext.tsx ---
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { account } from "../lib/appwrite";
-import { useNavigate } from "react-router-dom";
 import { useLoading } from "./LoadingContext";
 import { toast } from "sonner";
 import { useUpdateProfileEmailMutation, useUserProfileQuery } from '@/components/global/hooks/useUserProfileData'; // Import correct hooks
@@ -34,11 +33,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [isInitialized, setIsInitialized] = useState(false);
-    const navigate = useNavigate(); // Use navigate if needed for redirects
     const { setIsLoading: setIsLoadingGlobal, setLoadingMessage } = useLoading(); // Renamed to avoid conflict
 
     // Use the mutation hook for updating the profile document's email
-    const { mutate: updateProfileEmailMutation, isPending: isUpdatingProfileEmail } = useUpdateProfileEmailMutation();
+    const { mutate: updateProfileEmailMutation } = useUpdateProfileEmailMutation();
     // Use the query hook to get the profile data (specifically the documentId)
     // This query runs based on the userId state within the hook
     const { data: userProfileData } = useUserProfileQuery();

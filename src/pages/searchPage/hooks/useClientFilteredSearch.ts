@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchResults } from "@/components/global/hooks/useSearch";
-import { useDebounce } from "@/components/global/hooks/use-debounce";
 // Import the actual Product type expected by ProductCard and returned by search
 import type { ProductSearchResult } from "@/lib/types/product"; // Adjust path if needed
 // Removed local Product interface

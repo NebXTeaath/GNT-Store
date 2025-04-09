@@ -25,7 +25,6 @@ export function SearchBar({
   className, 
   placeholder = "Search products...", 
   onSearch, 
-  mobile = false,
   size = "medium" // Default size is medium
 }: SearchBarProps) {
   const [searchTerm, setSearchTerm] = useState("")

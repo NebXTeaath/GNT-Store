@@ -15,18 +15,6 @@ interface DiscountResponse {
   message?: string;
 }
 
-// Enhanced Execution interface with stderr property
-interface Execution {
-  status: string;
-  responseBody: string;
-  responseStatusCode?: number;
-  errors?: string;
-  functionId?: string;
-  duration?: number; 
-  $id: string;
-  $createdAt: string;
-  $updatedAt: string;
-}
 interface DiscountContextType {
   discountCode: string;
   discountRate: number;

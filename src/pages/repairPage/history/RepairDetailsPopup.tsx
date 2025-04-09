@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { RepairRequest } from "@/pages/repairPage/history/repairHistoryService";
 import { Button } from "@/components/ui/button";
-import { MapPin, Wrench, X, Clock,} from "lucide-react";
+import { MapPin, Wrench, Clock,} from "lucide-react";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -37,7 +37,6 @@ interface ShippingAddressData {
 
 const RepairDetailsContent = ({
   repair,
-  onOpenChange,
   isMobile,
 }: RepairDetailsContentProps) => {
   // Format the repair submission date
@@ -88,16 +87,6 @@ const RepairDetailsContent = ({
   const addressData = parseShippingAddress();
   
   // Format shipping address for display
-  const formatShippingAddress = (): string => {
-    if (!addressData) {
-      return typeof repair.shippingAddress === 'string' 
-        ? repair.shippingAddress 
-        : 'Address not available';
-    }
-    
-    const { name, address } = addressData;
-    return `${name}\n${address.street}\n${address.city}, ${address.state} ${address.zip}\n${address.country}`;
-  };
 
   // Function to format repair details for WhatsApp
   const formatRepairDetailsForWhatsApp = () => {

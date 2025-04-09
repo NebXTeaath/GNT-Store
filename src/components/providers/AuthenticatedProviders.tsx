@@ -1,5 +1,5 @@
 //src/components/providers/AuthenticatedProviders.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from "react-router-dom";
 import { UserProfileProvider } from "../../context/UserProfileContext";
 import { WishlistProvider } from "../../context/WishlistContext";
@@ -23,14 +23,9 @@ import WishlistPage from "../../pages/Wishlist/WishlistPage";
 import ResetPassword from "../../context/ResetPassword";
 import ProfileRouteHandler from "@/pages/Profile/ProfileRouteHandler";
 import NewRequestWrapper from "@/pages/repairPage/NewRequestWrapper";
-import { useNavigate } from "react-router-dom";
 
 const AuthenticatedProviders: React.FC = () => {
-  const navigate = useNavigate();
   
-  const handleSuccessfulSubmission = (requestId: string) => {
-    navigate("/repair/history");
-  };
   
   return (
     <UserProfileProvider>
