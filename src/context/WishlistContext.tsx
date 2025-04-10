@@ -1,4 +1,3 @@
-//src\context\WishlistContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import debounce from 'lodash.debounce';
 import { client, databases, APPWRITE_DATABASE_ID } from "@/lib/appwrite";
@@ -15,6 +14,7 @@ export interface WishlistItemBasic {
 // WishlistItem with complete product information from the database
 export interface WishlistItem {
   id: string;
+  slug: string;
   title: string;
   price: number;
   discount_price: number;
@@ -29,6 +29,12 @@ interface ProductDetail {
   cart_price: string | number;
   cart_discount_price: string | number;
   cart_primary_image?: string;
+}
+
+// Interface for product slugs returned from Supabase RPC function
+interface ProductSlug {
+  product_id: string;
+  slug: string;
 }
 
 interface WishlistContextType {
@@ -249,12 +255,50 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     enabled: basicWishlistItems.length > 0 && authChecked && isAuthenticated,
   });
 
-  // Combine product details to create complete wishlist items
+  // Fetch product slugs from Supabase using the wishlist item IDs
+  const { data: productSlugs, isLoading: isSlugsLoading } = useQuery({
+    queryKey: ['wishlistProductSlugs', basicWishlistItems, isAuthenticated],
+    queryFn: async () => {
+      if (basicWishlistItems.length === 0 || !isAuthenticated) return [];
+      try {
+        const productIds = basicWishlistItems.map(item => item.id);
+        const { data, error } = await supabase.rpc('get_product_slugs_by_ids', {
+          product_ids: productIds
+        });
+        if (error) {
+          console.error('Error fetching product slugs:', error);
+          toast.error("Failed to fetch product slugs", {
+            id: "fetch-product-slugs-error",
+            description: "An error occurred while fetching product slugs.",
+            duration: 3000
+          });
+          throw error;
+        }
+        return data || [];
+      } catch (error) {
+        console.error('Error in query function for slugs:', error);
+        return [];
+      }
+    },
+    enabled: basicWishlistItems.length > 0 && authChecked && isAuthenticated,
+  });
+
+  // Combine product details and slugs to create complete wishlist items
   useEffect(() => {
-    if (productDetails && basicWishlistItems.length > 0) {
+    if (productDetails && productSlugs && basicWishlistItems.length > 0) {
+      // Create a map of product ID to slug for quick lookup
+      const slugMap = productSlugs.reduce((acc: Record<string, string>, item: ProductSlug) => {
+        acc[item.product_id] = item.slug;
+        return acc;
+      }, {});
+
       const fullWishlistItems = productDetails.map((product: ProductDetail) => {
+        // Use the slug from the slugMap, fallback to cart_slug from product details if available
+        const slug = slugMap[product.cart_product_id] || product.cart_slug || '';
+        
         return {
           id: product.cart_product_id,
+          slug,
           title: product.cart_product_name,
           price: parseFloat(typeof product.cart_price === 'string' ? product.cart_price : product.cart_price.toString()),
           discount_price: parseFloat(typeof product.cart_discount_price === 'string' ? product.cart_discount_price : product.cart_discount_price.toString()),
@@ -265,7 +309,7 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     } else if (basicWishlistItems.length === 0) {
       setWishlistItems([]);
     }
-  }, [productDetails, basicWishlistItems]);
+  }, [productDetails, productSlugs, basicWishlistItems]);
 
   // Add item to wishlist
   const addToWishlist = (item: Omit<WishlistItem, 'quantity'>) => {
@@ -325,7 +369,7 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
         removeFromWishlist,
         clearWishlist,
         isInWishlist,
-        isLoading: isLoading || isProductsLoading,
+        isLoading: isLoading || isProductsLoading || isSlugsLoading,
         isAuthenticated
       }}
     >

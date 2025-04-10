@@ -1,4 +1,3 @@
-//src\pages\Wishlist\WishlistPage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Trash2, Heart } from "lucide-react";
@@ -8,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { motion, Variants } from "framer-motion";
 import {Pagination} from "@/pages/searchPage/search/Pagination";
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
+import { toast } from "sonner";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -45,6 +45,18 @@ export default function WishlistPage() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Navigate to product detail page
+  const navigateToProduct = (slug: string) => {
+    if (slug) {
+      navigate(`/product/${slug}`);
+    } else {
+      toast.error("Product details not available", {
+        id: "product-not-found",
+        description: "The product information could not be found."
+      });
+    }
   };
 
   // ----- Scroll to Top on Mount -----
@@ -173,7 +185,7 @@ export default function WishlistPage() {
                     custom={index}
                     transition={{ delay: index * 0.05 }}
                     className="bg-[#1a1c23] border border-[#2a2d36] hover:border-[#5865f2] rounded-lg p-4 flex flex-col sm:flex-row items-center sm:items-start gap-4 cursor-pointer transition-colors duration-300"
-                    onClick={() => navigate(`/product/${item.id}`)}
+                    onClick={() => navigateToProduct(item.slug)}
                   >
                     <div className="w-24 h-24 bg-[#2a2d36] rounded-md overflow-hidden">
                       <img src={item.image || "/placeholder.svg"} alt={item.title} className="w-full h-full object-cover" />

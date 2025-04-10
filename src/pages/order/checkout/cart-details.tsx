@@ -9,14 +9,14 @@ import { useAuth } from "@/context/AuthContext";
 import LoginModal from "@/pages/Login/LoginModal";
 import DiscountCodeInput from "@/pages/order/checkout/Discount/DiscountCodeInput";
 import { CartDetailsSkeleton } from "./CartDetailsSkeleton";
-import { Pagination } from "@/pages/searchPage/search/Pagination"; // Corrected import path assumption
+import { Pagination } from "@/pages/searchPage/search/Pagination";
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
 
 const ITEMS_PER_PAGE = 5;
 
 export default function CartDetails() {
     const navigate = useNavigate();
-    const { cartItems, updateQuantity, removeItem, cartSubtotal, /* cartDiscountAmount, */ cartTotal, isLoading } = useCart(); // cartDiscountAmount might be unused here, handled by context/DiscountInput
+    const { cartItems, updateQuantity, removeItem, cartSubtotal, /* cartDiscountAmount, */ cartTotal, isLoading } = useCart();
     const { isAuthenticated } = useAuth();
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -36,6 +36,17 @@ export default function CartDetails() {
     const decreaseQuantity = (e: React.MouseEvent, id: string, currentQuantity: number) => { e.stopPropagation(); if (currentQuantity > 1) { updateQuantity(id, currentQuantity - 1); } };
     const increaseQuantity = (e: React.MouseEvent, id: string, currentQuantity: number) => { e.stopPropagation(); if (currentQuantity < 99) { updateQuantity(id, currentQuantity + 1); } else { toast.error("Maximum quantity is 99", { id: "max-quantity-toast" }); } };
     const handlePageChange = (page: number) => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: "smooth" }); };
+    
+    // New handler function for product navigation using slug
+    const navigateToProduct = (item: any) => {
+        if (item.slug) {
+            navigate(`/product/${item.slug}`);
+        } else {
+            // Fallback to UUID if slug is not available
+            navigate(`/product/${item.id}`);
+            console.warn(`Product slug not found for ID: ${item.id}`);
+        }
+    };
 
     // --- Effects ---
     useEffect(() => { window.scrollTo({ top: 0, behavior: "auto" }); }, []); // Use auto on mount
@@ -63,7 +74,11 @@ export default function CartDetails() {
                             <>
                                 <div className="space-y-4">
                                     {currentCartItems.map((item) => (
-                                        <div key={item.id} onClick={() => navigate(`/product/${item.id}`)} className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-4 flex flex-col sm:flex-row items-center sm:items-start gap-4 cursor-pointer hover:border-[#5865f2] transition-colors duration-200">
+                                        <div 
+                                            key={item.id} 
+                                            onClick={() => navigateToProduct(item)} 
+                                            className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-4 flex flex-col sm:flex-row items-center sm:items-start gap-4 cursor-pointer hover:border-[#5865f2] transition-colors duration-200"
+                                        >
                                             <div className="w-24 h-24 bg-[#2a2d36] rounded-md overflow-hidden flex-shrink-0"> <img src={item.image || "/placeholder.svg"} alt={item.title} className="w-full h-full object-cover" /> </div>
                                             <div className="flex-1 flex flex-col sm:flex-row justify-between items-center sm:items-start w-full">
                                                 <div className="text-center sm:text-left mb-4 sm:mb-0 flex-grow mr-4"> <h3 className="font-medium text-lg line-clamp-2">{item.title}</h3> </div>
@@ -86,19 +101,17 @@ export default function CartDetails() {
 
                     {/* Order Summary Section */}
                     <div className="lg:w-1/3 mt-8 lg:mt-0">
-                        {/* --- FIX: Added sticky, top offset, max-height and overflow --- */}
-                        {/* Adjust top-20 (5rem) and bottom padding (2rem) if needed */}
                         <div className="sticky top-20 max-h-[calc(100vh-5rem-2rem)] overflow-y-auto bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-6">
                             <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-                            <div className="space-y-3 mb-6"> {/* Added mb-6 */}
+                            <div className="space-y-3 mb-6">
                                 <div className="flex justify-between"> <span className="text-gray-400">Subtotal</span> <span>{formatCurrencyWithSeparator(cartSubtotal)}</span> </div>
                                 {/* Use DiscountCodeInput which handles its own display logic */}
                                 <DiscountCodeInput subtotal={cartSubtotal} />
                                 {/* Total is calculated within DiscountCodeInput context or useCart */}
-                                <div className="pt-3 border-t border-[#2a2d36]"> <div className="flex justify-between font-bold text-lg"> {/* Increased size */} <span>Total</span> <span>{formatCurrencyWithSeparator(cartTotal)}</span> </div> </div>
+                                <div className="pt-3 border-t border-[#2a2d36]"> <div className="flex justify-between font-bold text-lg"> <span>Total</span> <span>{formatCurrencyWithSeparator(cartTotal)}</span> </div> </div>
                             </div>
                             <Button
-                                className="w-full bg-[#5865f2] hover:bg-[#4752c4] text-white py-3 text-base font-semibold transition-colors" // Adjusted padding/size
+                                className="w-full bg-[#5865f2] hover:bg-[#4752c4] text-white py-3 text-base font-semibold transition-colors"
                                 onClick={proceedToSummary}
                                 disabled={cartItems.length === 0}
                             >
@@ -113,7 +126,7 @@ export default function CartDetails() {
             <LoginModal
                 open={loginModalOpen}
                 onOpenChange={setLoginModalOpen}
-                onLoginSuccess={proceedToSummary} // Proceed after successful login
+                onLoginSuccess={proceedToSummary}
             />
         </div>
     );

@@ -14,7 +14,7 @@ export interface CartItemBasic {
   quantity: number; 
 }
 
-// CartItem with complete product information from the database
+// Updated CartItem with slug information
 export interface CartItem {
   id: string;
   title: string;
@@ -22,6 +22,7 @@ export interface CartItem {
   discount_price: number;
   quantity: number;
   image: string;
+  slug: string; // Added slug property
 }
 
 // Interface for product details returned from Supabase
@@ -279,7 +280,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   }, [basicCartItems, userId, authChecked]);
 
-  // Fetch product details from Supabase using the cart items
+  // Modified to use get_cart_product_info Supabase function that includes slug information
   const { data: productDetails, isLoading: isProductsLoading } = useQuery({
     queryKey: ['cartProducts', basicCartItems],
     queryFn: async () => {
@@ -287,6 +288,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
       try {
         const productIds = basicCartItems.map(item => item.id);
+        // This RPC function should return product details including slugs
         const { data, error } = await supabase.rpc('get_cart_product_info', { product_uuids: productIds });
 
         if (error) {
@@ -308,7 +310,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     enabled: basicCartItems.length > 0 && authChecked,
   });
 
-  // Combine product details with quantities to create complete cart items
+  // Combine product details with quantities to create complete cart items (now including slug)
   useEffect(() => {
     if (productDetails && basicCartItems.length > 0) {
       const fullCartItems = productDetails.map((product: ProductDetail) => {
@@ -322,6 +324,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           discount_price: parseFloat(typeof product.cart_discount_price === 'string' ? product.cart_discount_price : product.cart_discount_price.toString()),
           quantity,
           image: product.cart_primary_image || "/placeholder.svg",
+          slug: product.cart_slug // Include the slug in cart items
         };
       });
       setCartItems(fullCartItems);

@@ -240,6 +240,7 @@ export default function ProductDetailsPage() {
       }
       addToCart({
         id: productData.o_product_id,
+        slug: productData.o_slug,
         title: productData.o_product_name,
         price: parseFloat(productData.o_price),
         discount_price: parseFloat(productData.o_discount_price),
@@ -263,6 +264,7 @@ export default function ProductDetailsPage() {
       } else {
         addToWishlist({
           id: productData.o_product_id,
+          slug: productData.o_slug,
           title: productData.o_product_name,
           price: parseFloat(productData.o_price),
           discount_price: parseFloat(productData.o_discount_price),
