@@ -520,7 +520,7 @@ export default function ProductDetailsPage() {
                                         {productData.o_similar_products.map((product: SimilarProduct, index) => {
                                             const similarPrice = product.price; const similarDiscountPrice = product.discount_price;
                                             return (
-                                                <motion.div key={product.product_id} variants={fadeIn} custom={index} transition={{ delay: index * 0.05 }} onClick={() => navigate(`/product/${product.product_id}`)} className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg overflow-hidden hover:border-[#5865f2] transition-all duration-300 cursor-pointer flex flex-col group" whileHover={{ y: -5, boxShadow: "0 10px 15px -3px rgba(88, 101, 242, 0.2), 0 4px 6px -4px rgba(88, 101, 242, 0.1)" }}>
+                                                <motion.div key={product.slug} variants={fadeIn} custom={index} transition={{ delay: index * 0.05 }} onClick={() => navigate(`/product/${product.slug}`)} className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg overflow-hidden hover:border-[#5865f2] transition-all duration-300 cursor-pointer flex flex-col group" whileHover={{ y: -5, boxShadow: "0 10px 15px -3px rgba(88, 101, 242, 0.2), 0 4px 6px -4px rgba(88, 101, 242, 0.1)" }}>
                                                     <div className="aspect-square relative w-full">
                                                       <img 
                                                         src={product.primary_image || "/placeholder.svg"} 
