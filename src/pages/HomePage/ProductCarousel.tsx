@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Define your Product type (adjust if you already have a global type)
 export interface Product {
   product_id: string;
+  slug: string;
   primary_image: string | null;
   product_name: string;
   price: number;
@@ -200,7 +201,7 @@ export function ProductCarousel({
           <div className="flex">
             {products.map((product) => (
               <div
-                key={product.product_id}
+                key={product.slug}
                 className="flex-grow-0 flex-shrink-0 basis-1/2 sm:basis-1/3 lg:basis-1/4 min-w-0 px-2" // Keep padding for spacing between cards
               >
                 <ProductCard product={product} />

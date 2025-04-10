@@ -5,6 +5,7 @@ import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
 
 interface Product {
   product_id: string;
+  slug: string;
   primary_image: string | null;
   product_name: string;
   is_bestseller?: boolean;
@@ -24,8 +25,8 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div
-      onClick={() => navigate(`/product/${product.product_id}`)}
-      data-href={`/product/${product.product_id}`}
+      onClick={() => navigate(`/product/${product.slug}`)}
+      data-href={`/product/${product.slug}`}
       className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg overflow-hidden hover:border-[#5865f2] transition-colors duration-300 cursor-pointer"
     >
       <div className="aspect-square relative">

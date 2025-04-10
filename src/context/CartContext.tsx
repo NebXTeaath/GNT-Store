@@ -27,6 +27,7 @@ export interface CartItem {
 // Interface for product details returned from Supabase
 interface ProductDetail {
   cart_product_id: string;
+  cart_slug: string;
   cart_product_name: string;
   cart_price: string | number;
   cart_discount_price: string | number;

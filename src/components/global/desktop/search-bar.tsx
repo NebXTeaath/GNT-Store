@@ -218,8 +218,8 @@ export function SearchBar({
                 {searchResults.map((result) => (
                   <div
                     key={result.product_id}
-                    onClick={() => handleResultClick(result.product_id)}
-                    data-href={`/product/${result.product_id}`}
+                    onClick={() => handleResultClick(result.slug)}
+                    data-href={`/product/${result.slug}`}
                     className="flex items-center gap-3 p-2 hover:bg-[#2a2d36] rounded-md cursor-pointer"
                   >
                     {result.primary_image && (

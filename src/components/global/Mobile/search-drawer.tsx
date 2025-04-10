@@ -196,7 +196,7 @@ export function SearchDrawer({ open, onOpenChange }: SearchDrawerProps) {
                 {results.map((result) => (
                   <div
                     key={result.product_id}
-                    onClick={() => handleResultClick(result.product_id)}
+                    onClick={() => handleResultClick(result.slug)}
                     className="flex items-center gap-3 p-2 rounded hover:bg-[#2a2d36] cursor-pointer"
                     role="listitem"
                   >

@@ -1,6 +1,7 @@
 //src/types/product.ts
 export interface Product {
   product_id: string
+  slug: string
   product_name: string
   product_description: string
   price: number
@@ -21,6 +22,7 @@ export interface Product {
 
 export interface ProductSearchResult {
   product_id: string
+  slug: string
   product_name: string
   product_description: string
   price: number
