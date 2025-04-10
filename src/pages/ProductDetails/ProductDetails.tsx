@@ -521,7 +521,34 @@ export default function ProductDetailsPage() {
                                             const similarPrice = product.price; const similarDiscountPrice = product.discount_price;
                                             return (
                                                 <motion.div key={product.product_id} variants={fadeIn} custom={index} transition={{ delay: index * 0.05 }} onClick={() => navigate(`/product/${product.product_id}`)} className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg overflow-hidden hover:border-[#5865f2] transition-all duration-300 cursor-pointer flex flex-col group" whileHover={{ y: -5, boxShadow: "0 10px 15px -3px rgba(88, 101, 242, 0.2), 0 4px 6px -4px rgba(88, 101, 242, 0.1)" }}>
-                                                    <div className="aspect-square relative w-full"><img src={product.primary_image || "/placeholder.svg"} alt={product.product_name} className="w-full h-full object-cover" loading="lazy"/><div className="absolute top-2 right-2 flex flex-col gap-1">{product.is_bestseller && (<div className="bg-[#EFBF04] text-[#1f10f7] font-bold text-xs px-1.5 py-0.5 rounded border border-[#EFBF04] shadow-sm">Popular</div>)}{similarPrice > similarDiscountPrice && (<div className="bg-[#ff4d4d] text-white text-xs font-semibold px-1.5 py-0.5 rounded shadow-sm">{calculateDiscountPercentage(similarPrice, similarDiscountPrice)}%</div>)}</div><div className="absolute bottom-2 left-2 bg-[#1a1c23]/80 backdrop-blur-sm text-white text-xs px-1.5 py-0.5 rounded border border-[#2a2d36]">{capitalize(product.condition)}</div></div>
+                                                    <div className="aspect-square relative w-full">
+                                                      <img 
+                                                        src={product.primary_image || "/placeholder.svg"} 
+                                                        alt={product.product_name} 
+                                                        className="w-full h-full object-cover" 
+                                                        loading="lazy"
+                                                      />
+                                                      {/* Top right badges container - keep "Popular" badge here */}
+                                                      <div className="absolute top-2 right-2 flex flex-col gap-1">
+                                                        {product.is_bestseller && (
+                                                          <div className="bg-[#EFBF04] text-[#1f10f7] font-bold text-xs px-1.5 py-0.5 rounded border border-[#EFBF04] shadow-sm">
+                                                            Popular
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                      
+                                                      {/* Bottom left - condition */}
+                                                      <div className="absolute bottom-2 left-2 bg-[#1a1c23]/80 backdrop-blur-sm text-white text-xs px-1.5 py-0.5 rounded border border-[#2a2d36]">
+                                                        {capitalize(product.condition)}
+                                                      </div>
+                                                      
+                                                      {/* Bottom right - discount percentage */}
+                                                      {similarPrice > similarDiscountPrice && (
+                                                        <div className="absolute bottom-2 right-2 bg-[#ff4d4d] text-white text-xs font-semibold px-1.5 py-0.5 rounded shadow-sm">
+                                                          {calculateDiscountPercentage(similarPrice, similarDiscountPrice)}%
+                                                        </div>
+                                                      )}
+                                                    </div>
                                                     <div className="p-3 flex flex-col flex-grow"><h3 className="font-semibold mb-1.5 line-clamp-2 h-12 text-sm md:text-base group-hover:text-[#5865f2] transition-colors">{product.product_name}</h3><div className="mt-auto"><div className="flex flex-col items-start"><p className="text-[#5865f2] font-bold text-base md:text-lg">{formatCurrencyWithSeparator(similarDiscountPrice)}</p>{similarPrice > similarDiscountPrice && (<p className="text-gray-400 text-xs line-through">{formatCurrencyWithSeparator(similarPrice)}</p>)}</div></div></div>
                                                 </motion.div>
                                             );
