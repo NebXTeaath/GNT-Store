@@ -11,8 +11,8 @@ import { createServerOrder, UserProfile as OrderUtilsUserProfile } from "@/pages
 import { useAuth } from "@/context/AuthContext";
 import { useDiscount } from "@/context/DiscountContext";
 import DiscountCodeInput from "@/pages/order/checkout/Discount/DiscountCodeInput";
-import { useLoading } from "@/context/LoadingContext";
-import LoadingScreen from "@/components/global/LoadingScreen";
+import { useLoading } from "@/components/global/Loading/LoadingContext";
+import LoadingScreen from "@/components/global/Loading/LoadingScreen";
 import { formatDiscountInfo } from '@/pages/order/formatDiscountInfo';
 import { useUserProfileQuery, useUpdateProfileMutation } from '@/components/global/hooks/useUserProfileData';
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";

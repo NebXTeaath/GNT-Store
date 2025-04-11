@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { account } from "../lib/appwrite";
-import { useLoading } from "./LoadingContext";
+import { useLoading } from "../components/global/Loading/LoadingContext";
 import { toast } from "sonner";
 import { useUpdateProfileEmailMutation, useUserProfileQuery } from '@/components/global/hooks/useUserProfileData';
 

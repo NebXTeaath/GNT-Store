@@ -15,7 +15,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { useLoading } from "@/context/LoadingContext"
+import { useLoading } from "@/components/global/Loading/LoadingContext"
 
 // Define the nested product categories structure type
 type ProductCategoriesStructure = {

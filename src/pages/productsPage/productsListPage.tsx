@@ -16,7 +16,7 @@ import { Pagination } from "@/pages/searchPage/search/Pagination";
 import { Product } from "@/lib/types/product";
 import { useProducts } from "@/pages/productsPage/useProducts";
 import { ProductCarousel } from "@/pages/HomePage/ProductCarousel";
-import { useLoading } from "@/context/LoadingContext";
+import { useLoading } from "@/components/global/Loading/LoadingContext";
 
 // --- Helper Functions ---
 const capitalize = (text: string) => {

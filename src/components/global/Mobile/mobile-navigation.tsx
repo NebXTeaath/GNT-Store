@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, Wrench, Search, ShoppingCart, Store } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import { useLoading } from "@/context/LoadingContext";
+import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { SearchDrawer } from "@/components/global/Mobile/search-drawer";
 import { ShopDrawer } from "@/components/global/Mobile/shop-drawer";
 import LoginModal from "@/pages/Login/LoginModal";

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { usePincodeValidator } from "../pincodeValidator";
-import { useLoading } from "@/context/LoadingContext";
+import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useProfileService } from "../profileService";

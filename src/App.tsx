@@ -5,8 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from 'sonner';
 // Import providers
 import { AuthProvider } from "@/context/AuthContext";
-import { LoadingProvider, useLoading } from "@/context/LoadingContext";
-import LoadingScreen from "@/components/global/LoadingScreen";
+import { LoadingProvider, useLoading } from "@/components/global/Loading/LoadingContext";
+import LoadingScreen from "@/components/global/Loading/LoadingScreen";
+import LoadingRouteListener from "@/components/global/Loading/LoadingRouteListener";
 
 // Import the middle click navigation hook
 import useMiddleClickNavigation from "@/components/global/hooks/useMiddleClickNavigation.ts";
@@ -34,6 +35,7 @@ const AppContent = () => {
   return (
     <Router>
       <MiddleClickNavigationProvider>
+      <LoadingRouteListener />
         <Toaster 
           position="top-center"
           toastOptions={{

@@ -19,7 +19,7 @@ import type { ProductSearchResult } from "@/lib/types/product"
 import type { SearchSuggestion } from "@/lib/types/search"
 import { useDebounce } from "@/components/global/hooks/use-debounce"
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat"
-import { useLoading } from "@/context/LoadingContext" // Import the loading context
+import { useLoading } from "@/components/global/Loading/LoadingContext" // Import the loading context
 
 interface SearchDrawerProps {
   open: boolean

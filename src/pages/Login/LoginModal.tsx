@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLoading } from "@/context/LoadingContext"; // Import useLoading hook
+import { useLoading } from "@/components/global/Loading/LoadingContext"; // Import useLoading hook
 
 interface LoginModalProps {
   open: boolean;

@@ -18,7 +18,7 @@ import { useWindowSize } from "@/components/global/hooks/useWindowSize";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile";
 import LoginModal from "@/pages/Login/LoginModal";
-import { useLoading } from "@/context/LoadingContext";
+import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { ProfileIndex } from "@/pages/Profile/components/ProfileIndex";
 import { OffersPopover } from "@/components/global/OffersPopover";
 

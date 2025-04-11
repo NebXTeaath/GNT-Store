@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { usePincodeValidator } from "../pincodeValidator";
-import { useLoading } from "@/context/LoadingContext";
+import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from "@/components/ui/drawer";
 import { useProfileService } from "../profileService";

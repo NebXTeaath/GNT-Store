@@ -1,7 +1,7 @@
 // src/context/LoadingContext.tsx
 import React, { createContext, useContext, useState } from "react";
 import ReactDOM from "react-dom";
-import LoadingScreen from "@/components/global/LoadingScreen";
+import LoadingScreen from "@/components/global/Loading/LoadingScreen";
 
 interface LoadingContextType {
   isLoading: boolean;
