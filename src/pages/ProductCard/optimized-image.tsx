@@ -1,5 +1,5 @@
 // src/pages/ProductCard/optimized-image.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from "@/lib/utils";
 
 interface OptimizedImageProps {
@@ -47,7 +47,7 @@ export function OptimizedImage({
   sizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw',
   isAboveTheFold = false,
 }: OptimizedImageProps) {
-  const [imgSrc, setImgSrc] = useState<string>(src || placeholder);
+  const [, setImgSrc] = useState<string>(src || placeholder);
   const [isLoaded, setIsLoaded] = useState(false);
   
   // Set proper loading and priority attributes for above-the-fold images

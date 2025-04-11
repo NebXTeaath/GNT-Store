@@ -1,11 +1,9 @@
 // src/pages/HomePage/ProductCarousel.tsx
-import * as React from "react";
 import { useRef, useState, useEffect, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ProductCard } from "@/pages/ProductCard/ProductCard";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useInView } from 'react-intersection-observer';
 
 // Define your Product type (adjust if you already have a global type)
