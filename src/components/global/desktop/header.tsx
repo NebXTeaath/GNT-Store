@@ -215,29 +215,20 @@ export default function Header() {
           <OffersPopover />
         </div>
         {/* Logo Section */}
-<div className="flex-1 flex justify-center md:justify-start md:flex-none md:mr-4">
-  <Link to="/" className="flex items-center gap-2">
-    <div className="w-10 h-10 relative"> {/* Fixed aspect ratio container */}
-      <img 
-        src={Logo || "/placeholder.svg"} 
-        alt="GNT Logo"
-        className="absolute inset-0 w-full h-full object-contain transform scale-300"
-        width="40"  // Explicit dimensions
-        height="40" 
-        loading="eager" // Prioritize logo load
-      />
-    </div>
-    <span className="sr-only">GNT - Games & Tech</span>
-  </Link>
-</div>
+        <div className="flex-1 flex justify-center md:justify-start md:flex-none md:mr-4">
+          <Link to="/" className="flex items-center gap-2">
+            <img src={Logo || "/placeholder.svg"} alt="GNT Logo" className={`w-10 h-10 transform scale-300 ${isMobile ? 'origin-center' : 'origin-left'}`} />
+            <span className="sr-only">GNT - Games & Tech</span>
+          </Link>
+        </div>
         {/* Desktop Navigation & Search */}
         <div className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 flex-1 justify-center">
           <Sheet open={catalogSheetOpen} onOpenChange={setCatalogSheetOpen}>
             <SheetTrigger asChild>
-            <Button
+              <Button
                 variant="outline"
                 size="sm"
-                className="min-w-[60px] flex items-center gap-1 bg-[#1a1c23] text-gray-300 hover:text-white border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out"
+                className="flex items-center gap-1 bg-[#1a1c23] text-gray-300 hover:text-white border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out"
               >
                 Shop <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
@@ -309,12 +300,12 @@ export default function Header() {
             </SheetContent>
           </Sheet>
           <SearchBar className="w-full" size={searchBarSize} />
-            <Link
+          <Link
             to="/repair-home"
-            className="min-w-[120px] flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out px-3 py-1 rounded-md"
-            >
+            className="flex items-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out px-3 py-1 rounded-md"
+          >
             {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"}
-            </Link>
+          </Link>
         </div>
         {/* Right-side Links */}
         <div className="flex items-center gap-2 lg:gap-4 justify-end md:w-auto w-1/4">

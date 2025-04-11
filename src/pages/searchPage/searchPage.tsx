@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useClientFilteredSearch } from "@/pages/searchPage/hooks/useClientFilteredSearch";
 import { ActiveFilters, FilterContent } from "@/pages/searchPage/search/Filters";
 import { Pagination } from "@/pages/searchPage/search/Pagination";
-import { ProductCard } from "@/pages/ProductCard/ProductCard";
+import { ProductCard } from "@/pages/searchPage/search/ProductCard";
 import { useDebounce } from "@/components/global/hooks/use-debounce";
 
 export default function SearchPage() {

@@ -137,26 +137,17 @@ export function SearchBar({
   }
 
   return (
-    <div 
-    ref={searchRef} 
-    className={cn(
-      "relative w-full min-w-0", 
-      getSizeClasses(), 
-      className
-    )}
-  >
-    <form onSubmit={handleSearch} className="w-full">
-      {/* Search input container with fixed height */}
-      <div
-        className={cn(
-          "relative flex items-center border hover:border-[#5865f2] border-[#2a2d36] rounded-md px-3 py-1.5 bg-[#1a1c23] cursor-text",
-          "h-10" ,
-          isFocused && "ring-1 ring-[#5865f2]",
-          size === "small" && "px-2 py-1 h-8", 
-          size === "x-small" && "px-1.5 py-0.5 h-7"
-        )}
-        onClick={focusInput}
-      >
+    <div ref={searchRef} className={cn("relative w-full min-w-0", getSizeClasses(), className)}>
+      <form onSubmit={handleSearch} className="w-full">
+        <div
+          className={cn(
+            "relative flex items-center border hover:border-[#5865f2] border-[#2a2d36] rounded-md px-3 py-1.5 bg-[#1a1c23] cursor-text",
+            isFocused && "ring-1 ring-[#5865f2]",
+            size === "small" && "px-2 py-1", // Smaller padding for small size
+            size === "x-small" && "px-1.5 py-0.5" // Even smaller padding for x-small size
+          )}
+          onClick={focusInput}
+        >
           <input
             ref={inputRef}
             type="text"
@@ -201,13 +192,9 @@ export function SearchBar({
         </div>
       </form>
 
-      {/* Results dropdown with fixed positioning */}
-  {isFocused && (searchResults.length > 0 || didYouMean || suggestions.length > 0) && (
-    <div className="fixed left-0 right-0 top-full mt-1 rounded-md border border-[#2a2d36] bg-[#1a1c23] shadow-lg z-50 max-h-[80vh] overflow-y-auto"
-         style={{
-           width: searchRef.current?.offsetWidth + 'px',
-           left: searchRef.current?.getBoundingClientRect().left + 'px'
-         }}>
+      {/* Search results dropdown */}
+      {isFocused && (searchResults.length > 0 || didYouMean || suggestions.length > 0) && (
+        <div className="absolute left-0 right-0 top-full mt-1 rounded-md border border-[#2a2d36] bg-[#1a1c23] shadow-lg z-50 max-h-[80vh] overflow-y-auto">
           {/* "Did you mean" suggestion */}
           {didYouMean && (
             <div className="p-2 border-b border-[#2a2d36]">

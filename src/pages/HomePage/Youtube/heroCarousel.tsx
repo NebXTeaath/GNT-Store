@@ -211,7 +211,7 @@ export const HeroCarousel: React.FC = () => {
             <img
               src={slide.mediaUrl}
               alt={slide.altText}
-              className="absolute w-[105%] h-[60%] object-cover top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+              className="absolute w-[105%] h-[105%] object-cover top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
               onLoad={() => handleSlideLoaded(index)}
             />
           </div>
@@ -232,12 +232,7 @@ export const HeroCarousel: React.FC = () => {
       {/* Carousel container */}
       <div 
         ref={carouselRef}
-        className="relative overflow-hidden"
-  style={{
-    height: "0",
-    paddingTop: "35%", // 16:9 aspect ratio
-  }}
-
+        className="relative overflow-hidden h-96 md:h-[500px] lg:h-[600px]"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -246,7 +241,7 @@ export const HeroCarousel: React.FC = () => {
         onMouseLeave={handleMouseLeave}
       >
         {/* Slides */}
-        <div className="absolute inset-0">
+        <div className="relative h-full">
           {heroSlidesConfig.map((slide, index) => (
             <div
               key={slide.id}
