@@ -23,7 +23,7 @@
       "url": "/Consoles?source=pwa",
       "icons": [
         {
-          "src": "/icons/gamepad-2-96x96.pmg",
+          "src": "/icons/gamepad-2-96x96.png",
           "sizes": "96x96"
         }
       ]
