@@ -22,7 +22,6 @@ import WishlistPage from "../../pages/Wishlist/WishlistPage";
 import ResetPassword from "../../context/ResetPassword";
 import ProfileRouteHandler from "@/pages/Profile/ProfileRouteHandler";
 import NewRequestWrapper from "@/pages/repairPage/NewRequestWrapper";
-import LoadingRouteListener from "@/components/global/Loading/LoadingRouteListener";
 
 const AuthenticatedProviders: React.FC = () => {
   return (
