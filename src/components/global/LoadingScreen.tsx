@@ -48,7 +48,7 @@ const LoadingScreen = ({ message = "Updating your Experience..." }: LoadingScree
       className="fixed inset-0 bg-[#1a1c23]/90 backdrop-blur-sm flex flex-col items-center justify-center z-50"
     >
         {/* Logo */}
-        <img src="/logo.svg" alt="GNT" className="w-80 h-25 mb-4" />
+        <img src="src/assets/logo.svg" alt="GNT" className="w-80 h-25 mb-4" />
 
 
       <motion.div className="flex space-x-2">
