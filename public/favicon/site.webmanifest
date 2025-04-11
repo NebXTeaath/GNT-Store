@@ -23,7 +23,7 @@
       "url": "/Consoles?source=pwa",
       "icons": [
         {
-          "src": "/icons/gamepad-2.svg",
+          "src": "/icons/gamepad-2-96x96.pmg",
           "sizes": "96x96"
         }
       ]
@@ -35,7 +35,7 @@
       "url": "/Computers?source=pwa",
       "icons": [
         {
-          "src": "/icons/cpu.svg",
+          "src": "/icons/cpu--96x96.png",
           "sizes": "96x96"
         }
       ]
