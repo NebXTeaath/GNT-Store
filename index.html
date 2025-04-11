@@ -1,42 +1,119 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="/src/index.css" />
-    <title>GNT</title>
-    <style>
-      @keyframes backgroundAnimation {
-    0% { background: rgba(5, 4, 4, 0.9); }
-    33% { background: rgba(102, 138, 102, 0.9); }
-    66% { background: rgba(248, 181, 218, 0.9); }
-    100% { background: rgba(5, 4, 4, 0.9); }
-  }
-      #initial-loading {
-        animation: backgroundAnimation 10s ease-in-out infinite;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Custom animated splash screen -->
-    <div
-      id="initial-loading"
-      class="fixed inset-0 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-opacity duration-300"
-    >
-      <!-- Insert Logo -->
-      <img src="./logo.svg" alt="GNT" class="w-80 h-25 mb-4" />
-      <div class="flex space-x-2">
-        <div class="h-4 w-4 bg-[#5865f2] rounded-full animate-pulse"></div>
-        <div class="h-4 w-4 bg-[#5865f2] rounded-full animate-pulse"></div>
-        <div class="h-4 w-4 bg-[#5865f2] rounded-full animate-pulse"></div>
-      </div>
-      <p class="mt-6 text-base font-medium text-gray-150">
-        Loading your Experience...
-      </p>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Title & Description -->
+  <title>GNT – Next-Gen Console & PC Marketplace</title>
+  <meta name="description" content="Explore the future of gaming tech with GNT – Your go-to marketplace for premium consoles and computers." />
+  
+  <!-- Open Graph (for social sharing) -->
+  <meta property="og:title" content="GNT – Next-Gen Console & PC Marketplace" />
+  <meta property="og:description" content="Explore the future of gaming tech with GNT – Your go-to marketplace for premium consoles and computers." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/logo.svg" />
+  <meta property="og:url" content="https://gnt-store.vercel.app" />
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/src/index.css" />
+  
+  <!-- Resource preloading -->
+  <link rel="preload" href="./logo.svg" as="image" />
+  
+  <!-- Favicon configurations -->
+  <link rel="icon" type="image/png" href="public/favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="public/favicon/favicon.svg" />
+  <link rel="shortcut icon" href="public/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="public/favicon/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="MyWebSite" />
+  <link rel="manifest" href="public/favicon/site.webmanifest" />
+  
+  <style>
+    @keyframes backgroundAnimation {
+      0% { background-color: rgba(5, 4, 4, 0.9); }
+      33% { background-color: rgba(102, 138, 102, 0.9); }
+      66% { background-color: rgba(248, 181, 218, 0.9); }
+      100% { background-color: rgba(5, 4, 4, 0.9); }
+    }
+   
+    #initial-loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      transition: opacity 300ms;
+      animation: backgroundAnimation 10s ease-in-out infinite;
+      backdrop-filter: blur(4px);
+    }
+   
+    .loading-dot {
+      height: 1rem;
+      width: 1rem;
+      background-color: #5865f2;
+      border-radius: 9999px;
+      animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+   
+    .loading-dot:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+   
+    .loading-dot:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+   
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+   
+    .loading-text {
+      margin-top: 1.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+   
+    .loading-dots {
+      display: flex;
+      gap: 0.5rem;
+    }
+   
+    .logo {
+      width: 20rem;
+      height: auto;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Custom animated splash screen -->
+  <div id="initial-loading">
+    <img src="./logo.svg" alt="GNT Logo" class="logo" />
+    <div class="loading-dots">
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
     </div>
-
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <p class="loading-text">Loading your Experience...</p>
+  </div>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <script>
+    // Hide loading screen once content is loaded
+    window.addEventListener('load', function() {
+      const loadingScreen = document.getElementById('initial-loading');
+      if (loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => {
+          loadingScreen.style.display = 'none';
+        }, 300);
+      }
+    });
+  </script>
+</body>
 </html>

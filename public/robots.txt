@@ -1,0 +1,48 @@
+# GNT - Next-Gen Console & PC Marketplace
+# https://gnt-store.vercel.app
+
+# Allow all web crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and account pages
+Disallow: /admin/
+Disallow: /account/private/
+Disallow: /checkout/
+Disallow: /cart/
+
+# Allow social media crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+# Don't crawl search results or filtered listings
+Disallow: */search?*
+Disallow: */filter?*
+
+# Don't index duplicate pages
+Disallow: *?sort=*
+Disallow: *?page=*
+
+# Image crawlers
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /products/
+Allow: /categories/
+
+# Sitemap location
+Sitemap: https://gnt-store.vercel.app/sitemap.xml
+
+# Crawl delay for bots
+Crawl-delay: 10
