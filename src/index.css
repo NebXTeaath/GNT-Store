@@ -8,6 +8,26 @@
 }
 
 
+/* Ensure all images have a default aspect ratio until loaded */
+img {
+  aspect-ratio: attr(width) / attr(height);
+}
+
+/* Prevent layout shifts for dynamically loaded content */
+.content-placeholder {
+  min-height: 200px;
+}
+
+/* Ensure form elements maintain their size */
+input, select, textarea {
+  box-sizing: border-box;
+}
+
+/* For elements that might cause CLS when loading */
+.cls-container {
+  contain: layout paint;
+}
+
 .dark-theme-scrollbar {
   /* Customize scrollbar for webkit browsers (Chrome, Safari, newer Edge) */
   &::-webkit-scrollbar {

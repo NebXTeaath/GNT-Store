@@ -11,7 +11,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ProductCard } from "@/pages/searchPage/search/ProductCard";
+import { ProductCard } from "@/pages/ProductCard/ProductCard";
 import { Pagination } from "@/pages/searchPage/search/Pagination";
 import { Product } from "@/lib/types/product";
 import { useProducts } from "@/pages/productsPage/useProducts";
