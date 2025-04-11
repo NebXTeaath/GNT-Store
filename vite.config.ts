@@ -14,7 +14,6 @@ export default defineConfig(({ command, mode }) => {
       react(),
       tailwindcss(),
       svgr({
-        // Add SVG optimization options
         svgrOptions: {
           svgo: true,
           svgoConfig: {
@@ -23,7 +22,7 @@ export default defineConfig(({ command, mode }) => {
                 name: 'preset-default',
                 params: {
                   overrides: {
-                    // Enable minimization options
+                    // Preserve viewBox which is needed for SVG responsiveness
                     removeViewBox: false,
                     cleanupIDs: true,
                   },
@@ -191,64 +190,48 @@ export default defineConfig(({ command, mode }) => {
       },
       // Set chunk size warning limit correctly
       chunkSizeWarningLimit: 800,
-      // Improve chunk splitting
+      // Simpler chunking strategy that keeps related dependencies together
       rollupOptions: {
         output: {
-          manualChunks: (id) => {
-            // React and related packages
-            if (id.includes('node_modules/react/') || 
-                id.includes('node_modules/react-dom/') || 
-                id.includes('node_modules/react-router-dom/')) {
-              return 'react-vendor';
-            }
-            
-            // UI component libraries
-            if (id.includes('node_modules/@radix-ui/')) {
-              return 'ui-components';
-            }
-            
-            // Lucide icons
-            if (id.includes('node_modules/lucide-react/')) {
-              return 'lucide';
-            }
-            
-            // Markdown related
-            if (id.includes('node_modules/react-markdown')) {
-              return 'markdown';
-            }
-            
-            // Animation libraries
-            if (id.includes('node_modules/framer-motion')) {
-              return 'motion';
-            }
-            
-            // Data fetching libraries
-            if (id.includes('node_modules/@supabase/') || 
-                id.includes('node_modules/@tanstack/react-query') || 
-                id.includes('node_modules/appwrite')) {
-              return 'data-fetching';
-            }
-            
-            // Utility libraries
-            if (id.includes('node_modules/tailwind-merge') || 
-                id.includes('node_modules/uuid') || 
-                id.includes('node_modules/sonner') || 
-                id.includes('node_modules/embla-carousel')) {
-              return 'utils';
-            }
-
-            // Additional chunking for app code
-            if (id.includes('/src/components/')) {
-              return 'components';
-            }
-            
-            if (id.includes('/src/pages/')) {
-              return 'pages';
-            }
-            
-            if (id.includes('/src/context/')) {
-              return 'context';
-            }
+          // Ensure proper naming of chunks
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
+          // Simplified chunking strategy
+          manualChunks: {
+            // React ecosystem
+            'vendor': [
+              'react', 
+              'react-dom', 
+              'react-router-dom',
+              'framer-motion', // Bundle motion with React to prevent dependency errors
+              '@radix-ui/react-select',
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-accordion',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-popover',
+              '@radix-ui/react-tooltip',
+              '@radix-ui/react-scroll-area',
+              '@radix-ui/react-slider'
+            ],
+            // Content and data
+            'content': [
+              'react-markdown',
+              'lucide-react'
+            ],
+            // Data handling
+            'data': [
+              '@supabase/supabase-js', 
+              '@tanstack/react-query', 
+              'appwrite'
+            ],
+            // Utilities
+            'utils': [
+              'tailwind-merge', 
+              'uuid', 
+              'sonner', 
+              'embla-carousel-react'
+            ]
           }
         }
       },
@@ -264,6 +247,10 @@ export default defineConfig(({ command, mode }) => {
         }
       },
       allowedHosts: ['gntapp.loca.lt', '98ba-103-49-113-87.ngrok-free.app']
+    },
+    optimizeDeps: {
+      // Pre-bundle these dependencies
+      include: ['react', 'react-dom', 'framer-motion', 'react-router-dom']
     }
   };
 });

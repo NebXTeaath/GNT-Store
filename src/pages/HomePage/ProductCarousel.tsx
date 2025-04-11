@@ -152,7 +152,6 @@ export function ProductCarousel({
     if (!emblaApi || !carouselInitialized) return;
     
     const calculateVisibleSlides = () => {
-      const engine = emblaApi.internalEngine();
       const scrollSnap = emblaApi.scrollSnapList();
       const currentIndex = emblaApi.selectedScrollSnap();
       
