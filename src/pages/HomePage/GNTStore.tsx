@@ -220,7 +220,7 @@ const FeaturedProductsSection: React.FC = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-white">Featured In Consoles</h2>
             <Button variant="ghost" className="text-gray-300 bg-gray-800 hover:text-white hover:bg-[#4752c4]">
-              <Link to="/category/consoles">Show All</Link>
+              <Link to="/Consoles">Show All</Link>
             </Button>
           </div>
           {consolesLoading ? (
@@ -248,7 +248,7 @@ const FeaturedProductsSection: React.FC = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-white">Featured In Computers</h2>
             <Button variant="ghost" className="text-gray-300 bg-gray-800 hover:text-white hover:bg-[#4752c4]">
-              <Link to="/category/computers">Show All</Link>
+              <Link to="/Computers">Show All</Link>
             </Button>
           </div>
           {computersLoading ? (
@@ -281,8 +281,8 @@ function RepairServiceSection() {
     <section className="w-full py-12 bg-[#1a1c23]">
       <div className="container mx-auto px-4 md:px-6">
         <div
-          onClick={() => navigate("/repair")}
-          data-href={"/repair"}
+          onClick={() => navigate("/repair-home")}
+          data-href={"/repair-home"}
           className="cursor-pointer border border-[#2a2d36] rounded-lg p-6 flex flex-col md:flex-row gap-8 items-center hover:shadow-lg transition-shadow duration-300"
         >
           <div className="flex-1">

@@ -2,7 +2,7 @@
 import * as React from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
-import { ProductCard } from "@/pages/searchPage/search/ProductCard";
+import { ProductCard } from "@/pages/ProductCard/ProductCard";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
