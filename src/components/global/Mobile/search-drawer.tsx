@@ -19,6 +19,7 @@ import type { ProductSearchResult } from "@/lib/types/product"
 import type { SearchSuggestion } from "@/lib/types/search"
 import { useDebounce } from "@/components/global/hooks/use-debounce"
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat"
+import { useLoading } from "@/context/LoadingContext" // Import the loading context
 
 interface SearchDrawerProps {
   open: boolean
@@ -35,6 +36,9 @@ export function SearchDrawer({ open, onOpenChange }: SearchDrawerProps) {
   const resultsContainerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  
+  // Use the loading context
+  const { setIsLoading: setGlobalLoading, setLoadingMessage } = useLoading()
 
   // Debounce search term as per the desktop component
   const debouncedSearchTerm = useDebounce(searchValue, 600)
@@ -94,6 +98,11 @@ export function SearchDrawer({ open, onOpenChange }: SearchDrawerProps) {
     if (searchValue.trim()) {
       // Trigger keyboard dismissal using a simulated event with results container as target.
       dismissKeyboard({ target: resultsContainerRef.current } as unknown as React.MouseEvent)
+      
+      // Show loading screen with appropriate message
+      setLoadingMessage(`Searching for "${searchValue.trim()}"...`)
+      setGlobalLoading(true)
+      
       onOpenChange(false)
       navigate(`/search?q=${encodeURIComponent(searchValue.trim())}`)
     }
@@ -101,12 +110,26 @@ export function SearchDrawer({ open, onOpenChange }: SearchDrawerProps) {
 
   const handleSuggestionClick = (suggestion: string) => {
     dismissKeyboard({ target: resultsContainerRef.current } as unknown as React.MouseEvent)
+    
+    // Show loading screen when clicking on a suggestion
+    setLoadingMessage(`Searching for "${suggestion}"...`)
+    setGlobalLoading(true)
+    
     onOpenChange(false)
     navigate(`/search?q=${encodeURIComponent(suggestion)}`)
   }
 
   const handleResultClick = (productId: string) => {
     dismissKeyboard({ target: resultsContainerRef.current } as unknown as React.MouseEvent)
+    
+    // Find the product name for a more descriptive loading message
+    const selectedProduct = results.find(r => r.slug === productId)
+    const productName = selectedProduct?.product_name || "product"
+    
+    // Show loading screen when clicking on a product result
+    setLoadingMessage(`Loading ${productName}...`)
+    setGlobalLoading(true)
+    
     onOpenChange(false)
     navigate(`/product/${productId}`)
   }

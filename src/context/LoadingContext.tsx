@@ -1,4 +1,4 @@
-//src\context\LoadingContext.tsx
+// src/context/LoadingContext.tsx
 import React, { createContext, useContext, useState } from "react";
 import ReactDOM from "react-dom";
 import LoadingScreen from "@/components/global/LoadingScreen";
@@ -49,14 +49,12 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }}
     >
       {children}
-      
       {/* Display loading screen when any loading state is true */}
       {(isLoading || isLoadingProfile || isLoadingAuth || isLoadingProducts) &&
         ReactDOM.createPortal(
           <LoadingScreen message={loadingMessage} />,
           document.body
-        )
-      }
+        )}
     </LoadingContext.Provider>
   );
 };
