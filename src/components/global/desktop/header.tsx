@@ -1,19 +1,6 @@
 // src/components/global/desktop/header.tsx
 import { Link, useNavigate } from "react-router-dom";
-import {
-  ShoppingBag,
-  ChevronDown,
-  Gamepad2,
-  Cpu,
-  Wrench,
-  User,
-  History,
-  LogIn,
-  Heart,
-  MessageSquareDot,
-  Menu,
-  LogOut
-} from "lucide-react";
+import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/assets/logo.svg";
 import { useAuth } from "@/context/AuthContext";
@@ -21,14 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { SearchBar } from "@/components/global/desktop/search-bar";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +41,15 @@ export default function Header() {
   const [catalogSheetOpen, setCatalogSheetOpen] = useState(false);
   const [ProfileIndexOpen, setProfileIndexOpen] = useState(false);
   const windowSize = useWindowSize();
-  const { setIsLoadingProfile, setLoadingMessage } = useLoading();
+
+  // Import and use the loading context
+  const { 
+    setIsLoading, 
+    setIsLoadingProfile, 
+    setIsLoadingProducts,
+    setIsLoadingAuth,
+    setLoadingMessage 
+  } = useLoading();
 
   // --- State and Refs for Vertical Tab Animation ---
   const [activeIndex, setActiveIndex] = useState(0);
@@ -105,6 +93,57 @@ export default function Header() {
     }
   };
 
+  // Handle navigation with loading state
+  const handleNavigation = (path: string, loadingText: string) => {
+    setLoadingMessage(loadingText);
+    setIsLoading(true);
+    setTimeout(() => {
+      navigate(path);
+      setIsLoading(false);
+    }, 300);
+  };
+
+  // Handle product navigation
+  const handleProductNavigation = (path: string) => {
+    setLoadingMessage("Loading products...");
+    setIsLoadingProducts(true);
+    setCatalogSheetOpen(false);
+    setTimeout(() => {
+      navigate(path);
+      setIsLoadingProducts(false);
+    }, 300);
+  };
+
+  // Handle support navigation
+  const handleSupportNavigation = () => {
+    setLoadingMessage("Loading support...");
+    setIsLoading(true);
+    setTimeout(() => {
+      navigate('/support');
+      setIsLoading(false);
+    }, 300);
+  };
+
+  // Handle cart navigation
+  const handleCartNavigation = () => {
+    setLoadingMessage("Loading your cart...");
+    setIsLoading(true);
+    setTimeout(() => {
+      navigate('/checkout/cart-details');
+      setIsLoading(false);
+    }, 300);
+  };
+
+  // Handle login modal
+  const handleLoginOpen = () => {
+    setLoadingMessage("Preparing login...");
+    setIsLoadingAuth(true);
+    setTimeout(() => {
+      setIsLoadingAuth(false);
+      setLoginOpen(true);
+    }, 300);
+  };
+
   const displayName = user?.name || user?.email || "";
   const truncateUserName = (name: string, maxLength: number = 12) => {
     if (name && name.length > maxLength) {
@@ -114,8 +153,13 @@ export default function Header() {
   };
 
   const handleOpenProfile = () => {
+    setLoadingMessage("Loading your profile...");
+    setIsLoadingProfile(true);
     setAccountSheetOpen(false);
-    setProfileIndexOpen(true);
+    setTimeout(() => {
+      setProfileIndexOpen(true);
+      setIsLoadingProfile(false);
+    }, 300);
   };
 
   // useEffect hooks for Vertical Tab Animation
@@ -154,10 +198,50 @@ export default function Header() {
 
   // Define Sheet Tabs and Actions
   const sheetTabs = [
-    { label: "Profile", action: handleOpenProfile, icon: User },
-    { label: "Wishlist", action: () => { navigate('/wishlist'); setAccountSheetOpen(false); }, icon: Heart },
-    { label: "Orders", action: () => { navigate('/order-history'); setAccountSheetOpen(false); }, icon: History },
-    { label: "Repairs", action: () => { navigate('/repair/history'); setAccountSheetOpen(false); }, icon: Wrench },
+    {
+      label: "Profile",
+      action: handleOpenProfile,
+      icon: User
+    },
+    {
+      label: "Wishlist",
+      action: () => {
+        setLoadingMessage("Loading your wishlist...");
+        setIsLoading(true);
+        setAccountSheetOpen(false);
+        setTimeout(() => {
+          navigate('/wishlist');
+          setIsLoading(false);
+        }, 300);
+      },
+      icon: Heart
+    },
+    {
+      label: "Orders",
+      action: () => {
+        setLoadingMessage("Loading your orders...");
+        setIsLoading(true);
+        setAccountSheetOpen(false);
+        setTimeout(() => {
+          navigate('/order-history');
+          setIsLoading(false);
+        }, 300);
+      },
+      icon: History
+    },
+    {
+      label: "Repairs",
+      action: () => {
+        setLoadingMessage("Loading your repairs...");
+        setIsLoading(true);
+        setAccountSheetOpen(false);
+        setTimeout(() => {
+          navigate('/repair/history');
+          setIsLoading(false);
+        }, 300);
+      },
+      icon: Wrench
+    },
   ];
 
   const getSearchBarSize = () => {
@@ -198,12 +282,18 @@ export default function Header() {
         {/* Left side for mobile - Offer and Support Icons */}
         <div className="md:hidden flex items-center justify-start w-1/4 gap-2">
           {/* Offer Button - Added for Mobile */}
-         
-          
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link to="/support" className="text-sm font-medium text-gray-300 hover:text-white flex items-center gap-1" aria-label="Support">
+                <Link 
+                  to="/support" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSupportNavigation();
+                  }}
+                  className="text-sm font-medium text-gray-300 hover:text-white flex items-center justify-center p-2" 
+                  aria-label="Support"
+                >
                   <MessageSquareDot className="h-5 w-5" />
                 </Link>
               </TooltipTrigger>
@@ -214,27 +304,37 @@ export default function Header() {
           </TooltipProvider>
           <OffersPopover />
         </div>
+
         {/* Logo Section */}
-<div className="flex-1 flex justify-center md:justify-start md:flex-none md:mr-4">
-  <Link to="/" className="flex items-center gap-2">
-    <div className="w-10 h-10 relative"> {/* Fixed aspect ratio container */}
-      <img 
-        src={Logo || "/placeholder.svg"} 
-        alt="GNT Logo"
-        className="absolute inset-0 w-full h-full object-contain transform scale-300"
-        width="40"  // Explicit dimensions
-        height="40" 
-        loading="eager" // Prioritize logo load
-      />
-    </div>
-    <span className="sr-only">GNT - Games & Tech</span>
-  </Link>
-</div>
+        <div className="flex-1 flex justify-center md:justify-start md:flex-none md:mr-4">
+          <Link 
+            to="/" 
+            className="flex items-center gap-2"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavigation('/', 'Loading home page...');
+            }}
+          >
+            <div className="w-10 h-10 relative">
+              {/* Fixed aspect ratio container */}
+              <img
+                src={Logo || "/placeholder.svg"}
+                alt="GNT Logo"
+                className="absolute inset-0 w-full h-full object-contain transform scale-300"
+                width="40" // Explicit dimensions
+                height="40"
+                loading="eager" // Prioritize logo load
+              />
+            </div>
+            <span className="sr-only">GNT - Games & Tech</span>
+          </Link>
+        </div>
+
         {/* Desktop Navigation & Search */}
         <div className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 flex-1 justify-center">
           <Sheet open={catalogSheetOpen} onOpenChange={setCatalogSheetOpen}>
             <SheetTrigger asChild>
-            <Button
+              <Button
                 variant="outline"
                 size="sm"
                 className="min-w-[60px] flex items-center gap-1 bg-[#1a1c23] text-gray-300 hover:text-white border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out"
@@ -245,7 +345,9 @@ export default function Header() {
             <SheetContent side="left" className="w-full sm:max-w-md bg-[#1a1c23] border-[#2a2d36] text-white overflow-y-auto">
               <SheetHeader>
                 <SheetTitle className="text-white">Shop Catalog</SheetTitle>
-                <SheetDescription className="text-gray-400"> Browse our product categories </SheetDescription>
+                <SheetDescription className="text-gray-400">
+                  Browse our product categories
+                </SheetDescription>
               </SheetHeader>
               <Separator className="my-4 bg-[#2a2d36]" />
               {loading ? (
@@ -259,10 +361,9 @@ export default function Header() {
                   {productCategories ? (
                     Object.entries(productCategories).map(([category, subcategories], index) => (
                       <div key={category} className="mb-6">
-                        <Link
-                          to={`/${category}`}
-                          onClick={() => setCatalogSheetOpen(false)}
-                          className="flex items-center gap-2 mb-3 text-lg font-semibold text-white hover:text-[#5865f2]"
+                        <div
+                          onClick={() => handleProductNavigation(`/${category}`)}
+                          className="flex items-center gap-2 mb-3 text-lg font-semibold text-white hover:text-[#5865f2] cursor-pointer p-1"
                         >
                           {category === "Consoles" ? (
                             <Gamepad2 className="h-5 w-5" />
@@ -270,28 +371,26 @@ export default function Header() {
                             <Cpu className="h-5 w-5" />
                           ) : null}
                           {category}
-                        </Link>
+                        </div>
                         <div className="ml-6 space-y-3">
                           {Object.entries(subcategories).map(([subcategory, labels]) => (
                             <div key={subcategory} className="mb-3">
-                              <Link
-                                to={`/${category}/${subcategory}`}
-                                onClick={() => setCatalogSheetOpen(false)}
-                                className="block text-base font-medium text-gray-300 hover:text-[#5865f2]"
+                              <div
+                                onClick={() => handleProductNavigation(`/${category}/${subcategory}`)}
+                                className="block text-base font-medium text-gray-300 hover:text-[#5865f2] cursor-pointer p-1"
                               >
                                 {subcategory}
-                              </Link>
+                              </div>
                               {labels.length > 0 && (
                                 <div className="ml-4 mt-2 grid grid-cols-2 gap-2">
                                   {labels.map((label) => (
-                                    <Link
+                                    <div
                                       key={label}
-                                      to={`/${category}/${subcategory}?label=${encodeURIComponent(label)}`}
-                                      onClick={() => setCatalogSheetOpen(false)}
-                                      className="text-sm text-gray-400 hover:text-[#5865f2]"
+                                      onClick={() => handleProductNavigation(`/${category}/${subcategory}?label=${encodeURIComponent(label)}`)}
+                                      className="text-sm text-gray-400 hover:text-[#5865f2] cursor-pointer p-1"
                                     >
                                       {label}
-                                    </Link>
+                                    </div>
                                   ))}
                                 </div>
                               )}
@@ -309,25 +408,31 @@ export default function Header() {
             </SheetContent>
           </Sheet>
           <SearchBar className="w-full" size={searchBarSize} />
-            <Link
-            to="/repair-home"
-            className="min-w-[120px] flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out px-3 py-1 rounded-md"
-            >
+          <div
+            onClick={() => handleNavigation('/repair-home', 'Loading repair services...')}
+            className="min-w-[120px] flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out px-3 py-1 rounded-md cursor-pointer"
+          >
             {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"}
-            </Link>
+          </div>
         </div>
+
         {/* Right-side Links */}
         <div className="flex items-center gap-2 lg:gap-4 justify-end md:w-auto w-1/4">
           {/* Offer Button - Desktop Position (before Support) */}
           <div className="hidden md:block">
             <OffersPopover />
           </div>
-          
           <div className="hidden md:block">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white hover:bg-[#4752c4]" onClick={() => navigate('/support')} data-href={'/support'}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-300 hover:text-white hover:bg-[#4752c4] p-2"
+                    onClick={handleSupportNavigation}
+                    data-href={'/support'}
+                  >
                     <MessageSquareDot className="h-4 w-4" />
                     <span className="sr-only">Support</span>
                   </Button>
@@ -342,7 +447,13 @@ export default function Header() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white hover:bg-[#4752c4]" onClick={() => navigate('/checkout/cart-details')} data-href={'/checkout/cart-details'}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-300 hover:text-white hover:bg-[#4752c4] p-2"
+                    onClick={handleCartNavigation} 
+                    data-href={'/checkout/cart-details'}
+                  >
                     <ShoppingBag className="h-4 w-4" />
                     <span className="sr-only">Cart</span>
                     {isAuthenticated && cartCount > 0 && (
@@ -365,14 +476,21 @@ export default function Header() {
                   <TooltipTrigger asChild>
                     <SheetTrigger asChild>
                       {!isMobile && showUsername ? (
-                        <Badge variant="outline" className="px-2 py-1 border-[#2a2d36] hover:border-[#5865f2] cursor-pointer bg-transparent">
+                        <Badge
+                          variant="outline" 
+                          className="px-2 py-1 border-[#2a2d36] hover:border-[#5865f2] cursor-pointer bg-transparent"
+                        >
                           <User className="h-4 w-4 text-white" />
                           <span className="ml-2 text-white max-w-24 overflow-hidden text-ellipsis whitespace-nowrap">
                             {truncateUserName(displayName, usernameMaxLength)}
                           </span>
                         </Badge>
                       ) : (
-                        <Button variant="ghost" size="icon" className="text-gray-300 hover:bg-[#4752c4]">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-gray-300 hover:bg-[#4752c4] p-3"
+                        >
                           <Menu className="h-5 w-5" />
                           <span className="sr-only">Account</span>
                         </Button>
@@ -393,7 +511,6 @@ export default function Header() {
                     Manage your account and preferences
                   </SheetDescription>
                 </SheetHeader>
-
                 <div className="relative flex-grow px-4 py-2">
                   <div
                     className="absolute left-0 w-[3px] bg-white rounded-r-md transition-all duration-300 ease-out pointer-events-none"
@@ -407,7 +524,7 @@ export default function Header() {
                           key={tab.label}
                           ref={(el) => (tabRefs.current[index] = el)}
                           className={cn(
-                            "flex items-center w-full px-4 py-3 cursor-pointer transition-all duration-200 rounded-md",
+                            "flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md",
                             "hover:bg-[#ffffff1a]",
                             index === activeIndex ? "text-white bg-[#ffffff14]" : "text-gray-400 hover:text-gray-100"
                           )}
@@ -425,10 +542,14 @@ export default function Header() {
                     })}
                   </div>
                 </div>
-
                 <div className="mt-auto p-6 border-t border-[#2a2d36]">
-                  <Button variant="destructive" className="w-full flex items-center justify-center gap-2" onClick={handleLogout}>
-                    <LogOut className="h-4 w-4" /> Logout
+                  <Button
+                    variant="destructive"
+                    className="w-full flex items-center justify-center gap-2 py-6"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
                   </Button>
                 </div>
               </SheetContent>
@@ -437,7 +558,12 @@ export default function Header() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size={isMobile ? "icon" : "sm"} className="text-gray-300 hover:text-white hover:bg-[#4752c4]" onClick={() => setLoginOpen(true)}>
+                  <Button
+                    variant="ghost"
+                    size={isMobile ? "icon" : "sm"}
+                    className="text-gray-300 hover:text-white hover:bg-[#4752c4] p-3"
+                    onClick={handleLoginOpen}
+                  >
                     <LogIn className="h-4 w-4" />
                     {!isMobile && <span className="ml-2 text-sm">Login</span>}
                     <span className="sr-only">Login</span>
