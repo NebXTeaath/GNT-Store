@@ -23,7 +23,7 @@
       "url": "/Consoles?source=pwa",
       "icons": [
         {
-          "src": "public/favicon/icons/gamepad-2-96x96.png",
+          "src": "/favicon/icons/gamepad-2-96x96.png",
           "sizes": "96x96"
         }
       ]
@@ -35,7 +35,7 @@
       "url": "/Computers?source=pwa",
       "icons": [
         {
-          "src": "public/favicon/icons/cpu-96x96.png",
+          "src": "/favicon/icons/cpu-96x96.png",
           "sizes": "96x96"
         }
       ]
@@ -43,14 +43,26 @@
   ],
   "icons": [
     {
-      "src": "public/favicon/web-app-manifest-192x192.png",
+      "src": "/favicon/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "public/favicon/web-app-manifest-192x192.png",
+      "src": "/favicon/web-app-manifest-192x192.png",
       "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon/web-app-manifest-512x512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
