@@ -1,6 +1,8 @@
 // --- File: src/components/global/hooks/useUserProfileData.ts ---
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { account } from '@/lib/appwrite'; // Assuming appwrite client is here
+import { getCurrentUserSafe } from '@/lib/authHelpers';
+
 import {
     getUserProfile, // Direct backend call
     createUserProfile, // Direct backend call
@@ -50,16 +52,12 @@ export const useUserProfileQuery = () => {
 
     // Get user ID asynchronously
     useEffect(() => {
-        const fetchUserId = async () => {
-            try {
-                const user = await account.get();
-                setUserId(user?.$id || null);
-            } catch {
-                setUserId(null); // Not logged in
-            }
-        };
-        fetchUserId();
-    }, []);
+    const fetchUserId = async () => {
+        const user = await getCurrentUserSafe();
+        setUserId(user?.$id || null);
+    };
+    fetchUserId();
+}, []);
 
 
     return useQuery<FormattedUserProfile | null, Error>({
@@ -93,16 +91,12 @@ export const useCreateProfileMutation = () => {
 
      // Get user ID asynchronously
      useEffect(() => {
-        const fetchUserId = async () => {
-            try {
-                const user = await account.get();
-                setUserId(user?.$id || null);
-            } catch {
-                setUserId(null); // Not logged in
-            }
-        };
-        fetchUserId();
-    }, []);
+    const fetchUserId = async () => {
+        const user = await getCurrentUserSafe();
+        setUserId(user?.$id || null);
+    };
+    fetchUserId();
+}, []);
 
 
     return useMutation<FormattedUserProfile, Error, Omit<ProfileData, 'userId'>>({
@@ -139,16 +133,12 @@ export const useUpdateProfileMutation = () => {
 
      // Get user ID asynchronously
      useEffect(() => {
-        const fetchUserId = async () => {
-            try {
-                const user = await account.get();
-                setUserId(user?.$id || null);
-            } catch {
-                setUserId(null); // Not logged in
-            }
-        };
-        fetchUserId();
-    }, []);
+    const fetchUserId = async () => {
+        const user = await getCurrentUserSafe();
+        setUserId(user?.$id || null);
+    };
+    fetchUserId();
+}, []);
 
 
     return useMutation<
@@ -189,16 +179,12 @@ export const useUpdateProfileEmailMutation = () => {
 
      // Get user ID asynchronously
      useEffect(() => {
-        const fetchUserId = async () => {
-            try {
-                const user = await account.get();
-                setUserId(user?.$id || null);
-            } catch {
-                setUserId(null); // Not logged in
-            }
-        };
-        fetchUserId();
-    }, []);
+    const fetchUserId = async () => {
+        const user = await getCurrentUserSafe();
+        setUserId(user?.$id || null);
+    };
+    fetchUserId();
+}, []);
 
     return useMutation<
         FormattedUserProfile,
