@@ -1,3 +1,4 @@
+// src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { account } from "../lib/appwrite";
 import { useLoading } from "../components/global/Loading/LoadingContext";
@@ -47,15 +48,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // This query runs based on the userId state within the hook
   const { data: userProfileData } = useUserProfileQuery();
 
+  /**
+   * Check if there's an active session without generating console errors
+   * This acts as a pre-check before attempting to fetch user data
+   */
+  const checkSession = useCallback(async () => {
+    try {
+      // Use listSessions instead of direct get() as it's more graceful with expired sessions
+      const sessions = await account.listSessions();
+      return sessions.total > 0;
+    } catch (error) {
+      // Silently handle session check errors - this means no active session
+      return false;
+    }
+  }, []);
+
   const fetchUser = useCallback(async () => {
     try {
+      // First check if we have an active session before attempting to get user data
+      const hasSession = await checkSession();
+      
+      if (!hasSession) {
+        // No active session, so don't attempt account.get() which would cause 401 errors
+        console.log("No active session found");
+        setUser(null);
+        setIsAuthenticated(false);
+        return null;
+      }
+      
+      // We have a session, safe to fetch user data
       const userData = await account.get();
       console.log("Fetched user data:", userData);
       setUser(userData);
       setIsAuthenticated(true);
       return userData;
     } catch (error) {
-      console.log("No user data available:", error);
+      // This catch block should now only handle unexpected errors
+      console.log("Error fetching user data:", error);
       setUser(null);
       setIsAuthenticated(false);
       return null;
@@ -65,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoadingAuth(false); // Turn off auth loading when initialization is complete
       }
     }
-  }, [isInitialized, setIsLoadingAuth]);
+  }, [isInitialized, setIsLoadingAuth, checkSession]);
 
   const refreshUserState = useCallback(async () => {
     return await fetchUser();
