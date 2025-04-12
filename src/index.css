@@ -14,21 +14,21 @@
     width: 8px;
     height: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: #1a1c23;
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: #2a2d36;
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb:hover {
     background: #5865f2;
   }
-  
+
   /* Firefox */
   scrollbar-width: thin;
   scrollbar-color: #2a2d36 #1a1c23;
@@ -40,6 +40,7 @@
   100% { background-color: rgba(26, 28, 35, 0.9); }
 }
 
+/* Styles outside layers (applied globally, lower specificity than utilities) */
 html,
 body {
   height: 100%;
@@ -50,11 +51,6 @@ body {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   touch-action: manipulation;
-}
-
-/* Prevents iOS zoom on form elements */
-input, select, textarea, button {
-  font-size: 16px;
 }
 
 /* Add this for better touch targets on mobile */
@@ -96,6 +92,8 @@ input, select, textarea, button {
 .animate-blink {
   animation: blink 1s infinite;
 }
+
+/* Theme variables defined globally */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -167,6 +165,7 @@ input, select, textarea, button {
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+/* Inline theme variables */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -209,17 +208,26 @@ input, select, textarea, button {
 
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
 }
 
+/* Combined base layer */
 @layer base {
+  /* Default border for all elements */
+  * {
+    @apply border-border;
+  }
+
+  /* Default body styles */
+  body {
+    @apply bg-background text-foreground;
+    font-family: Arial, Helvetica, sans-serif; /* Set base font family */
+  }
+
+  /* Light mode variables */
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -240,7 +248,7 @@ body {
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --radius: 0.5rem; /* Defined once */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -251,6 +259,7 @@ body {
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
+  /* Dark mode variables */
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -271,6 +280,7 @@ body {
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    /* --radius: 0.5rem; */ /* Already defined in :root */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -280,34 +290,32 @@ body {
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-}
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
+  /* Prevents iOS zoom on form elements - MOVED HERE */
+  input, select, textarea, button {
+    font-size: 16px;
   }
 
-  /* Add responsive font sizing */
+  /* Add responsive font sizing - Defines base for REM units */
   html {
-    font-size: 14px;
+    font-size: 14px; /* Mobile base font size */
   }
 
   @media (min-width: 640px) {
     html {
-      font-size: 15px;
+      font-size: 15px; /* Tablet base font size */
     }
   }
 
   @media (min-width: 768px) {
     html {
-      font-size: 16px;
+      font-size: 16px; /* Desktop base font size */
     }
   }
-}
+} /* End of @layer base */
 
+
+/* Other global styles or component overrides */
 /* Add responsive container padding */
 .container {
   @apply px-4 sm:px-6 lg:px-8;
@@ -318,7 +326,7 @@ body {
   @apply object-contain;
 }
 
-/* Ensure buttons are properly sized on mobile */
+/* Ensure buttons have touch manipulation */
 button {
   @apply touch-manipulation;
 }

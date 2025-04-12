@@ -148,16 +148,16 @@ export function MobileNavigation() {
           <div className="flex-1 h-full flex items-center justify-center">
             <NavItem
               href="/"
-              icon={<Home size={20} />}
+              icon={<Home size={22} />}
               label="Home"
               isActive={pathname === "/"}
               onClick={handleHomeClick}
             />
           </div>
           
-          <div className="flex-1 h-full flex items-center justify-center">
+          <div className="flex-1 h-100 flex items-center justify-center">
             <NavItem
-              icon={<Store size={20} />}
+              icon={<Store size={22} />}
               label="Shop"
               isActive={false}
               onClick={handleShopClick}
@@ -166,7 +166,7 @@ export function MobileNavigation() {
           
           <div className="flex-1 h-full flex items-center justify-center">
             <NavItem
-              icon={<Search size={20} />}
+              icon={<Search size={22} />}
               label="Search"
               isActive={false}
               onClick={handleSearchClick}
@@ -176,7 +176,7 @@ export function MobileNavigation() {
           <div className="flex-1 h-full flex items-center justify-center">
             <NavItem
               href="/repair-home/"
-              icon={<Wrench size={20} />}
+              icon={<Wrench size={22} />}
               label="Repair"
               isActive={pathname.includes("/repair")}
               onClick={handleRepairClick}
@@ -186,7 +186,7 @@ export function MobileNavigation() {
           <div className="flex-1 h-full flex items-center justify-center">
             <NavItem
               href="/checkout/cart-details"
-              icon={<ShoppingCart size={20} />}
+              icon={<ShoppingCart size={22} />}
               label="Cart"
               isActive={pathname.includes("/checkout")}
               onClick={handleCartClick}
