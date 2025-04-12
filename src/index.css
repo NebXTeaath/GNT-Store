@@ -47,9 +47,21 @@ body {
   padding: 0;
   animation: backgroundAnimation 10s ease infinite;
   background-color: rgba(26, 28, 35, 0.9);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
+/* Prevents iOS zoom on form elements */
+input, select, textarea, button {
+  font-size: 16px;
+}
 
+/* Add this for better touch targets on mobile */
+.interactive-element {
+  min-height: 44px;
+  min-width: 44px;
+}
 
 
 /* Add this custom animation for the indeterminate progress bar */

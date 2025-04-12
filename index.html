@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Added iOS specific meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled" />
   
   <!-- Title & Description -->
   <title>GNT – Next-Gen Console & PC Marketplace</title>
@@ -30,6 +34,18 @@
   <link rel="manifest" href="public/favicon/site.webmanifest" />
   
   <style>
+    /* Added iOS text size adjustment to prevent auto-zoom */
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    /* Prevents iOS zoom on form elements */
+    input, select, textarea, button {
+      font-size: 16px;
+    }
+
     @keyframes backgroundAnimation {
       0% { background-color: rgba(5, 4, 4, 0.9); }
       33% { background-color: rgba(102, 138, 102, 0.9); }
