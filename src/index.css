@@ -2,11 +2,11 @@
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
+
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
-
 
 .dark-theme-scrollbar {
   /* Customize scrollbar for webkit browsers (Chrome, Safari, newer Edge) */
@@ -14,17 +14,14 @@
     width: 8px;
     height: 8px;
   }
-
   &::-webkit-scrollbar-track {
     background: #1a1c23;
     border-radius: 4px;
   }
-
   &::-webkit-scrollbar-thumb {
     background: #2a2d36;
     border-radius: 4px;
   }
-
   &::-webkit-scrollbar-thumb:hover {
     background: #5865f2;
   }
@@ -41,8 +38,7 @@
 }
 
 /* Styles outside layers (applied globally, lower specificity than utilities) */
-html,
-body {
+html, body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -50,7 +46,7 @@ body {
   background-color: rgba(26, 28, 35, 0.9);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  touch-action: manipulation;
+  touch-action: manipulation; /* Apply globally initially, specific overrides below */
 }
 
 /* Add this for better touch targets on mobile */
@@ -58,7 +54,6 @@ body {
   min-height: 44px;
   min-width: 44px;
 }
-
 
 /* Add this custom animation for the indeterminate progress bar */
 .indeterminate-progress > div { /* Target the inner div Shadcn Progress uses */
@@ -75,19 +70,14 @@ body {
 }
 
 @keyframes indeterminate-progress-animation {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Optional: Style the base progress track if needed */
 /* .indeterminate-progress { */
   /* background-color: #2a2d36; */ /* Example track color */
 /* } */
-
 
 .animate-blink {
   animation: blink 1s infinite;
@@ -205,8 +195,9 @@ body {
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-
-@tailwind utilities;
+@layer base; /* Use base layer for Tailwind base styles */
+@layer components; /* Use components layer for Tailwind component classes */
+@layer utilities; /* Use utilities layer for Tailwind utility classes */
 
 @layer utilities {
   .text-balance {
@@ -291,29 +282,34 @@ body {
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  /* Prevents iOS zoom on form elements - MOVED HERE */
-  input, select, textarea, button {
-    font-size: 16px;
+  /* Prevents iOS zoom on form elements - Ensures base >= 16px */
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px; /* Apply base 16px */
+  }
+
+  /* Improve touch responsiveness and prevent double-tap zoom delays */
+  button, a, input, select, textarea {
+    touch-action: manipulation;
   }
 
   /* Add responsive font sizing - Defines base for REM units */
   html {
     font-size: 14px; /* Mobile base font size */
   }
-
   @media (min-width: 640px) {
     html {
       font-size: 15px; /* Tablet base font size */
     }
   }
-
   @media (min-width: 768px) {
     html {
       font-size: 16px; /* Desktop base font size */
     }
   }
 } /* End of @layer base */
-
 
 /* Other global styles or component overrides */
 /* Add responsive container padding */
@@ -326,7 +322,7 @@ body {
   @apply object-contain;
 }
 
-/* Ensure buttons have touch manipulation */
+/* Ensure buttons have touch manipulation (redundant with base layer, but safe) */
 button {
   @apply touch-manipulation;
 }

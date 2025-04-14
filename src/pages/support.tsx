@@ -1,24 +1,15 @@
-//src\pages\support.tsx
+// src/pages/support.tsx
 "use client"
-//
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { HelpCircle, Send, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SEO from '@/components/seo/SEO'; // Import SEO component
 
-
-
-// Get the admin's WhatsApp number from the environment variable
 const adminWhatsAppNumber = import.meta.env.VITE_ADMIN_WHATSAPP;
 
 export default function SupportPage() {
@@ -27,15 +18,12 @@ export default function SupportPage() {
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const location = useLocation(); // For canonical URL
+  const siteUrl = window.location.origin; // Get base URL
 
-  // ----- Scroll to Top on Mount -----
-useEffect(() => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}, []);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
 
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault();
     setIsSubmitting(true);
 
     // Format the message for WhatsApp
@@ -57,11 +45,8 @@ useEffect(() => {
       setTitle("");
       setDescription("");
     }, 1000);
-  };
-
-  // Format message for WhatsApp
-  const formatMessageForWhatsApp = () => {
-    let message = "Hello GNT Store Support,\n\n";
+   };
+  const formatMessageForWhatsApp = () => { let message = "Hello GNT Store Support,\n\n";
     message += `Contact Reason: ${contactReason}\n`;
 
     if (contactReason !== "Others" && title) {
@@ -73,10 +58,27 @@ useEffect(() => {
     return message;
   };
 
+  // SEO Data
+  const pageTitle = "Support | GNT Store";
+  const pageDescription = "Need help? Contact GNT Store support for assistance with orders, repairs, products, or general inquiries.";
+  const canonicalUrl = `${siteUrl}${location.pathname}`; // Use current path
+
   return (
     <div className="min-h-screen bg-[#0f1115] text-white">
+        <SEO
+            title={pageTitle}
+            description={pageDescription}
+            canonicalUrl={canonicalUrl}
+            ogData={{
+                title: pageTitle,
+                description: pageDescription,
+                url: canonicalUrl,
+                type: 'website',
+                image: `${siteUrl}/favicon/og-image.png`
+            }}
+        />
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <div className="mb-8">
           <Link to="/" className="inline-flex items-center text-sm text-gray-400 hover:text-white mb-2">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home

@@ -1,25 +1,26 @@
+ <!-- /index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Updated to current standards -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta http-equiv="ScreenOrientation" content="autoRotate:disabled" />
-  <!-- Title & Description -->
-  <title>GNT – Next-Gen Console & PC Marketplace</title>
-  <meta name="description" content="Explore the future of gaming tech with GNT – Your go-to marketplace for consoles and computers." />
-  <!-- Open Graph (for social sharing) -->
-  <meta property="og:title" content="GNT – Next-Gen Console & PC Marketplace" />
-  <meta property="og:description" content="Explore the future of gaming tech with GNT – Your go-to marketplace for latest consoles and computers." />
+  <!-- Title (Will be overridden by React Helmet Async) -->
+  <title>GNT Store</title>
+  <!-- Description (Fallback if JS fails, overridden by React Helmet Async) -->
+  <meta name="description" content="GNT – Your go-to marketplace for the latest gaming consoles and computers." />
+  <!-- Open Graph (Fallbacks, overridden by React Helmet Async) -->
+  <meta property="og:title" content="GNT Store" />
+  <meta property="og:description" content="GNT – Your go-to marketplace for the latest gaming consoles and computers." />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://r2-image-proxy.frankfrankenstain.workers.dev/images/preview.png" />
-  <meta property="og:url" content="https://gnt-store.vercel.app" />
+  <meta property="og:image" content="/favicon/og-image.png" />
+  <meta property="og:url" content="https://gnt-store.vercel.app" /> 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="/src/index.css" />
   <!-- Resource preloading -->
-  <link rel="preload" href="./logo.svg" as="image" />
+  <link rel="preload" href="/logo.svg" as="image" />
   <!-- Favicon configurations -->
   <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
@@ -28,77 +29,40 @@
   <meta name="apple-mobile-web-app-title" content="GNT" />
   <link rel="manifest" href="/site.webmanifest" />
   <style>
-    /* Added iOS text size adjustment to prevent auto-zoom */
     html {
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
       touch-action: manipulation;
     }
-
     @keyframes backgroundAnimation {
       0% { background-color: rgba(5, 4, 4, 0.9); }
       33% { background-color: rgba(102, 138, 102, 0.9); }
       66% { background-color: rgba(248, 181, 218, 0.9); }
       100% { background-color: rgba(5, 4, 4, 0.9); }
     }
-   
     #initial-loading {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 50;
-      transition: opacity 300ms;
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 100; /* Higher z-index */
+      transition: opacity 300ms ease-out; /* Smoother transition */
       animation: backgroundAnimation 10s ease-in-out infinite;
       backdrop-filter: blur(4px);
+      background-color: rgba(15, 17, 21, 0.95); /* Darker initial bg */
     }
-   
     .loading-dot {
-      height: 1rem;
-      width: 1rem;
-      background-color: #5865f2;
-      border-radius: 9999px;
-      animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      height: 1rem; width: 1rem; background-color: #5865f2;
+      border-radius: 9999px; animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
-   
-    .loading-dot:nth-child(2) {
-      animation-delay: 0.3s;
-    }
-   
-    .loading-dot:nth-child(3) {
-      animation-delay: 0.6s;
-    }
-   
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-   
-    .loading-text {
-      margin-top: 1.5rem;
-      font-size: 1rem;
-      font-weight: 500;
-      color: rgba(255, 255, 255, 0.9);
-    }
-   
-    .loading-dots {
-      display: flex;
-      gap: 0.5rem;
-    }
-   
-    .logo {
-      width: 20rem;
-      height: auto;
-      margin-bottom: 1rem;
-    }
+    .loading-dot:nth-child(2) { animation-delay: 0.3s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.6s; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } } /* Pulse effect */
+    .loading-text { margin-top: 1.5rem; font-size: 1rem; font-weight: 500; color: rgba(255, 255, 255, 0.9); }
+    .loading-dots { display: flex; gap: 0.5rem; }
+    .logo { width: 20rem; height: auto; margin-bottom: 1rem; }
   </style>
 </head>
 <body>
-  <!-- Custom animated splash screen -->
   <div id="initial-loading">
-    <img src="./logo.svg" alt="GNT Logo" class="logo" />
+    <img src="/logo.svg" alt="GNT Logo" class="logo" /> {/* Corrected path */}
     <div class="loading-dots">
       <div class="loading-dot"></div>
       <div class="loading-dot"></div>
@@ -108,17 +72,6 @@
   </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
-  <script>
-    // Hide loading screen once content is loaded
-    window.addEventListener('load', function() {
-      const loadingScreen = document.getElementById('initial-loading');
-      if (loadingScreen) {
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => {
-          loadingScreen.style.display = 'none';
-        }, 300);
-      }
-    });
-  </script>
+  {/* Script to hide loading screen is removed, handled in App.tsx now */}
 </body>
 </html>
