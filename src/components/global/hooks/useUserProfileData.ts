@@ -1,22 +1,50 @@
 // --- File: src/components/global/hooks/useUserProfileData.ts ---
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { account } from '@/lib/appwrite'; // Assuming appwrite client is here
+import { account } from '@/lib/appwrite'; 
 import { getCurrentUserSafe } from '@/lib/authHelpers';
 
 import {
-    getUserProfile, // Direct backend call
-    createUserProfile, // Direct backend call
-    updateUserProfile, // Direct backend call
-   // deleteUserProfile, // Removed unused import
+    getUserProfile,
+    createUserProfile,
+    updateUserProfile,
 } from '@/lib/userProfile';
-import { formatProfileForUI } from '@/pages/Profile/cachedUserProfile'; // Keep the formatter
+import { formatProfileForUI } from '@/pages/Profile/cachedUserProfile';
 import { RawProfileData, FormattedUserProfile, ProfileData } from '@/pages/Profile/types';
 import { toast } from 'sonner';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
-// --- Query Hook ---
-
+// --- Query Keys ---
 const USER_PROFILE_QUERY_KEY = 'userProfile';
+
+/**
+ * Custom hook to get and manage the current user ID
+ * This centralizes the user ID fetching logic
+ */
+export const useCurrentUserId = () => {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchUserId = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const user = await getCurrentUserSafe();
+      setUserId(user?.$id || null);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to get user'));
+      setUserId(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserId();
+  }, [fetchUserId]);
+
+  return { userId, isLoading, error, refetch: fetchUserId };
+};
 
 /**
  * Fetches the user profile using the direct backend function and formats it.
@@ -25,19 +53,17 @@ const USER_PROFILE_QUERY_KEY = 'userProfile';
  * @returns Formatted user profile or null if not found/error.
  */
 const fetchFormattedUserProfile = async (userId: string): Promise<FormattedUserProfile | null> => {
+    if (!userId) return null;
+    
     try {
         console.log(`[TanStack Query] Fetching profile for user: ${userId}`);
         const rawProfile: RawProfileData | null = await getUserProfile(userId);
         if (rawProfile) {
-            // Use the existing formatter
             return formatProfileForUI(rawProfile, userId);
         }
         return null; // No profile found
     } catch (error) {
         console.error("[TanStack Query] Error fetching user profile:", error);
-        // Let TanStack Query handle the error state, don't throw here
-        // unless you want the query to always be in an error state on backend failure.
-        // Returning null signifies 'not found' or fetch error handled by isError.
         return null;
     }
 };
@@ -48,29 +74,12 @@ const fetchFormattedUserProfile = async (userId: string): Promise<FormattedUserP
  * @returns Query result object for the user profile.
  */
 export const useUserProfileQuery = () => {
-    const [userId, setUserId] = useState<string | null>(null);
-
-    // Get user ID asynchronously
-    useEffect(() => {
-    const fetchUserId = async () => {
-        const user = await getCurrentUserSafe();
-        setUserId(user?.$id || null);
-    };
-    fetchUserId();
-}, []);
-
+    const { userId, isLoading: isUserIdLoading } = useCurrentUserId();
 
     return useQuery<FormattedUserProfile | null, Error>({
         queryKey: [USER_PROFILE_QUERY_KEY, userId],
-        queryFn: () => {
-            if (!userId) {
-                // Or throw new Error("User not authenticated"); to put query in error state
-                 console.warn("[TanStack Query] No userId, skipping fetch.");
-                 return Promise.resolve(null); // Return null immediately if no userId
-            }
-            return fetchFormattedUserProfile(userId);
-        },
-        enabled: !!userId, // Only run the query if userId is available
+        queryFn: () => fetchFormattedUserProfile(userId || ''),
+        enabled: !!userId && !isUserIdLoading, // Only run the query if userId is available
         staleTime: 1000 * 60 * 5, // Cache is considered fresh for 5 minutes
         gcTime: 1000 * 60 * 30, // Keep data in cache for 30 minutes even if inactive
         refetchOnWindowFocus: true, // Refetch when window regains focus
@@ -78,48 +87,31 @@ export const useUserProfileQuery = () => {
     });
 };
 
-
-// --- Mutation Hooks ---
-
 /**
  * TanStack Mutation hook for creating a user profile.
  * @returns Mutation result object for creating a profile.
  */
 export const useCreateProfileMutation = () => {
     const queryClient = useQueryClient();
-    const [userId, setUserId] = useState<string | null>(null);
-
-     // Get user ID asynchronously
-     useEffect(() => {
-    const fetchUserId = async () => {
-        const user = await getCurrentUserSafe();
-        setUserId(user?.$id || null);
-    };
-    fetchUserId();
-}, []);
-
+    const { userId } = useCurrentUserId();
 
     return useMutation<FormattedUserProfile, Error, Omit<ProfileData, 'userId'>>({
         mutationFn: async (profileData) => {
-             if (!userId) throw new Error("User not authenticated for creation.");
+            if (!userId) throw new Error("User not authenticated for creation.");
             const rawCreatedProfile = await createUserProfile(userId, profileData);
-            // Assume createUserProfile returns the created document
             return formatProfileForUI(rawCreatedProfile, userId);
         },
         onSuccess: (data) => {
-            // Update the cache immediately with the new profile
-            queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
-            // Optionally invalidate if you want a background refetch anyway
-            // queryClient.invalidateQueries({ queryKey: [USER_PROFILE_QUERY_KEY, userId] });
-            toast.success("Profile created successfully!");
-            console.log("[TanStack Mutation] Profile created:", data);
-
+            if (userId) {
+                queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
+                toast.success("Profile created successfully!");
+                console.log("[TanStack Mutation] Profile created:", data);
+            }
         },
         onError: (error) => {
             console.error("[TanStack Mutation] Error creating profile:", error);
             toast.error(`Failed to create profile: ${error.message}`);
         },
-        // REMOVED: enabled: !!userId,
     });
 };
 
@@ -129,45 +121,31 @@ export const useCreateProfileMutation = () => {
  */
 export const useUpdateProfileMutation = () => {
     const queryClient = useQueryClient();
-     const [userId, setUserId] = useState<string | null>(null);
-
-     // Get user ID asynchronously
-     useEffect(() => {
-    const fetchUserId = async () => {
-        const user = await getCurrentUserSafe();
-        setUserId(user?.$id || null);
-    };
-    fetchUserId();
-}, []);
-
+    const { userId } = useCurrentUserId();
 
     return useMutation<
         FormattedUserProfile,
         Error,
-        { documentId: string; data: Partial<Omit<ProfileData, 'userId'>> } // Pass documentId and data
+        { documentId: string; data: Partial<Omit<ProfileData, 'userId'>> }
     >({
         mutationFn: async ({ documentId, data }) => {
             if (!userId) throw new Error("User not authenticated for update.");
             const rawUpdatedProfile = await updateUserProfile(documentId, data);
-             // Assume updateUserProfile returns the updated document
             return formatProfileForUI(rawUpdatedProfile, userId);
         },
         onSuccess: (data) => {
-            // Update the cache immediately
-             queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
-            // Optionally invalidate
-            // queryClient.invalidateQueries({ queryKey: [USER_PROFILE_QUERY_KEY, userId] });
-             toast.success("Profile updated successfully!");
-             console.log("[TanStack Mutation] Profile updated:", data);
+            if (userId) {
+                queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
+                toast.success("Profile updated successfully!");
+                console.log("[TanStack Mutation] Profile updated:", data);
+            }
         },
         onError: (error) => {
             console.error("[TanStack Mutation] Error updating profile:", error);
             toast.error(`Failed to update profile: ${error.message}`);
         },
-         // REMOVED: enabled: !!userId,
     });
 };
-
 
 /**
  * TanStack Mutation hook for updating only the email in a profile.
@@ -175,43 +153,28 @@ export const useUpdateProfileMutation = () => {
  */
 export const useUpdateProfileEmailMutation = () => {
     const queryClient = useQueryClient();
-     const [userId, setUserId] = useState<string | null>(null);
-
-     // Get user ID asynchronously
-     useEffect(() => {
-    const fetchUserId = async () => {
-        const user = await getCurrentUserSafe();
-        setUserId(user?.$id || null);
-    };
-    fetchUserId();
-}, []);
+    const { userId } = useCurrentUserId();
 
     return useMutation<
         FormattedUserProfile,
         Error,
-        { documentId: string; email: string } // Requires documentId and new email
+        { documentId: string; email: string }
     >({
         mutationFn: async ({ documentId, email }) => {
             if (!userId) throw new Error("User not authenticated for email update.");
-            // Specifically update only the email field
             const rawUpdatedProfile = await updateUserProfile(documentId, { email });
             return formatProfileForUI(rawUpdatedProfile, userId);
         },
         onSuccess: (data) => {
-            // Update the cache
-            queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
-            // queryClient.invalidateQueries({ queryKey: [USER_PROFILE_QUERY_KEY, userId] });
-            console.log("[TanStack Mutation] Profile email updated in DB:", data);
-            // Success toast might be handled in AuthContext after Appwrite update succeeds
+            if (userId) {
+                queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
+                console.log("[TanStack Mutation] Profile email updated in DB:", data);
+            }
         },
         onError: (error) => {
             console.error("[TanStack Mutation] Error updating profile email:", error);
             toast.error(`Failed to update profile email: ${error.message}`);
-            // Re-throw if needed by the calling context (e.g., AuthContext)
             throw error;
         },
-         // REMOVED: enabled: !!userId,
     });
 };
-
-// Note: Delete mutation omitted for brevity, but would follow the same pattern.

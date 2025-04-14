@@ -1,258 +1,195 @@
-// src/context/AuthContext.tsx
-import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
+// src\context\AuthContext.tsx
+import React, { createContext, useContext, useCallback } from "react";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+// Removed unused imports: APPWRITE_DATABASE_ID, databases
 import { account } from "../lib/appwrite";
+import { getCurrentUserSafe } from "../lib/authHelpers";
 import { useLoading } from "../components/global/Loading/LoadingContext";
 import { toast } from "sonner";
 import { useUpdateProfileEmailMutation, useUserProfileQuery } from '@/components/global/hooks/useUserProfileData';
+import { ID, Models } from "appwrite"; // Import ID and Models
+
+// Query Key for current user
+const CURRENT_USER_QUERY_KEY = ['currentUser'];
+
+// Type for Appwrite User object
+type AppwriteUser = Models.User<Models.Preferences>;
 
 interface AuthContextProps {
   isAuthenticated: boolean;
-  user: any; // Consider defining a stricter User type
+  user: AppwriteUser | null; // Use specific type
+  isLoadingAuth: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  refreshUserState: () => Promise<any>;
+  refreshUserState: () => Promise<AppwriteUser | null>; // Updated return type
   updateEmail: (newEmail: string, password: string) => Promise<void>;
 }
 
-const USER_STORAGE_KEY = 'gnt_user_data'; // If still used? Tanstack might replace this need.
-
-const AuthContext = createContext<AuthContextProps>({
-  isAuthenticated: false,
-  user: null,
-  login: async () => {},
-  logout: async () => {},
-  register: async () => {},
-  refreshUserState: async () => {},
-  updateEmail: async () => {},
-});
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  const { 
-    setIsLoading: setIsLoadingGlobal, 
-    setLoadingMessage,
-    setIsLoadingAuth,
-    isLoadingAuth
-  } = useLoading();
+  const queryClient = useQueryClient();
+  const { setIsLoading: setIsLoadingGlobal, setLoadingMessage } = useLoading();
 
-  // Use the mutation hook for updating the profile document's email
+  // --- Use useQuery to fetch and cache the user ---
+  const {
+    data: user,
+    isLoading: isQueryLoading,
+    // Removed: isQueryFetching (if unused)
+    // Removed: isQueryError (if unused)
+    refetch: refetchUserQuery,
+  } = useQuery<AppwriteUser | null, Error>({ // Use specific type here
+    queryKey: CURRENT_USER_QUERY_KEY,
+    queryFn: getCurrentUserSafe,
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60 * 24,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
+  // Derived authentication state
+  const isAuthenticated = !!user;
+  const isLoadingAuth = isQueryLoading;
+
+  // Hooks for profile mutations/queries
   const { mutate: updateProfileEmailMutation } = useUpdateProfileEmailMutation();
-  
-  // Use the query hook to get the profile data (specifically the documentId)
-  // This query runs based on the userId state within the hook
+  // FIX: Call useUserProfileQuery WITHOUT the argument.
+  // The hook should internally use useAuth() to get the user ID if needed.
   const { data: userProfileData } = useUserProfileQuery();
 
-  /**
-   * Check if there's an active session without generating console errors
-   * This acts as a pre-check before attempting to fetch user data
-   */
-  const checkSession = useCallback(async () => {
-    try {
-      // Use listSessions instead of direct get() as it's more graceful with expired sessions
-      const sessions = await account.listSessions();
-      return sessions.total > 0;
-    } catch (error) {
-      // Silently handle session check errors - this means no active session
-      return false;
-    }
-  }, []);
-
-  const fetchUser = useCallback(async () => {
-    try {
-      // First check if we have an active session before attempting to get user data
-      const hasSession = await checkSession();
-      
-      if (!hasSession) {
-        // No active session, so don't attempt account.get() which would cause 401 errors
-        console.log("No active session found");
-        setUser(null);
-        setIsAuthenticated(false);
-        return null;
-      }
-      
-      // We have a session, safe to fetch user data
-      const userData = await account.get();
-      console.log("Fetched user data:", userData);
-      setUser(userData);
-      setIsAuthenticated(true);
-      return userData;
-    } catch (error) {
-      // This catch block should now only handle unexpected errors
-      console.log("Error fetching user data:", error);
-      setUser(null);
-      setIsAuthenticated(false);
-      return null;
-    } finally {
-      if (!isInitialized) {
-        setIsInitialized(true);
-        setIsLoadingAuth(false); // Turn off auth loading when initialization is complete
-      }
-    }
-  }, [isInitialized, setIsLoadingAuth, checkSession]);
-
-  const refreshUserState = useCallback(async () => {
-    return await fetchUser();
-  }, [fetchUser]);
-
-  useEffect(() => {
-    // Set loading state for authentication initialization
-    setIsLoadingAuth(true);
-    setLoadingMessage("Loading authentication...");
-    
-    fetchUser();
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // --- Modified Auth Actions ---
 
   const login = async (email: string, password: string) => {
-    setIsLoadingAuth(true);
+    setIsLoadingGlobal(true);
     setLoadingMessage("Logging in...");
-    
     try {
       await account.createEmailPasswordSession(email, password);
-      console.log("Session created successfully, fetching user data...");
-      const userData = await account.get();
-      
-      if (userData) {
-        console.log("User data obtained after login:", userData);
-        setUser(userData);
-        setIsAuthenticated(true);
-        await sleep(100); // Short delay might still be useful for state propagation
-      } else {
-        throw new Error("User data not available after login");
-      }
-    } catch (error) {
+      await queryClient.refetchQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+      toast.success("Login successful!");
+    } catch (error: any) {
       console.error("Login error:", error);
-      throw error; // Re-throw for component handling
+      toast.error(error.message || "Failed to log in. Please check your credentials.");
+      throw error;
     } finally {
-      setIsLoadingAuth(false);
+      setIsLoadingGlobal(false);
+      setLoadingMessage("");
     }
   };
 
   const logout = async () => {
-    setIsLoadingAuth(true);
+    setIsLoadingGlobal(true);
     setLoadingMessage("Logging out...");
-    
     try {
-      console.log("Logout initiated: Deleting current session...");
       await account.deleteSession("current");
-      console.log("Session deleted successfully. Clearing local auth state...");
-      localStorage.removeItem(USER_STORAGE_KEY); // Clear any stored user data
-      setUser(null);
-      setIsAuthenticated(false);
-      console.log("Local auth state cleared. User is now logged out.");
-    } catch (error) {
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+      queryClient.removeQueries({ queryKey: ['cart'], exact: false });
+      queryClient.removeQueries({ queryKey: ['wishlist'], exact: false });
+      queryClient.removeQueries({ queryKey: ['userProfile'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+      toast.success("Successfully logged out");
+      setTimeout(() => { window.location.href = '/'; }, 300);
+    } catch (error: any) {
       console.error("Logout error:", error);
+      toast.error(error.message || "Failed to log out.");
+      setIsLoadingGlobal(false);
+      setLoadingMessage("");
       throw error;
-    } finally {
-      setIsLoadingAuth(false);
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    setIsLoadingAuth(true);
+    setIsLoadingGlobal(true);
     setLoadingMessage("Creating your account...");
-    
     try {
-      await account.create("unique()", email, password, name);
-      // Immediately log in after successful registration
+      // FIX: Removed unused 'newUserAccount' variable assignment
+      await account.create(ID.unique(), email, password, name);
       await account.createEmailPasswordSession(email, password);
-      console.log("Session created successfully after registration, fetching user data...");
-      const userData = await account.get();
-      
-      if (userData) {
-        console.log("User data obtained after registration:", userData);
-        setUser(userData);
-        setIsAuthenticated(true);
-        await sleep(100);
-      } else {
-        throw new Error("User data not available after registration");
-      }
-    } catch (error) {
+      // TODO: Optional - Create user profile document here using the newUserAccount.$id if needed
+      await queryClient.refetchQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+      toast.success("Registration successful! Welcome!");
+    } catch (error: any) {
       console.error("Registration error:", error);
+      toast.error(error.message || "Failed to create account. Please try again.");
       throw error;
     } finally {
-      setIsLoadingAuth(false);
+      setIsLoadingGlobal(false);
+      setLoadingMessage("");
     }
   };
 
-  /** 
-   * Updates the email in Appwrite Auth, then triggers a mutation to update the email
-   * in the corresponding Appwrite Database profile document.
-   */
   const updateEmail = async (newEmail: string, password: string): Promise<void> => {
-    setIsLoadingGlobal(true); // Use global loading state
+    setIsLoadingGlobal(true);
     setLoadingMessage("Updating email...");
-    
     try {
-      // 1. Update email in Appwrite Authentication
       await account.updateEmail(newEmail, password);
       console.log("Appwrite Auth email updated successfully.");
-      
-      // Refresh user state locally after successful auth update
-      const updatedUserData = await account.get();
-      setUser(updatedUserData); // Update local user state
-      console.log("Local auth user state refreshed:", updatedUserData);
-      
-      // 2. Update email in the profile document using the mutation hook
+      await queryClient.refetchQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+
+      // FIX: Ensure user?.$id is passed correctly if useUserProfileQuery relies on it,
+      // BUT the error suggests the hook doesn't take an argument, so relying on internal useAuth is likely correct.
+      // const profileDocId = userProfileData?.profileDocId; // Assuming useUserProfileQuery returns this structure
       const profileDocId = userProfileData?.profileDocId;
+
       if (profileDocId) {
         console.log(`Attempting to update profile document (${profileDocId}) email via mutation...`);
         setLoadingMessage("Syncing profile...");
-        
-        // Call the mutation - no need for await if not chaining further async actions here
         updateProfileEmailMutation(
           { documentId: profileDocId, email: newEmail },
-          { 
-            onSuccess: () => {
-              // Toast is handled here or within the mutation hook itself
+          {
+            onSuccess: async () => {
+              // Pass the user ID to invalidate the specific profile query
+              await queryClient.invalidateQueries({ queryKey: ['userProfile', user?.$id] });
               toast.success("Email updated successfully in Authentication and Profile.");
               console.log("Profile email mutation successful.");
+              setIsLoadingGlobal(false);
+              setLoadingMessage("");
             },
             onError: (error) => {
-              // Error toast/logging is handled within the mutation hook
-              // Provide additional context if needed
               console.error("Profile email sync failed after auth update:", error);
-              toast.warning("Email updated in authentication, but failed to sync with profile. Please refresh or try saving profile again.");
-            },
-            onSettled: () => {
-              // This runs regardless of success/error
-              setIsLoadingGlobal(false); // Turn off loading indicator
+              toast.warning("Auth email updated, but profile sync failed.");
+              setIsLoadingGlobal(false);
               setLoadingMessage("");
-            }
+            },
           }
         );
       } else {
-        // No profile document found, just finish loading
         console.warn("No profile document ID found in query data. Cannot sync email to profile document.");
-        toast.info("Email updated in authentication, but no profile document was found to update.");
+        toast.info("Authentication email updated, but no profile document was found to update.");
         setIsLoadingGlobal(false);
         setLoadingMessage("");
       }
     } catch (error: any) {
-      // Catch errors primarily from account.updateEmail
       console.error("Email update process failed:", error);
       toast.error(error.message || "Failed to update email. Please check password.");
-      setIsLoadingGlobal(false); // Ensure loading stops on auth error
+      setIsLoadingGlobal(false);
       setLoadingMessage("");
-      throw error; // Re-throw for component handling
+      throw error;
     }
-    // Removed finally block as onSettled handles loading state turn off
   };
 
-  // No need for conditional rendering here as LoadingContext handles the display
-  // of the LoadingScreen component when isLoadingAuth is true
+  const refreshUserState = useCallback(async (): Promise<AppwriteUser | null> => { // Update return type
+    setIsLoadingGlobal(true);
+    setLoadingMessage("Refreshing user state...");
+    try {
+      const refreshedResult = await refetchUserQuery(); // Use result structure
+      return refreshedResult.data ?? null; // Return data property
+    } catch (error) {
+      console.error("Failed to refresh user state:", error);
+      toast.error("Could not refresh user session.");
+      return null;
+    } finally {
+      setIsLoadingGlobal(false);
+      setLoadingMessage("");
+    }
+  }, [refetchUserQuery, setIsLoadingGlobal, setLoadingMessage]);
+
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
-        user,
+        user: user ?? null,
+        isLoadingAuth,
         login,
         logout,
         register,

@@ -16,7 +16,15 @@ import useMiddleClickNavigation from "@/components/global/hooks/useMiddleClickNa
 import AuthenticatedProviders from "@/components/providers/AuthenticatedProviders";
 
 // Create a new QueryClient instance
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+      queries: {
+          staleTime: 1000 * 60 * 5, // Example: 5 minutes default stale time
+          refetchOnWindowFocus: false,
+          retry: 1, // Retry failed queries once
+      },
+  },
+});
 
 // Create a wrapper component that applies the middle click navigation
 function MiddleClickNavigationProvider({ children }: { children: React.ReactNode }) {
@@ -24,11 +32,6 @@ function MiddleClickNavigationProvider({ children }: { children: React.ReactNode
   return <>{children}</>;
 }
 
-// Separate component to use the loading context
-const LoadingScreenWrapper = () => {
-  const { isLoadingProfile, loadingMessage } = useLoading();
-  return isLoadingProfile ? <LoadingScreen message={loadingMessage} /> : null;
-};
 
 // Create a wrapper component for the app content
 const AppContent = () => {
@@ -45,7 +48,6 @@ const AppContent = () => {
         <AuthProvider>
           <AuthenticatedProviders />
         </AuthProvider>
-        <LoadingScreenWrapper />
       </MiddleClickNavigationProvider>
     </Router>
   );

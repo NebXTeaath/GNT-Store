@@ -1,40 +1,23 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import debounce from 'lodash.debounce';
-import { client, databases, APPWRITE_DATABASE_ID } from "@/lib/appwrite";
-import { Account, ID, Query } from "appwrite";
+// src\context\WishlistContext.tsx
+import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react'; // Added useCallback import
+import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
+import { databases, APPWRITE_DATABASE_ID } from "@/lib/appwrite";
+import { ID, Query, Models } from "appwrite"; // Import Models
 import { toast } from "sonner";
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/lib/supabase";
+import { useAuth } from './AuthContext';
 
-// WishlistItem represents the basic data stored in Appwrite
-export interface WishlistItemBasic {
-  id: string;
-}
+// Interfaces
+export interface WishlistItemBasic { id: string; }
+export interface WishlistItem { id: string; slug: string; title: string; price: number; discount_price: number; image: string; }
+interface ProductDetail { cart_product_id: string; cart_slug: string; cart_product_name: string; cart_price: string | number; cart_discount_price: string | number; cart_primary_image?: string; }
+interface ProductSlug { product_id: string; slug: string; }
 
-// WishlistItem with complete product information from the database
-export interface WishlistItem {
-  id: string;
-  slug: string;
-  title: string;
-  price: number;
-  discount_price: number;
-  image: string;
-}
-
-// Interface for product details returned from Supabase
-interface ProductDetail {
-  cart_product_id: string;
-  cart_slug: string;
-  cart_product_name: string;
-  cart_price: string | number;
-  cart_discount_price: string | number;
-  cart_primary_image?: string;
-}
-
-// Interface for product slugs returned from Supabase RPC function
-interface ProductSlug {
-  product_id: string;
-  slug: string;
+// Appwrite Wishlist Document Type (extending Models.Document)
+interface AppwriteWishlistDoc extends Models.Document {
+  userId: string;
+  productUUID: string; // Comma-separated string of product IDs
+  creationDate: string; // Or your relevant date field
 }
 
 interface WishlistContextType {
@@ -57,322 +40,230 @@ export const useWishlist = () => {
   return context;
 };
 
+// --- Helper Function to Fetch Full Wishlist Data ---
+async function fetchFullWishlistData(userId: string | null): Promise<{ items: WishlistItem[], wishlistDocId: string | null }> {
+    if (!userId) return { items: [], wishlistDocId: null };
+    console.log(`[WishlistContext] Fetching full wishlist for user: ${userId}`);
+    try {
+        let basicItemIds: string[] = [];
+        let wishlistDocId: string | null = null;
+
+        // Apply generic type constraint
+        const { documents } = await databases.listDocuments<AppwriteWishlistDoc>(
+            APPWRITE_DATABASE_ID,
+            'wishlist',
+            [Query.equal('userId', userId), Query.limit(1)]
+        );
+
+        if (documents.length > 0) {
+            const userWishlist = documents[0];
+            wishlistDocId = userWishlist.$id;
+            if (userWishlist.productUUID) {
+                basicItemIds = userWishlist.productUUID.split(',').filter(Boolean);
+            }
+        }
+
+        if (basicItemIds.length === 0) {
+            return { items: [], wishlistDocId };
+        }
+
+        const [detailsResult, slugsResult] = await Promise.all([
+            supabase.rpc('get_cart_product_info', { product_uuids: basicItemIds }),
+            supabase.rpc('get_product_slugs_by_ids', { product_ids: basicItemIds })
+        ]);
+
+        const { data: productDetails, error: detailsError } = detailsResult;
+        const { data: productSlugs, error: slugsError } = slugsResult;
+
+        if (detailsError || slugsError) {
+            console.error('Error fetching wishlist product details/slugs:', { detailsError, slugsError });
+            toast.error("Failed to fetch wishlist product details", { id: "fetch-wishlist-details-error" });
+            return { items: [], wishlistDocId };
+        }
+
+        // Type reduce callback parameters
+        const slugMap = (productSlugs || []).reduce((acc: Record<string, string>, item: ProductSlug) => {
+            acc[item.product_id] = item.slug;
+            return acc;
+        }, {});
+
+        // Type map callback parameter
+        const fullWishlistItems = (productDetails || []).map((product: ProductDetail) => {
+            const slug = slugMap[product.cart_product_id] || product.cart_slug || '';
+            return {
+                id: product.cart_product_id,
+                slug,
+                title: product.cart_product_name,
+                price: parseFloat(typeof product.cart_price === 'string' ? product.cart_price : product.cart_price.toString()),
+                discount_price: parseFloat(typeof product.cart_discount_price === 'string' ? product.cart_discount_price : product.cart_discount_price.toString()),
+                image: product.cart_primary_image || "/placeholder.svg",
+            };
+        });
+
+        return { items: fullWishlistItems, wishlistDocId };
+
+    } catch (error) {
+        console.error('Error fetching full wishlist data:', error);
+        toast.error("Failed to load your wishlist", { id: "load-wishlist-error" });
+        return { items: [], wishlistDocId: null };
+    }
+}
+
+// --- Helper function to save wishlist data to Appwrite ---
+async function saveWishlistToAppwrite(userId: string, wishlistDocId: string | null, itemIds: string[]): Promise<string | null> {
+    const productUUIDs = itemIds.join(',');
+    const currentISODate = new Date().toISOString();
+
+    try {
+        if (itemIds.length > 0) {
+            if (wishlistDocId) {
+                // Update existing wishlist
+                await databases.updateDocument(
+                    APPWRITE_DATABASE_ID, 'wishlist', wishlistDocId,
+                    { productUUID: productUUIDs, creationDate: currentISODate } // Ensure field names match collection
+                );
+                return wishlistDocId;
+            } else {
+                // Create new wishlist - apply type constraint
+                const newWishlist = await databases.createDocument<AppwriteWishlistDoc>(
+                    APPWRITE_DATABASE_ID, 'wishlist', ID.unique(),
+                    { userId, productUUID: productUUIDs, creationDate: currentISODate }
+                );
+                return newWishlist.$id;
+            }
+        } else {
+            // Wishlist is empty, delete document if it exists
+            if (wishlistDocId) {
+                await databases.deleteDocument(APPWRITE_DATABASE_ID, 'wishlist', wishlistDocId);
+            }
+            return null;
+        }
+    } catch (error) {
+        console.error('Failed to save wishlist to Appwrite:', error);
+        throw new Error('Failed to save wishlist to database.'); // Throw error for mutation
+    }
+}
+
+
 interface WishlistProviderProps {
   children: ReactNode;
 }
 
 export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) => {
-  const [basicWishlistItems, setBasicWishlistItems] = useState<WishlistItemBasic[]>([]);
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [wishlistId, setWishlistId] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, isAuthenticated } = useAuth();
+  const userId = user?.$id || null;
+  const queryClient = useQueryClient();
 
-  // Check if user is authenticated
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setIsLoading(true);
-        const account = new Account(client);
-        const user = await account.get();
-        setUserId(user.$id);
-        setIsAuthenticated(true);
-      } catch (error) {
-        setUserId(null);
-        setIsAuthenticated(false);
-      } finally {
-        setAuthChecked(true);
-        setIsLoading(false);
-      }
-    };
-    checkAuth();
-  }, []);
+  const wishlistQueryKey = useMemo(() => ['wishlist', userId], [userId]);
 
-  // Load wishlist data when component mounts or user changes
-  useEffect(() => {
-    const loadWishlist = async () => {
-      if (!authChecked) return;
-      if (!isAuthenticated) {
-        setBasicWishlistItems([]);
-        return;
-      }
-      
-      setIsLoading(true);
-      try {
-        if (userId) {
-          await fetchWishlistFromAppwrite(userId);
-        }
-      } catch (error) {
-        console.error('Error loading wishlist:', error);
-        toast.error("Failed to load your wishlist", {
-          id: "load-wishlist-error",
-          description: "An unexpected error occurred while loading the wishlist.",
-          duration: 3000
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadWishlist();
-  }, [userId, authChecked, isAuthenticated]);
+  const {
+    data: wishlistData, // Contains { items: WishlistItem[], wishlistDocId: string | null }
+    isLoading: isWishlistLoading,
+    // isError, // Can use if needed
+    // refetch, // Can use if needed
+  } = useQuery<{ items: WishlistItem[], wishlistDocId: string | null }, Error>({
+    queryKey: wishlistQueryKey,
+    queryFn: () => fetchFullWishlistData(userId),
+    enabled: !!userId && isAuthenticated, // Only run when logged in
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30,   // 30 minutes
+    // Use placeholderData (TanStack Query v5+)
+    placeholderData: (previousData) => previousData ?? { items: [], wishlistDocId: null },
+  });
 
-  // Fetch wishlist from Appwrite
-  const fetchWishlistFromAppwrite = async (uid: string) => {
-    try {
-      const { documents } = await databases.listDocuments(
-        APPWRITE_DATABASE_ID,
-        'wishlist',
-        [Query.equal('userId', uid)]
-      );
-      
-      if (documents.length > 0) {
-        const userWishlist = documents[0];
-        setWishlistId(userWishlist.$id);
-        if (userWishlist.productUUID) {
-          try {
-            const productUUIDs = userWishlist.productUUID.split(',').filter(Boolean);
-            const items: WishlistItemBasic[] = productUUIDs.map((id: string) => ({ id }));
-            setBasicWishlistItems(items);
-          } catch (error) {
-            console.error('Failed to parse wishlist from Appwrite:', error);
-            throw error;
-          }
-        } else {
-          setBasicWishlistItems([]);
-        }
-      } else {
-        setBasicWishlistItems([]);
-        setWishlistId(null);
-      }
-    } catch (error) {
-      console.error('Error fetching wishlist from Appwrite:', error);
-      throw error;
-    }
-  };
+  // Safely access query data
+  const wishlistItems = wishlistData?.items ?? [];
+  const wishlistDocId = wishlistData?.wishlistDocId ?? null;
 
-  // Save wishlist to Appwrite
-  const saveWishlist = async (items: WishlistItemBasic[]) => {
-    if (!userId || !isAuthenticated) {
+  // Type 'item' parameter in 'some' callback
+  const isInWishlist = useCallback((id: string): boolean => {
+    return wishlistItems.some((item: WishlistItem) => item.id === id);
+  }, [wishlistItems]);
+
+  // --- Mutations for Wishlist Actions ---
+
+   const { mutate: saveWishlistMutation } = useMutation<string | null, Error, string[]>({
+      mutationFn: (newItemIds) => {
+          if (!userId) throw new Error("User not logged in");
+          // saveWishlistToAppwrite now throws on failure
+          return saveWishlistToAppwrite(userId, wishlistDocId, newItemIds);
+      },
+      // Type oldData parameter and remove unused 'variables'
+      onSuccess: (newWishlistDocId /*, variables */) => {
+          // Update query data's wishlistDocId; rely on invalidation for items
+          queryClient.setQueryData(wishlistQueryKey, (oldData: { items: WishlistItem[], wishlistDocId: string | null } | undefined) => {
+               return { items: oldData?.items ?? [], wishlistDocId: newWishlistDocId };
+          });
+           // Invalidate to refetch the full accurate wishlist state
+          queryClient.invalidateQueries({ queryKey: wishlistQueryKey });
+          console.log("Wishlist saved successfully, new wishlistDocId:", newWishlistDocId);
+      },
+      onError: (error) => {
+           console.error("Save wishlist error:", error);
+           toast.error(error.message || "Failed to update wishlist on the server.", { id: "save-wishlist-error" });
+           // Optional: Invalidate to ensure UI reflects actual server state
+           queryClient.invalidateQueries({ queryKey: wishlistQueryKey });
+      }
+  });
+
+  // Wishlist Actions
+
+  const addToWishlist = (item: Omit<WishlistItem, 'quantity'>): void => {
+    if (!isAuthenticated || !userId) {
+      toast.error("Please log in to add items to your wishlist", { id: "login-required-toast" });
       return;
     }
 
-    if (items.length > 0) {
-      try {
-        const productUUIDs = items.map(item => item.id).join(',');
-        
-        if (wishlistId) {
-          await databases.updateDocument(
-            APPWRITE_DATABASE_ID,
-            'wishlist',
-            wishlistId,
-            {
-              productUUID: productUUIDs,
-              creationDate: new Date().toISOString()
-            }
-          );
-        } else {
-          const newWishlist = await databases.createDocument(
-            APPWRITE_DATABASE_ID,
-            'wishlist',
-            ID.unique(),
-            {
-              userId,
-              productUUID: productUUIDs,
-              creationDate: new Date().toISOString()
-            }
-          );
-          setWishlistId(newWishlist.$id);
-        }
-      } catch (error) {
-        console.error('Error saving wishlist to Appwrite:', error);
-        toast.error("Failed to save wishlist to database", {
-          id: "save-wishlist-error",
-          description: "Your wishlist could not be updated on the server.",
-          duration: 3000
-        });
-      }
-    } else if (wishlistId) {
-      try {
-        await databases.deleteDocument(
-          APPWRITE_DATABASE_ID,
-          'wishlist',
-          wishlistId
-        );
-        setWishlistId(null);
-      } catch (error) {
-        console.error('Error deleting empty wishlist from Appwrite:', error);
-        toast.error("Failed to clear wishlist from database", {
-          id: "delete-wishlist-error",
-          description: "There was an issue clearing your wishlist from the server.",
-          duration: 3000
-        });
-      }
-    }
-  };
-
-  // Create a debounced version of saveWishlist to aggregate rapid wishlist updates
-  const debouncedSaveWishlist = useCallback(
-    debounce((items: WishlistItemBasic[]) => {
-      saveWishlist(items);
-    }, 500),
-    [userId, wishlistId, isAuthenticated]
-  );
-
-  // Save basicWishlistItems to storage whenever it changes using debounced save
-  useEffect(() => {
-    if (!isLoading && authChecked && isAuthenticated) {
-      debouncedSaveWishlist(basicWishlistItems);
-    }
-  }, [basicWishlistItems, isLoading, authChecked, isAuthenticated, debouncedSaveWishlist]);
-
-  // Fetch product details from Supabase using the wishlist items
-  const { data: productDetails, isLoading: isProductsLoading } = useQuery({
-    queryKey: ['wishlistProducts', basicWishlistItems, isAuthenticated],
-    queryFn: async () => {
-      if (basicWishlistItems.length === 0 || !isAuthenticated) return [];
-      try {
-        const productIds = basicWishlistItems.map(item => item.id);
-        const { data, error } = await supabase.rpc('get_cart_product_info', {
-          product_uuids: productIds
-        });
-        if (error) {
-          console.error('Error fetching product details:', error);
-          toast.error("Failed to fetch product details", {
-            id: "fetch-product-details-error",
-            description: "An error occurred while fetching wishlist product details.",
-            duration: 3000
-          });
-          throw error;
-        }
-        return data || [];
-      } catch (error) {
-        console.error('Error in query function:', error);
-        return [];
-      }
-    },
-    enabled: basicWishlistItems.length > 0 && authChecked && isAuthenticated,
-  });
-
-  // Fetch product slugs from Supabase using the wishlist item IDs
-  const { data: productSlugs, isLoading: isSlugsLoading } = useQuery({
-    queryKey: ['wishlistProductSlugs', basicWishlistItems, isAuthenticated],
-    queryFn: async () => {
-      if (basicWishlistItems.length === 0 || !isAuthenticated) return [];
-      try {
-        const productIds = basicWishlistItems.map(item => item.id);
-        const { data, error } = await supabase.rpc('get_product_slugs_by_ids', {
-          product_ids: productIds
-        });
-        if (error) {
-          console.error('Error fetching product slugs:', error);
-          toast.error("Failed to fetch product slugs", {
-            id: "fetch-product-slugs-error",
-            description: "An error occurred while fetching product slugs.",
-            duration: 3000
-          });
-          throw error;
-        }
-        return data || [];
-      } catch (error) {
-        console.error('Error in query function for slugs:', error);
-        return [];
-      }
-    },
-    enabled: basicWishlistItems.length > 0 && authChecked && isAuthenticated,
-  });
-
-  // Combine product details and slugs to create complete wishlist items
-  useEffect(() => {
-    if (productDetails && productSlugs && basicWishlistItems.length > 0) {
-      // Create a map of product ID to slug for quick lookup
-      const slugMap = productSlugs.reduce((acc: Record<string, string>, item: ProductSlug) => {
-        acc[item.product_id] = item.slug;
-        return acc;
-      }, {});
-
-      const fullWishlistItems = productDetails.map((product: ProductDetail) => {
-        // Use the slug from the slugMap, fallback to cart_slug from product details if available
-        const slug = slugMap[product.cart_product_id] || product.cart_slug || '';
-        
-        return {
-          id: product.cart_product_id,
-          slug,
-          title: product.cart_product_name,
-          price: parseFloat(typeof product.cart_price === 'string' ? product.cart_price : product.cart_price.toString()),
-          discount_price: parseFloat(typeof product.cart_discount_price === 'string' ? product.cart_discount_price : product.cart_discount_price.toString()),
-          image: product.cart_primary_image || "/placeholder.svg",
-        };
-      });
-      setWishlistItems(fullWishlistItems);
-    } else if (basicWishlistItems.length === 0) {
-      setWishlistItems([]);
-    }
-  }, [productDetails, productSlugs, basicWishlistItems]);
-
-  // Add item to wishlist
-  const addToWishlist = (item: Omit<WishlistItem, 'quantity'>) => {
-    if (!isAuthenticated) {
-      toast.error("Please log in to add items to your wishlist", {
-        id: "login-required-toast"
-      });
+    // Add type ': WishlistItem'
+    const currentItemIds = wishlistItems.map((wi: WishlistItem) => wi.id);
+    if (currentItemIds.includes(item.id)) {
+      toast.info("Item already in wishlist", { id: "already-in-wishlist-toast" });
       return;
     }
 
-    setBasicWishlistItems(prevItems => {
-      const existingItem = prevItems.find(wishlistItem => wishlistItem.id === item.id);
-      if (existingItem) {
-        toast.info("Item already in wishlist", {
-          id: "already-in-wishlist-toast",
-          description: "This item is already in your wishlist."
+    const newItemIds = [...currentItemIds, item.id];
+    saveWishlistMutation(newItemIds, {
+         onSuccess: () => toast.success("Added to wishlist", { id: "wishlist-add-toast" })
+    });
+  };
+
+  const removeFromWishlist = (id: string): void => {
+    if (!isAuthenticated || !userId) { return; } // Basic check
+
+    // Add type ': WishlistItem'
+    const currentItemIds = wishlistItems.map((wi: WishlistItem) => wi.id);
+    // Add type ': string'
+    const newItemIds = currentItemIds.filter((itemId: string) => itemId !== id);
+
+     if (newItemIds.length !== currentItemIds.length) {
+        saveWishlistMutation(newItemIds, {
+            onSuccess: () => toast.success("Removed from wishlist", { id: "remove-wishlist-toast" })
         });
-        return prevItems;
-      } else {
-        toast.success("Added to wishlist", {
-          id: "wishlist-add-toast",
-          description: "The item has been added to your wishlist."
+    }
+  };
+
+  const clearWishlist = (): void => {
+    if (!isAuthenticated || !userId) {
+      toast.error("Please log in to clear your wishlist", { id: "login-required-toast" });
+      return;
+    }
+    if (wishlistItems.length > 0) {
+        saveWishlistMutation([], { // Pass empty array
+             onSuccess: () => toast.success("Wishlist cleared", { id: "clear-wishlist-toast" })
         });
-        return [...prevItems, { id: item.id }];
-      }
-    });
-  };
-
-  // Remove item from wishlist
-  const removeFromWishlist = (id: string) => {
-    setBasicWishlistItems(prevItems => prevItems.filter(item => item.id !== id));
-    toast.success("Removed from wishlist", {
-      id: "remove-wishlist-toast",
-      description: "The item has been removed from your wishlist."
-    });
-  };
-
-  // Clear wishlist
-  const clearWishlist = () => {
-    setBasicWishlistItems([]);
-    toast.success("Wishlist cleared", {
-      id: "clear-wishlist-toast",
-      description: "All items have been removed from your wishlist."
-    });
-  };
-
-  // Check if an item is in the wishlist
-  const isInWishlist = (id: string) => {
-    return basicWishlistItems.some(item => item.id === id);
+    }
   };
 
   return (
-    <WishlistContext.Provider
-      value={{
-        wishlistItems,
-        addToWishlist,
-        removeFromWishlist,
-        clearWishlist,
-        isInWishlist,
-        isLoading: isLoading || isProductsLoading || isSlugsLoading,
-        isAuthenticated
-      }}
-    >
+    <WishlistContext.Provider value={{
+      wishlistItems,
+      addToWishlist,
+      removeFromWishlist,
+      clearWishlist,
+      isInWishlist,
+      isLoading: isWishlistLoading, // Loading state from useQuery
+      isAuthenticated // From useAuth
+    }}>
       {children}
     </WishlistContext.Provider>
   );
