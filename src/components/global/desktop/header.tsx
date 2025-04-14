@@ -260,6 +260,7 @@ export default function Header() {
 </div>
 
         {/* Desktop Navigation & Search */}
+        
         <div className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 flex-1 justify-center">
            {/* Shop Catalog Sheet Trigger */}
           <Sheet open={catalogSheetOpen} onOpenChange={setCatalogSheetOpen}>
@@ -367,7 +368,7 @@ export default function Header() {
             )}
 
             {/* Cart Button - Desktop Only */}
-              {!isMobile && (
+              {isAuthenticated && (!isMobile && (
                 <div className="relative">
                   <TooltipProvider>
                     <Tooltip>
@@ -395,7 +396,7 @@ export default function Header() {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-              )}
+              ))}
 
             {/* Auth State: Loading / Logged In / Logged Out */}
             {isLoadingAuth ? (
