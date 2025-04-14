@@ -1,15 +1,15 @@
-//src/hooks/useWindowSize.ts
+// src/hooks/useWindowSize.ts
 import { useState, useEffect } from 'react';
 
 interface WindowSize {
-  width: number | undefined;
-  height: number | undefined;
+  width: number;
+  height: number;
 }
 
 export function useWindowSize() {
   const [windowSize, setWindowSize] = useState<WindowSize>({
-    width: undefined,
-    height: undefined,
+    width: 0, // default fallback
+    height: 0,
   });
 
   useEffect(() => {
@@ -19,16 +19,16 @@ export function useWindowSize() {
         height: window.innerHeight,
       });
     }
-    
+
+    // Initial size set
+    handleResize();
+
     // Add event listener
     window.addEventListener("resize", handleResize);
-    
-    // Call handler right away so state gets updated with initial window size
-    handleResize();
-    
-    // Remove event listener on cleanup
+
+    // Clean up
     return () => window.removeEventListener("resize", handleResize);
-  }, []); // Empty array ensures that effect is only run on mount and unmount
-  
+  }, []);
+
   return windowSize;
 }

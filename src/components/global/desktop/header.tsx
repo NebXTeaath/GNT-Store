@@ -194,7 +194,7 @@ export default function Header() {
         if (!windowSize.width) return "medium";
         if (windowSize.width < 1280) return "x-small";
         if (windowSize.width < 1300) return "small";
-        if (windowSize.width < 1500) return "medium";
+        if (windowSize.width < 1540) return "medium";
         return "large";
     };
     const getUsernameMaxLength = () => {
@@ -236,7 +236,12 @@ export default function Header() {
         </div>
 
         {/* Logo Section */}
-<div className="flex-1 flex justify-center md:justify-start md:flex-none md:mr-4">
+        <div
+  className={cn(
+    "flex items-center",
+    isMobile ? "justify-center flex-1" : "justify-start md:flex-none md:mr-4"
+  )}
+>
   <Link
     to="/"
     className="flex items-center gap-2"
@@ -245,11 +250,19 @@ export default function Header() {
       navigateWithLoading("/", "Loading home page...", setIsLoading);
     }}
   >
-    <div className="w-12 h-12 md:w-14 md:h-14 relative">
+    <div className={cn("relative", isMobile ? "w-12 h-12" : "w-14 h-14")}>
       <img
         src={Logo || "/placeholder.svg"}
         alt="GNT Logo"
-        className="absolute inset-0 w-full h-full object-contain transform scale-[3] md:scale-[1.8] lg:scale-[3] transition-transform duration-300 ease-in-out origin-center"
+        className={cn(
+  "absolute inset-0 w-full h-full object-contain transition-transform duration-300 ease-in-out",
+  isMobile
+    ? "transform scale-[2.5] origin-center"
+    : windowSize.width >= 1540
+    ? "transform scale-[3] origin-left"
+    : "transform scale-[1.8] origin-left"
+)}
+
         width={40}
         height={40}
         loading="eager"
@@ -258,6 +271,7 @@ export default function Header() {
     <span className="sr-only">GNT - Games & Tech</span>
   </Link>
 </div>
+
 
         {/* Desktop Navigation & Search */}
         
@@ -323,12 +337,23 @@ export default function Header() {
 
            {/* Repair Services Button */}
            <Button
-                variant="outline" size="sm"
-                className="min-w-[120px] flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out cursor-pointer"
-                onClick={() => navigateWithLoading('/repair-home', 'Loading repair services...', setIsLoading)}
-            >
-                {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"}
-            </Button>
+  variant="outline"
+  size="sm"
+  className={cn(
+    "flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out cursor-pointer",
+    windowSize.width && windowSize.width < 960 ? "min-w-[75px]" : "min-w-[120px]"
+  )}
+  onClick={() =>
+    navigateWithLoading(
+      "/repair-home",
+      "Loading repair services...",
+      setIsLoading
+    )
+  }
+>
+  {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"}
+</Button>
+
         </div>
 
         {/* Right-side Links & Actions */}
