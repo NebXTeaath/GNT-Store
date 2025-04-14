@@ -249,7 +249,7 @@ export default function Header() {
       <img
         src={Logo || "/placeholder.svg"}
         alt="GNT Logo"
-        className="absolute inset-0 w-full h-full object-contain transform scale-[3] md:scale-[1.8] lg:scale-[2] transition-transform duration-300 ease-in-out origin-center"
+        className="absolute inset-0 w-full h-full object-contain transform scale-[3] md:scale-[1.8] lg:scale-[3] transition-transform duration-300 ease-in-out origin-center"
         width={40}
         height={40}
         loading="eager"
