@@ -441,29 +441,41 @@ export default function ProductDetailsPage() {
           {/* Image Section */}
 <motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
   <div className="flex flex-col gap-8">
-    <div className="relative overflow-visible -mx-4 md:mx-0 md:px-12">
-      <Carousel setApi={setApi} index={currentSlide} opts={{ loop: images.length > 1 }}>
-        <CarouselContent>
-          {images.map((img, index) => (
-            <CarouselItem key={index}>
-              <div className="aspect-square relative overflow-hidden rounded-xl bg-[#1a1c23]">
-                {/* Use only the props that OptimizedImage accepts */}
-                <OptimizedImage
-                  src={img || "/placeholder.svg"}
-                  alt={`${productData.o_product_name} image ${index + 1}`}
-                  className="w-full h-full object-contain" 
-                  width={600}
-                  height={600}
-                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 600px"
-                  loading={index === 0 ? "eager" : "lazy"}
-                  fetchPriority={index === 0 ? "high" : "auto"}
-                />
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-      </Carousel>
+    {/* First fix: Add a containing div with consistent dimensions */}
+    <div className="relative overflow-hidden -mx-4 md:mx-0 md:px-12">
+      {/* Ensure we have images before rendering carousel */}
+      {images && images.length > 0 ? (
+        <Carousel setApi={setApi} index={currentSlide} opts={{ loop: images.length > 1 }}>
+          <CarouselContent>
+            {images.map((img, index) => (
+              <CarouselItem key={index}>
+                {/* Pre-reserve space with a consistent aspect ratio */}
+                <div className="aspect-square relative overflow-hidden rounded-xl bg-[#1a1c23]">
+                  {/* Use optimized image with explicit width and height */}
+                  <OptimizedImage
+                    src={img || "/placeholder.svg"}
+                    alt={`${productData.o_product_name} image ${index + 1}`}
+                    className="w-full h-full object-contain" 
+                    width={600}
+                    height={600}
+                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 600px"
+                    loading={index === 0 ? "eager" : "lazy"}
+                    fetchPriority={index === 0 ? "high" : "auto"}
+                  />
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+      ) : (
+        // Placeholder when no images available
+        <div className="aspect-square bg-[#1a1c23] rounded-xl flex items-center justify-center">
+          <div className="text-gray-500">No image available</div>
+        </div>
+      )}
     </div>
+
+    {/* Thumbnails Section */}
     {images.length > 1 && (
       <div className="grid grid-cols-4 gap-2 md:gap-4">
         {images.slice(0, 4).map((img, index) => (
