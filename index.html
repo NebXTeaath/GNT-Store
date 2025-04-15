@@ -42,11 +42,11 @@
     }
     #initial-loading {
       position: fixed; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; z-index: 100; /* Higher z-index */
-      transition: opacity 300ms ease-out; /* Smoother transition */
+      align-items: center; justify-content: center; z-index: 100; 
+      transition: opacity 300ms ease-out; 
       animation: backgroundAnimation 10s ease-in-out infinite;
       backdrop-filter: blur(4px);
-      background-color: rgba(15, 17, 21, 0.95); /* Darker initial bg */
+      background-color: rgba(15, 17, 21, 0.95); 
     }
     .loading-dot {
       height: 1rem; width: 1rem; background-color: #5865f2;
@@ -62,7 +62,7 @@
 </head>
 <body>
   <div id="initial-loading">
-    <img src="/logo.svg" alt="GNT Logo" class="logo" /> {/* Corrected path */}
+    <img src="/logo.svg" alt="GNT Logo" class="logo" /> 
     <div class="loading-dots">
       <div class="loading-dot"></div>
       <div class="loading-dot"></div>
@@ -72,6 +72,5 @@
   </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
-  {/* Script to hide loading screen is removed, handled in App.tsx now */}
 </body>
 </html>
