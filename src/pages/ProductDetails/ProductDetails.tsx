@@ -1,4 +1,4 @@
-// src/pages/ProductDetails/New_ProductDetails.tsx
+// src/pages/ProductDetails/ProductDetails.tsx
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 import { Button } from "@/components/ui/button";
