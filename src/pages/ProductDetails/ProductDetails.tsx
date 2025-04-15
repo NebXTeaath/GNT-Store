@@ -445,69 +445,113 @@ export default function ProductDetailsPage() {
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-x-8 xl:gap-x-16 gap-y-8">
-          {/* Image Section */}
-          <motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
-            <div className="flex flex-col gap-8">
-              {/* Use a container that prevents content shift for the carousel */}
-              <div className="relative overflow-hidden w-full aspect-square rounded-xl bg-[#1a1c23]"> {/* Container enforces aspect ratio */}
-                <Carousel
-                    setApi={setApi}
-                    index={currentSlide}
-                    opts={{ loop: images.length > 1 }}
-                    // Ensure carousel itself fills the container and doesn't cause shifts
-                    className="absolute inset-0 w-full h-full"
-                 >
-                  <CarouselContent className="h-full"> {/* Ensure content fills height */}
-                    {images.map((img, index) => (
-                      <CarouselItem key={index} className="h-full"> {/* Ensure item fills height */}
-                        {/* The div below might be redundant if CarouselItem handles padding/structure well enough, */}
-                        {/* but keeping it ensures consistent structure with original code */}
-                        <div className="w-full h-full relative"> {/* Make this fill the item */}
-                          <OptimizedImage
-                            src={img || "/placeholder.svg"} // Use placeholder if image is missing
-                            alt={`${productData.o_product_name} image ${index + 1}`}
-                            // Adjust className to fill the container using absolute positioning
-                            className="absolute inset-0 w-full h-full object-contain"
-                            width={600} // Provide hints, actual size constrained by container
-                            height={600}
-                            loading={index === 0 ? "eager" : "lazy"} // Eager load the first image
-                            fetchPriority={index === 0 ? "high" : "auto"} // Prioritize first image
-                          />
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  {/* Add Carousel Previous/Next if needed - ensure they don't overlap OptimizedImage badly */}
-                </Carousel>
+        
+
+
+<motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
+  <div className="flex flex-col gap-4 md:gap-8">
+    {/* Container with fixed aspect ratio and viewport width constraint */}
+    <div 
+      className="relative w-full aspect-square bg-[#1a1c23] rounded-xl overflow-hidden max-w-full"
+      style={{ maxHeight: 'min(calc(100vh - 200px), 600px)' }} // Ensure it doesn't exceed viewport
+    >
+      {/* Loading state indicator */}
+      {isFetching && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#1a1c23]/70 z-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#5865f2]"></div>
+        </div>
+      )}
+      
+      <Carousel
+        setApi={setApi}
+        index={currentSlide}
+        opts={{ loop: images.length > 1, containScroll: "keepSnaps" }}
+        className="w-full h-full"
+      >
+        <CarouselContent className="h-full">
+          {images.map((img, index) => (
+            <CarouselItem key={index} className="h-full flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center p-2 sm:p-4">
+                <img
+                  src={img || "/placeholder.svg"}
+                  alt={`${productData.o_product_name} image ${index + 1}`}
+                  className="max-w-full max-h-full object-contain"
+                  width={600}
+                  height={600}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  // The key fix: Force proper sizing on initial load
+                  onLoad={(e) => {
+                    // Ensure image dimensions are constrained immediately
+                    const img = e.target as HTMLImageElement;
+                    img.style.maxWidth = '100%';
+                    img.style.maxHeight = '100%';
+                  }}
+                />
               </div>
-              {/* Thumbnails - No changes needed here */}
-              {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2 md:gap-4">
-                  {images.slice(0, 4).map((img, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      onClick={() => api?.scrollTo(index)}
-                      className={`aspect-square relative overflow-hidden rounded-lg bg-[#1a1c23] cursor-pointer transition-all duration-300 ${
-                        currentSlide === index ? "ring-2 ring-[#5865f2]" : "hover:ring-2 hover:ring-[#5865f2]/50"
-                      }`}
-                    >
-                      <OptimizedImage
-                        src={img || "/placeholder.svg"} // Use placeholder
-                        alt={`Thumbnail ${index + 1}`}
-                        className="w-full h-full object-cover" // Cover for thumbnails is usually fine
-                        width={150}
-                        height={150}
-                        loading="lazy"
-                      />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        
+        {/* Only show navigation arrows if there are multiple images */}
+        {images.length > 1 && (
+          <>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full hidden sm:flex"
+              onClick={() => api?.scrollPrev()}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+              <span className="sr-only">Previous</span>
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full hidden sm:flex"
+              onClick={() => api?.scrollNext()}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+              <span className="sr-only">Next</span>
+            </Button>
+          </>
+        )}
+      </Carousel>
+      
+      {/* Removed the carousel dots as they're not needed */}
+    </div>
+
+    {/* Thumbnails */}
+    {images.length > 1 && (
+      <div className="grid grid-cols-4 gap-2 md:gap-4">
+        {images.slice(0, 4).map((img, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            onClick={() => api?.scrollTo(index)}
+            className={`aspect-square relative overflow-hidden rounded-lg bg-[#1a1c23] cursor-pointer transition-all duration-300 ${
+              currentSlide === index ? "ring-2 ring-[#5865f2]" : "hover:ring-2 hover:ring-[#5865f2]/50"
+            }`}
+          >
+            <img
+              src={img || "/placeholder.svg"}
+              alt={`Thumbnail ${index + 1}`}
+              className="w-full h-full object-cover"
+              width={150}
+              height={150}
+              loading="lazy"
+            />
           </motion.div>
+        ))}
+      </div>
+    )}
+  </div>
+</motion.div>
 
           {/* Details Section - No changes needed here */}
           <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ delay: 0.1 }}>
