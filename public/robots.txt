@@ -42,7 +42,7 @@ Allow: /products/
 Allow: /categories/
 
 # Sitemap location
-Sitemap: https://gnt-store.vercel.app/sitemap.xml
+Sitemap: https://gnt-store.shop/sitemap.xml
 
 # Crawl delay for bots
 Crawl-delay: 10
