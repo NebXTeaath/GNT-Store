@@ -135,6 +135,97 @@ export default function ProductDetailsPage() {
   const [seoCanonicalUrl, setSeoCanonicalUrl] = useState<string>(`${siteUrl}${location.pathname}`);
   const [seoOgImage, setSeoOgImage] = useState<string>(`${siteUrl}/favicon/og-image.png`);
 
+  // Replace line 118 with:
+const [imagesLoading, setImagesLoading] = useState(true);
+const imagesLoadedCount = useRef(0);
+const totalImagesToLoad = useRef(0);
+
+// Then in the useEffect at line ~126, replace isLoading references with imagesLoading:
+useEffect(() => {
+  if (!productData?.o_images?.length) return;
+  
+  // Reset loading state when product changes
+  setImagesLoading(true);
+  imagesLoadedCount.current = 0;
+  
+  // Set total images we need to track (only first slide image is critical)
+  totalImagesToLoad.current = 1; // We only care about the first image loading
+  
+  // Create a handler function to add to image elements
+  const handleImageLoad = () => {
+    imagesLoadedCount.current += 1;
+    if (imagesLoadedCount.current >= totalImagesToLoad.current) {
+      setImagesLoading(false);
+    }
+  };
+  
+  // Use the DOM to find and attach load handlers to critical images
+  const imageElements = document.querySelectorAll('.carousel-critical-image');
+  imageElements.forEach(img => {
+    // If already loaded
+    if ((img as HTMLImageElement).complete) {
+      handleImageLoad();
+    } else {
+      // Otherwise wait for load
+      img.addEventListener('load', handleImageLoad, { once: true });
+    }
+  });
+  
+  // Add a timeout as a fallback to ensure we don't stay in loading state forever
+  const timeoutId = setTimeout(() => {
+    setImagesLoading(false);
+  }, 3000);
+  
+  return () => {
+    // Clean up event listeners
+    imageElements.forEach(img => {
+      img.removeEventListener('load', handleImageLoad);
+    });
+    clearTimeout(timeoutId);
+  };
+}, [productData?.o_images]);
+
+
+
+// Add this effect for carousel initialization
+useEffect(() => {
+  if (!api) return;
+  
+  // Function to handle carousel resize and initialization
+  const handleCarouselInit = () => {
+    // Force the carousel to recalculate layout after initialization
+    setTimeout(() => {
+      if (api && typeof api.reInit === 'function') {
+        api.reInit();
+      }
+    }, 100);
+  };
+  
+  // Set current slide
+  setCurrentSlide(api.selectedScrollSnap());
+  
+  // Add event listeners
+  api.on("select", () => {
+    setCurrentSlide(api.selectedScrollSnap());
+  });
+  
+  // Initialize carousel
+  handleCarouselInit();
+  
+  // Handle window resize to maintain stability
+  const handleResize = () => {
+    if (api && typeof api.reInit === 'function') {
+      api.reInit();
+    }
+  };
+  
+  window.addEventListener('resize', handleResize);
+  
+  return () => {
+    window.removeEventListener('resize', handleResize);
+  };
+}, [api]);
+
   // --- Effects ---
   useEffect(() => {
     // Reset state and scroll to top when ID/slug changes
@@ -438,44 +529,62 @@ export default function ProductDetailsPage() {
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-x-8 xl:gap-x-16 gap-y-8">
-          {/* Image Section */}
+          {/* Image Section - Revised for Zero Layout Shift (TypeScript Compatible) */}
 <motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
   <div className="flex flex-col gap-8">
-    {/* First fix: Add a containing div with consistent dimensions */}
-    <div className="relative overflow-hidden -mx-4 md:mx-0 md:px-12">
-      {/* Ensure we have images before rendering carousel */}
-      {images && images.length > 0 ? (
-        <Carousel setApi={setApi} index={currentSlide} opts={{ loop: images.length > 1 }}>
-          <CarouselContent>
-            {images.map((img, index) => (
-              <CarouselItem key={index}>
-                {/* Pre-reserve space with a consistent aspect ratio */}
-                <div className="aspect-square relative overflow-hidden rounded-xl bg-[#1a1c23]">
-                  {/* Use optimized image with explicit width and height */}
-                  <OptimizedImage
-                    src={img || "/placeholder.svg"}
-                    alt={`${productData.o_product_name} image ${index + 1}`}
-                    className="w-full h-full object-contain" 
-                    width={600}
-                    height={600}
-                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 600px"
-                    loading={index === 0 ? "eager" : "lazy"}
-                    fetchPriority={index === 0 ? "high" : "auto"}
-                  />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
-      ) : (
-        // Placeholder when no images available
-        <div className="aspect-square bg-[#1a1c23] rounded-xl flex items-center justify-center">
-          <div className="text-gray-500">No image available</div>
+    {/* CRITICAL FIX: Create a containing wrapper with fixed dimensions */}
+    <div className="relative w-full">
+      {/* Set fixed height container to stabilize the carousel */}
+      <div 
+        className="w-full overflow-hidden -mx-4 md:mx-0 md:px-12" 
+        style={{ minHeight: 'min(80vw, 600px)' }}
+      >
+        {/* Add wrapper div that will handle the loading state */}
+        <div className="relative w-full h-full">
+          {/* Loading indicator that's hidden when images are loaded */}
+          <div 
+  className="absolute inset-0 bg-[#1a1c23] flex items-center justify-center z-10 transition-opacity duration-300"
+  style={{ opacity: imagesLoading ? 1 : 0 }}
+>
+            <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+
+          <Carousel 
+            setApi={setApi} 
+            index={currentSlide} 
+            opts={{ 
+              loop: images.length > 1,
+              skipSnaps: false,
+              dragFree: false
+            }}
+            className="w-full h-full"
+          >
+            <CarouselContent className="h-full">
+              {images.map((img, index) => (
+                <CarouselItem key={index} className="h-full">
+                  {/* Fixed dimension container for each slide */}
+                  <div className="aspect-square w-full relative overflow-hidden rounded-xl bg-[#1a1c23] flex items-center justify-center">
+                    {/* Update the first image in the carousel to include the tracking class */}
+<OptimizedImage
+  src={img || "/placeholder.svg"}
+  alt={`${productData.o_product_name} image ${index + 1}`}
+  className={`w-full h-full object-contain carousel-critical-image`} // Add tracking class
+  width={600}
+  height={600}
+  sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 600px"
+  loading={index === 0 ? "eager" : "lazy"}
+  fetchPriority={index === 0 ? "high" : "auto"}
+/>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
         </div>
-      )}
+      </div>
     </div>
 
-    {/* Thumbnails Section */}
+    {/* Thumbnails Section - Also stabilized */}
     {images.length > 1 && (
       <div className="grid grid-cols-4 gap-2 md:gap-4">
         {images.slice(0, 4).map((img, index) => (
@@ -488,6 +597,7 @@ export default function ProductDetailsPage() {
             className={`aspect-square relative overflow-hidden rounded-lg bg-[#1a1c23] cursor-pointer transition-all duration-300 ${
               currentSlide === index ? "ring-2 ring-[#5865f2]" : "hover:ring-2 hover:ring-[#5865f2]/50"
             }`}
+            style={{ minHeight: 'min(20vw, 150px)' }} // Force thumbnail height stability
           >
             <OptimizedImage
               src={img || "/placeholder.svg"}
