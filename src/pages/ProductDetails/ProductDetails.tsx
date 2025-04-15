@@ -1,4 +1,4 @@
-// src/pages/ProductDetails/NEW_ProductDetails.tsx
+// src/pages/ProductDetails/ProductDetails.tsx
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 import { Button } from "@/components/ui/button";
@@ -439,57 +439,59 @@ export default function ProductDetailsPage() {
 
         <div className="grid lg:grid-cols-2 gap-x-8 xl:gap-x-16 gap-y-8">
           {/* Image Section */}
-          <motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
-            <div className="flex flex-col gap-8">
-              <div className="relative overflow-visible -mx-4 md:mx-0 md:px-12"> {/* Adjust padding for carousel arrows */}
-                <Carousel setApi={setApi} index={currentSlide} opts={{ loop: images.length > 1 }}>
-                  <CarouselContent>
-                    {images.map((img, index) => (
-                      <CarouselItem key={index}>
-                        <div className="aspect-square relative overflow-hidden rounded-xl bg-[#1a1c23]">
-                          <OptimizedImage
-                            src={img || "/placeholder.svg"} // Use placeholder if image is missing
-                            alt={`${productData.o_product_name} image ${index + 1}`}
-                            className="w-full h-full object-contain"
-                            width={600} // Adjust based on largest expected size
-                            height={600}
-                            loading={index === 0 ? "eager" : "lazy"} // Eager load the first image
-                            fetchPriority={index === 0 ? "high" : "auto"} // Prioritize first image
-                          />
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  {/* Add Carousel Previous/Next if needed - ensure they don't overlap OptimizedImage badly */}
-                </Carousel>
+<motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
+  <div className="flex flex-col gap-8">
+    <div className="relative overflow-visible -mx-4 md:mx-0 md:px-12">
+      <Carousel setApi={setApi} index={currentSlide} opts={{ loop: images.length > 1 }}>
+        <CarouselContent>
+          {images.map((img, index) => (
+            <CarouselItem key={index}>
+              <div className="aspect-square relative overflow-hidden rounded-xl bg-[#1a1c23]">
+                {/* Use only the props that OptimizedImage accepts */}
+                <OptimizedImage
+                  src={img || "/placeholder.svg"}
+                  alt={`${productData.o_product_name} image ${index + 1}`}
+                  className="w-full h-full object-contain" 
+                  width={600}
+                  height={600}
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 600px"
+                  loading={index === 0 ? "eager" : "lazy"}
+                  fetchPriority={index === 0 ? "high" : "auto"}
+                />
               </div>
-              {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2 md:gap-4">
-                  {images.slice(0, 4).map((img, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      onClick={() => api?.scrollTo(index)}
-                      className={`aspect-square relative overflow-hidden rounded-lg bg-[#1a1c23] cursor-pointer transition-all duration-300 ${
-                        currentSlide === index ? "ring-2 ring-[#5865f2]" : "hover:ring-2 hover:ring-[#5865f2]/50"
-                      }`}
-                    >
-                      <OptimizedImage
-                        src={img || "/placeholder.svg"} // Use placeholder
-                        alt={`Thumbnail ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        width={150}
-                        height={150}
-                        loading="lazy"
-                      />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
+    </div>
+    {images.length > 1 && (
+      <div className="grid grid-cols-4 gap-2 md:gap-4">
+        {images.slice(0, 4).map((img, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            onClick={() => api?.scrollTo(index)}
+            className={`aspect-square relative overflow-hidden rounded-lg bg-[#1a1c23] cursor-pointer transition-all duration-300 ${
+              currentSlide === index ? "ring-2 ring-[#5865f2]" : "hover:ring-2 hover:ring-[#5865f2]/50"
+            }`}
+          >
+            <OptimizedImage
+              src={img || "/placeholder.svg"}
+              alt={`Thumbnail ${index + 1}`}
+              className="w-full h-full object-cover"
+              width={150}
+              height={150}
+              sizes="(max-width: 640px) 25vw, (max-width: 768px) 20vw, 150px"
+              loading="lazy"
+            />
           </motion.div>
+        ))}
+      </div>
+    )}
+  </div>
+</motion.div>
 
           {/* Details Section */}
           <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ delay: 0.1 }}>
