@@ -2,110 +2,131 @@
 import { useState, useEffect } from 'react';
 import { cn } from "@/lib/utils";
 
+// Reverted Props: Expect a full image URL via 'src'
 interface OptimizedImageProps {
-  src: string | null;
+  src: string | null | undefined; // Expects the full URL or null/undefined
   alt: string;
   width?: number;
   height?: number;
   className?: string;
-  placeholder?: string;
+  placeholder?: string; // Default placeholder if src is null/undefined or fails
   fetchPriority?: 'high' | 'low' | 'auto';
   loading?: 'lazy' | 'eager';
-  sizes?: string;
+  // sizes prop can be re-added if your URLs/CDN support responsive images via srcset
+  // sizes?: string; 
   isAboveTheFold?: boolean;
 }
 
-export function getOptimizedImageUrl(imageUrl: string | null, width = 400): string {
-  if (!imageUrl) return "/placeholder.svg";
-  
-  try {
-    // For images from the new domain (images.gnt-store.shop)
-    if (imageUrl.includes('images.gnt-store.shop')) {
-      // Parse the URL to extract the path components
-      const url = new URL(imageUrl);
-      const pathSegments = url.pathname.split('/');
-      
-      // Get the file name from the path
-      const fileName = pathSegments[pathSegments.length - 1];
-      
-      // Extract the category path and product ID
-      // The ID is the second-to-last path segment (UUID format)
-      const productId = pathSegments[pathSegments.length - 2];
-      // Category/product path is everything before the ID
-      const categoryPath = pathSegments.slice(1, pathSegments.length - 2).join('/');
-      
-      // Construct the optimized image URL with size parameters
-      return `https://images.gnt-store.shop/${categoryPath}/${productId}/${fileName}`;
-    }
-    
-    
-    // For any other images, use the original URL
-    return imageUrl;
-  } catch (e) {
-    // If URL parsing fails, return the original URL
-    return imageUrl;
-  }
-}
+// Removed buildImageUrl function - no longer constructing URLs here
 
 export function OptimizedImage({
-  src,
+  src, // Use the src prop directly
   alt,
-  width = 400,
-  height = 400,
+  width = 400, // Default render width
+  height = 400, // Default render height
   className,
-  placeholder = "/placeholder.svg",
+  placeholder = "/placeholder.svg", // Default placeholder path
   fetchPriority = 'auto',
   loading = 'lazy',
-  sizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw',
+  // sizes, // Re-add if using srcset
   isAboveTheFold = false,
 }: OptimizedImageProps) {
-  const [, setImgSrc] = useState<string>(src || placeholder);
+  
+  // Determine the initial source, using placeholder if src is absent
+  const initialSrc = src || placeholder;
+  
+  const [imgSrc, setImgSrc] = useState<string>(initialSrc);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Update imgSrc if the src prop changes
+  useEffect(() => {
+    const newSrc = src || placeholder;
+    // Only update state if the calculated source actually changes
+    if (newSrc !== imgSrc) {
+      setImgSrc(newSrc);
+      setIsLoaded(false); // Reset loaded state when src changes
+    }
+  }, [src, placeholder, imgSrc]); // Added imgSrc to dependency to avoid unnecessary updates
   
   // Set proper loading and priority attributes for above-the-fold images
+  const [effectiveLoading, setEffectiveLoading] = useState(loading);
+  const [effectivePriority, setEffectivePriority] = useState(fetchPriority);
+
   useEffect(() => {
     if (isAboveTheFold) {
-      loading = 'eager';
-      fetchPriority = 'high';
+      setEffectiveLoading('eager');
+      setEffectivePriority('high');
+    } else {
+      // Revert to default props if not above fold or prop changes
+      setEffectiveLoading(loading); 
+      setEffectivePriority(fetchPriority);
     }
-  }, [isAboveTheFold]);
+  }, [isAboveTheFold, loading, fetchPriority]);
 
-  // Generate srcSet for responsive images
-  const srcSet = src ? `
-    ${getOptimizedImageUrl(src, 200)} 200w,
-    ${getOptimizedImageUrl(src, 400)} 400w,
-    ${getOptimizedImageUrl(src, 600)} 600w
-  ` : undefined;
+  // NOTE: srcSet generation is removed as we are not constructing URLs with size variants.
+  // If your 'src' URLs point to an image service that supports resizing via params, 
+  // you could potentially rebuild srcSet logic here based on the provided 'src'.
+  // const srcSet = undefined; // Example: No srcSet by default now
   
   return (
     <>
-      {/* Low quality placeholder */}
+      {/* Placeholder shown while loading or if src is invalid/missing */}
       {!isLoaded && (
-        <div className={cn(
-          "bg-[#2a2d36] animate-pulse",
-          className
-        )} style={{ width, height }} />
+        <div 
+          className={cn(
+            "bg-[#2a2d36] animate-pulse", // Basic pulse placeholder
+            className // Apply same layout classes as image
+          )} 
+          style={{ 
+             // Use explicit width/height for the placeholder div based on props
+             width: width ? `${width}px` : undefined, 
+             height: height ? `${height}px` : undefined,
+             aspectRatio: !width && !height ? '1 / 1' : undefined // Default aspect ratio if no w/h
+           }} 
+         />
       )}
       
+      {/* The actual image */}
       <img
-        src={getOptimizedImageUrl(src, width)}
-        srcSet={srcSet}
-        sizes={sizes}
+        key={imgSrc} // Helps React detect changes when src updates
+        src={imgSrc} // Use the state variable (which defaults to placeholder if src is null)
+        // srcSet={srcSet} // Add back if you implement responsive logic
+        // sizes={sizes} // Add back if you implement responsive logic
         alt={alt}
         width={width}
         height={height}
-        loading={loading}
-        fetchPriority={fetchPriority}
+        loading={effectiveLoading}
+        fetchPriority={effectivePriority}
         decoding="async"
         className={cn(
           className,
-          !isLoaded && "opacity-0",
+          // Image starts hidden and fades in
+          !isLoaded && "opacity-0", 
           isLoaded && "opacity-100 transition-opacity duration-300"
         )}
-        onLoad={() => setIsLoaded(true)}
+        onLoad={() => {
+           // Only set loaded if the image that successfully loaded wasn't the placeholder
+           // (unless the placeholder was the *intended* src from the start)
+           if (imgSrc !== placeholder || src === placeholder) {
+             setIsLoaded(true);
+           }
+        }}
         onError={() => {
-          setImgSrc(placeholder);
-          setIsLoaded(true);
+          // console.error(`Failed to load image: ${imgSrc}. Falling back to placeholder.`);
+          // If the primary src fails, explicitly set to placeholder
+          // Prevent infinite loop if placeholder itself fails by checking imgSrc !== placeholder
+          if (imgSrc !== placeholder) { 
+              setImgSrc(placeholder);
+          }
+          // Mark as loaded *after* setting placeholder to ensure it's displayed
+          setIsLoaded(true); 
+        }}
+        style={{
+            // Ensure image respects container even if width/height props are large
+            maxWidth: '100%',
+            maxHeight: '100%',
+            // objectFit is often set via className, but can be a style fallback
+            objectFit: 'cover', // Or 'contain' depending on need - usually set by className though
         }}
       />
     </>
