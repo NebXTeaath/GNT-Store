@@ -19,16 +19,28 @@ export function getOptimizedImageUrl(imageUrl: string | null, width = 400): stri
   if (!imageUrl) return "/placeholder.svg";
   
   try {
-    // If already using the R2 image proxy, add size parameters
-    if (imageUrl.includes('r2-image-proxy')) {
+    // For images from the new domain (images.gnt-store.shop)
+    if (imageUrl.includes('images.gnt-store.shop')) {
+      // Parse the URL to extract the path components
       const url = new URL(imageUrl);
-      url.searchParams.set('width', width.toString());
-      url.searchParams.set('quality', '80');
-      return url.toString();
+      const pathSegments = url.pathname.split('/');
+      
+      // Get the file name from the path
+      const fileName = pathSegments[pathSegments.length - 1];
+      
+      // Extract the category path and product ID
+      // The ID is the second-to-last path segment (UUID format)
+      const productId = pathSegments[pathSegments.length - 2];
+      // Category/product path is everything before the ID
+      const categoryPath = pathSegments.slice(1, pathSegments.length - 2).join('/');
+      
+      // Construct the optimized image URL with size parameters
+      return `https://images.gnt-store.shop/${categoryPath}/${productId}/${fileName}`;
     }
     
-    // For normal images, route through the image proxy
-    return `https://r2-image-proxy.frankfrankenstain.workers.dev/optimize?url=${encodeURIComponent(imageUrl)}&width=${width}&quality=80`;
+    
+    // For any other images, use the original URL
+    return imageUrl;
   } catch (e) {
     // If URL parsing fails, return the original URL
     return imageUrl;
