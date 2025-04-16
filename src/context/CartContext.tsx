@@ -165,7 +165,8 @@ async function saveCartToAppwrite(userId: string, cartDocId: string | null, item
     }
   } catch (error) {
       console.error('Failed to save cart to Appwrite:', error);
-      throw new Error('Failed to save cart to database.'); // Throw error for mutation handler
+      // throw new Error('Failed to save cart to database.'); // Throw error for mutation handler
+      return null; // Return null on error
   }
 }
 
