@@ -93,6 +93,7 @@ export default function LoginForm({
   // **** MODIFIED Registration Handler ****
   const handleRegister = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault(); // Prevent default form submission if event exists
+    console.log("handleRegister called");
 
     if (registerForm.password !== registerForm.confirmPassword) {
       setError("Passwords do not match");
@@ -109,9 +110,10 @@ export default function LoginForm({
     setError("");
     setCaptchaToken(null); // Reset token before execution
 
-    // Execute the hCaptcha challenge
-    captchaRef.current?.execute();
-    // The actual registration logic will now run inside onVerifyCaptcha
+    console.log("Attempting captchaRef.current.execute()"); // <-- ADD LOG
+  console.log("captchaRef.current:", captchaRef.current); // <-- ADD LOG
+  // Execute the hCaptcha challenge
+  captchaRef.current?.execute();
   };
 
   // **** NEW: Captcha Verification Handler ****
