@@ -28,13 +28,8 @@ export interface ProductDetailsData {
   o_product_id: string;
   o_product_name: string;
   o_product_description: string;
-<<<<<<< HEAD
-  o_price: string;
-  o_discount_price: string;
-=======
   o_price: string; // Keep as string if DB returns numeric as string
   o_discount_price: string; // Keep as string
->>>>>>> dev
   o_images: ProductImage[];
   o_is_featured: boolean;
   o_is_bestseller: boolean;
