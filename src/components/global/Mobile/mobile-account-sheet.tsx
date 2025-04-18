@@ -19,13 +19,16 @@ interface MobileAccountSheetProps {
 
 export function MobileAccountSheet({ open, onOpenChange }: MobileAccountSheetProps) {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  
-  const displayName = user?.name || user?.email || '';
-  
+  // FIX: Use signOut instead of logout. Access name via user_metadata
+  const { user, signOut } = useAuth();
+
+  // FIX: Access user.user_metadata.name
+  const displayName = user?.user_metadata?.name || user?.email || '';
+
   const handleLogout = async () => {
     try {
-      await logout();
+      // FIX: Call signOut instead of logout
+      await signOut();
       onOpenChange(false);
       toast.success("Successfully logged out");
     } catch (error) {
@@ -50,8 +53,8 @@ export function MobileAccountSheet({ open, onOpenChange }: MobileAccountSheetPro
         </SheetHeader>
         <Separator className="my-4 bg-[#2a2d36]" />
         <div className="space-y-4 p-4">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full justify-start text-white hover:bg-[#2a2d36] hover:text-white"
             onClick={() => handleNavigation('/profile')}
           >
@@ -59,8 +62,8 @@ export function MobileAccountSheet({ open, onOpenChange }: MobileAccountSheetPro
             Profile
           </Button>
           <Separator className="bg-[#2a2d36]" />
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full justify-start text-white hover:bg-[#2a2d36] hover:text-white"
             onClick={() => handleNavigation('/wishlist')}
           >
@@ -68,8 +71,8 @@ export function MobileAccountSheet({ open, onOpenChange }: MobileAccountSheetPro
             Wishlist
           </Button>
           <Separator className="bg-[#2a2d36]" />
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full justify-start text-white hover:bg-[#2a2d36] hover:text-white"
             onClick={() => handleNavigation('/order-history')}
           >
@@ -77,10 +80,10 @@ export function MobileAccountSheet({ open, onOpenChange }: MobileAccountSheetPro
             Order History
           </Button>
           <Separator className="bg-[#2a2d36]" />
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full justify-start text-white hover:bg-[#2a2d36] hover:text-white"
-            onClick={() => handleNavigation('/repair-history')}
+            onClick={() => handleNavigation('/repair/history')} // Corrected path
           >
             <Wrench className="mr-2 h-5 w-5" />
             Repair History
@@ -91,7 +94,7 @@ export function MobileAccountSheet({ open, onOpenChange }: MobileAccountSheetPro
             className="w-full mt-6"
             onClick={handleLogout}
           >
-            <LogOut className="mr-2 h-5 w-5" /> 
+            <LogOut className="mr-2 h-5 w-5" />
             Logout
           </Button>
         </div>

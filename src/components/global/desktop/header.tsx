@@ -46,9 +46,12 @@ async function fetchCategoriesStructure(): Promise<ProductCategoriesStructure | 
 export default function Header() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout, isLoadingAuth } = useAuth(); // Get loading state too
-  const { cartCount, isLoading: isCartLoading } = useCart(); // Get loading state
-  const { wishlistItems, isLoading: isWishlistLoading } = useWishlist(); // Get wishlist data and loading state
+  // FIX: Use signOut instead of logout. Access name via user_metadata
+  const { isAuthenticated, user, signOut, isLoadingAuth } = useAuth();
+  // FIX: Removed isCartLoading if not used
+  const { cartCount } = useCart();
+  // FIX: Removed isWishlistLoading if not used
+  const { wishlistItems } = useWishlist();
   const windowSize = useWindowSize();
   const { setIsLoading, setIsLoadingProfile, setIsLoadingProducts, setIsLoadingAuth: setGlobalIsLoadingAuth, setLoadingMessage } = useLoading();
 
@@ -81,17 +84,15 @@ export default function Header() {
   // --- Event Handlers ---
 
   const handleLogout = async () => {
-    // Loading state is handled within the logout function in AuthContext now
-    // including the redirect.
+    // FIX: Call signOut instead of logout
     try {
-        // No need to set loading message here, logout function does it
-        await logout();
+        await signOut();
         setAccountSheetOpen(false); // Close sheet on successful trigger
-         // The redirect is handled inside the logout() function
+        // Redirect is handled inside signOut() if needed, or keep it here if preferred
+        // navigate('/'); // Example redirect
     } catch (error) {
-      // Error toast is handled within logout()
+      // Error toast is handled within signOut()
       console.error("Logout initiation failed in header:", error);
-      // Potentially add a fallback error message if needed
     }
   };
 
@@ -99,33 +100,28 @@ export default function Header() {
   const navigateWithLoading = (path: string, message: string, loadingSetter: (loading: boolean) => void) => {
     setLoadingMessage(message);
     loadingSetter(true);
-    // Close any open sheets/modals immediately
     setAccountSheetOpen(false);
     setCatalogSheetOpen(false);
     setLoginOpen(false);
 
     setTimeout(() => {
         navigate(path);
-        // Turn off specific loading after navigation timeout allows transition/render
-        // Global loading might still be active if destination page loads data
         loadingSetter(false);
-        setLoadingMessage(""); // Clear message
-    }, 300); // Adjust timeout as needed
+        setLoadingMessage("");
+    }, 300);
   };
-
 
   const handleCartNavigation = () => {
      navigateWithLoading('/checkout/cart-details', 'Loading your cart...', setIsLoading);
   };
 
-    const handleWishlistNavigation = () => {
+  const handleWishlistNavigation = () => {
      navigateWithLoading('/wishlist', 'Loading your wishlist...', setIsLoading);
-    };
-
+  };
 
   const handleLoginOpen = () => {
     setLoadingMessage("Preparing login...");
-    setGlobalIsLoadingAuth(true); // Use the specific auth loading setter from context
+    setGlobalIsLoadingAuth(true);
     setTimeout(() => {
       setGlobalIsLoadingAuth(false);
       setLoginOpen(true);
@@ -133,17 +129,16 @@ export default function Header() {
   };
 
    const handleOpenProfile = () => {
-     navigateWithLoading('#', 'Loading your profile...', setIsLoadingProfile); // Use # or actual profile route if direct nav needed
-     // Close account sheet immediately
+     navigateWithLoading('#', 'Loading your profile...', setIsLoadingProfile);
      setAccountSheetOpen(false);
-     // Open profile modal after a short delay
      setTimeout(() => {
         setProfileIndexOpen(true);
-        // Loading state turned off inside navigateWithLoading or could be turned off here
-     }, 350); // Slightly longer delay for modal
+     }, 350);
   };
 
-  const displayName = user?.name || user?.email || "";
+  // FIX: Access user.user_metadata.name
+  const displayName = user?.user_metadata?.name || user?.email || "";
+
   const truncateUserName = (name: string, maxLength: number = 12) => {
     if (name && name.length > maxLength) {
       return `${name.substring(0, maxLength)}...`;
@@ -172,7 +167,6 @@ export default function Header() {
           const { offsetTop, offsetHeight } = activeElement;
           setActiveStyle({ top: `${offsetTop}px`, height: `${offsetHeight}px` });
         } else {
-          // If ref not ready yet, retry on next frame
           requestAnimationFrame(checkRefs);
         }
       };
@@ -237,44 +231,28 @@ export default function Header() {
 
         {/* Logo Section */}
         <div
-  className={cn(
-    "flex items-center",
-    isMobile ? "justify-center flex-1" : "justify-start md:flex-none md:mr-4"
-  )}
->
-  <Link
-    to="/"
-    className="flex items-center gap-2"
-    onClick={(e) => {
-      e.preventDefault();
-      navigateWithLoading("/", "Loading home page...", setIsLoading);
-    }}
-  >
-    <div className={cn("relative", isMobile ? "w-12 h-12" : "w-14 h-14")}>
-      <img
-        src={Logo || "/placeholder.svg"}
-        alt="GNT Logo"
-        className={cn(
-  "absolute inset-0 w-full h-full object-contain transition-transform duration-300 ease-in-out",
-  isMobile
-    ? "transform scale-[2.5] origin-center"
-    : windowSize.width >= 1540
-    ? "transform scale-[3] origin-left"
-    : "transform scale-[1.8] origin-left"
-)}
-
-        width={40}
-        height={40}
-        loading="eager"
-      />
-    </div>
-    <span className="sr-only">GNT - Games & Tech</span>
-  </Link>
-</div>
-
+          className={cn( "flex items-center", isMobile ? "justify-center flex-1" : "justify-start md:flex-none md:mr-4" )}
+        >
+          <Link
+            to="/"
+            className="flex items-center gap-2"
+            onClick={(e) => { e.preventDefault(); navigateWithLoading("/", "Loading home page...", setIsLoading); }}
+          >
+            <div className={cn("relative", isMobile ? "w-12 h-12" : "w-14 h-14")}>
+              <img
+                src={Logo || "/placeholder.svg"}
+                alt="GNT Logo"
+                className={cn( "absolute inset-0 w-full h-full object-contain transition-transform duration-300 ease-in-out", isMobile ? "transform scale-[2.5] origin-center" : windowSize.width >= 1540 ? "transform scale-[3] origin-left" : "transform scale-[1.8] origin-left" )}
+                width={40}
+                height={40}
+                loading="eager"
+              />
+            </div>
+            <span className="sr-only">GNT - Games & Tech</span>
+          </Link>
+        </div>
 
         {/* Desktop Navigation & Search */}
-        
         <div className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 flex-1 justify-center">
            {/* Shop Catalog Sheet Trigger */}
           <Sheet open={catalogSheetOpen} onOpenChange={setCatalogSheetOpen}>
@@ -289,7 +267,6 @@ export default function Header() {
                      <SheetDescription className="text-gray-400">Browse our product categories</SheetDescription>
                  </SheetHeader>
                  <Separator className="my-4 bg-[#2a2d36]" />
-                 {/* Use categoriesLoading from useQuery */}
                  {categoriesLoading ? (
                      <div className="space-y-4 px-6 py-4">
                          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full bg-[#2a2d36]" />)}
@@ -337,23 +314,13 @@ export default function Header() {
 
            {/* Repair Services Button */}
            <Button
-  variant="outline"
-  size="sm"
-  className={cn(
-    "flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out cursor-pointer",
-    windowSize.width && windowSize.width < 960 ? "min-w-[75px]" : "min-w-[120px]"
-  )}
-  onClick={() =>
-    navigateWithLoading(
-      "/repair-home",
-      "Loading repair services...",
-      setIsLoading
-    )
-  }
->
-  {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"}
-</Button>
-
+              variant="outline"
+              size="sm"
+              className={cn( "flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out cursor-pointer", windowSize.width && windowSize.width < 960 ? "min-w-[75px]" : "min-w-[120px]" )}
+              onClick={() => navigateWithLoading( "/repair-home", "Loading repair services...", setIsLoading )}
+            >
+              {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"}
+            </Button>
         </div>
 
         {/* Right-side Links & Actions */}
@@ -464,12 +431,8 @@ export default function Header() {
                                          <div
                                              key={tab.label}
                                              ref={(el) => (tabRefs.current[index] = el)}
-                                             className={cn(
-                                                 "flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md",
-                                                 "hover:bg-[#ffffff1a]",
-                                                 index === activeIndex ? "text-white bg-[#ffffff14]" : "text-gray-400 hover:text-gray-100"
-                                             )}
-                                             onClick={() => { setActiveIndex(index); tab.action(); }} // Action already closes sheet via navigateWithLoading
+                                             className={cn( "flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md", "hover:bg-[#ffffff1a]", index === activeIndex ? "text-white bg-[#ffffff14]" : "text-gray-400 hover:text-gray-100" )}
+                                             onClick={() => { setActiveIndex(index); tab.action(); }}
                                          >
                                              <TabIcon className="mr-3 h-4 w-4" />
                                              <span className="text-sm font-medium whitespace-nowrap">{tab.label}</span>

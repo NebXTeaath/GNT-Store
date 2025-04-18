@@ -7,10 +7,11 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react"; // Removed MailCheck - not needed here
 
 interface LoginFormProps {
-  onSuccess?: () => void;
+  onSuccess?: () => void; // Keep for login success
+  onRegisterSuccess?: (email: string) => void; // <-- ADDED PROP for registration success
   initialTab?: "login" | "register";
   onTabChange?: (tab: "login" | "register" | "forgot-password") => void;
   onForgotPassword?: () => void;
@@ -18,11 +19,12 @@ interface LoginFormProps {
 
 export default function LoginForm({
   onSuccess,
+  onRegisterSuccess, // <-- Destructure the new prop
   initialTab = "login",
   onTabChange,
   onForgotPassword
 }: LoginFormProps) {
-  const { login, register } = useAuth();
+  const { signIn: login, signUp: register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -51,6 +53,7 @@ export default function LoginForm({
   const handleTabChange = (value: string) => {
     const tab = value as "login" | "register";
     setActiveTab(tab);
+    setError(""); // Clear errors on tab switch
     if (onTabChange) {
       onTabChange(tab);
     }
@@ -75,17 +78,24 @@ export default function LoginForm({
     setError("");
 
     try {
-      await login(loginForm.email, loginForm.password);
+      const result = await login(loginForm.email, loginForm.password); // Use await
 
-      if (onSuccess) {
-        onSuccess();
+       // Check if the login itself had an error reported by the context function
+      if (result.error) {
+        setError(result.error.message || "Login failed. Please check credentials.");
+        toast.error("Login failed", { description: result.error.message });
+      } else {
+        // Only call onSuccess if there was no error from the context
+        if (onSuccess) {
+          onSuccess(); // Called on successful login
+        }
+        // Success toast is likely handled within useAuth, no need to repeat here unless specific context needed
       }
-
-      // Removed the direct page reload here. The parent component will handle it.
-    } catch (err: any) {
-      console.error("Login error:", err);
-      setError(err.message || "Failed to log in. Please check your credentials.");
-      toast.error("Failed to log in. Please check your credentials.");
+    } catch (err: any) { // Catch unexpected errors during the call itself
+      console.error("Unexpected Login error in component:", err);
+      const message = err.message || "An unexpected error occurred during login.";
+      setError(message);
+      toast.error("Login Error", { description: message });
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +105,6 @@ export default function LoginForm({
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Ensure password and confirm password fields match
     if (registerForm.password !== registerForm.confirmPassword) {
       setError("Passwords do not match");
       toast.error("Passwords do not match");
@@ -106,32 +115,42 @@ export default function LoginForm({
     setError("");
 
     try {
-      await register(registerForm.name, registerForm.email, registerForm.password);
+      // Call the register function from useAuth
+      const result = await register(registerForm.name, registerForm.email, registerForm.password);
 
-      if (onSuccess) {
-        onSuccess();
-      }
+       // Check if the signup call itself reported an error (e.g., email already exists)
+       if (result.error) {
+         let errorMessage = result.error.message || "Failed to create account.";
+         // Customize message for common errors if needed
+         if (result.error.message.includes("User already registered")) {
+             errorMessage = "An account with this email already exists. Try logging in.";
+         }
+         setError(errorMessage);
+         toast.error("Registration Failed", { description: errorMessage });
+       } else {
+          // NEW: Call onRegisterSuccess instead of onSuccess for registration
+          if (onRegisterSuccess) {
+            onRegisterSuccess(registerForm.email); // Pass the registered email
+          }
+          // Reset form state is now handled by the modal on close/success display
+           // setRegisterForm({ name: "", email: "", password: "", confirmPassword: "" });
+          // REMOVED: The generic onSuccess() call and page reload are handled by LoginModal now
+       }
 
-      // Clear the registration form
-      setRegisterForm({
-        name: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-      });
-
-      // Removed the direct page reload here. The parent component will handle it.
-    } catch (err: any) {
-      console.error("Registration error:", err);
-      setError(err.message || "Failed to create account. Please try again.");
-      toast.error("Failed to create account. Please try again.");
+    } catch (err: any) { // Catch unexpected errors during the call
+      console.error("Unexpected Registration error in component:", err);
+      const message = err.message || "An unexpected error occurred during registration.";
+      setError(message);
+      toast.error("Registration Error", { description: message });
     } finally {
       setIsLoading(false);
     }
   };
+
   // Handle forgot password link click
   const handleForgotPassword = (e: React.MouseEvent) => {
     e.preventDefault();
+    setError(""); // Clear errors when switching to forgot password
     if (onForgotPassword) {
       onForgotPassword();
     }

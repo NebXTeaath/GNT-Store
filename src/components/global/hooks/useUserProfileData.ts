@@ -1,180 +1,49 @@
-// --- File: src/components/global/hooks/useUserProfileData.ts ---
+// src/components/global/hooks/useUserProfileData.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { account } from '@/lib/appwrite'; 
-import { getCurrentUserSafe } from '@/lib/authHelpers';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { FormattedUserProfile, ProfileAddress } from '@/pages/Profile/types';
 
-import {
-    getUserProfile,
-    createUserProfile,
-    updateUserProfile,
-} from '@/lib/userProfile';
-import { formatProfileForUI } from '@/pages/Profile/cachedUserProfile';
-import { RawProfileData, FormattedUserProfile, ProfileData } from '@/pages/Profile/types';
-import { toast } from 'sonner';
-import { useEffect, useState, useCallback } from 'react';
-
-// --- Query Keys ---
 const USER_PROFILE_QUERY_KEY = 'userProfile';
 
-/**
- * Custom hook to get and manage the current user ID
- * This centralizes the user ID fetching logic
- */
-export const useCurrentUserId = () => {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchUserId = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const user = await getCurrentUserSafe();
-      setUserId(user?.$id || null);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to get user'));
-      setUserId(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUserId();
-  }, [fetchUserId]);
-
-  return { userId, isLoading, error, refetch: fetchUserId };
-};
-
-/**
- * Fetches the user profile using the direct backend function and formats it.
- * TanStack Query handles the caching.
- * @param userId The ID of the user whose profile to fetch.
- * @returns Formatted user profile or null if not found/error.
- */
-const fetchFormattedUserProfile = async (userId: string): Promise<FormattedUserProfile | null> => {
+const fetchUserProfile = async (userId: string | undefined): Promise<FormattedUserProfile | null> => {
     if (!userId) return null;
-    
     try {
-        console.log(`[TanStack Query] Fetching profile for user: ${userId}`);
-        const rawProfile: RawProfileData | null = await getUserProfile(userId);
-        if (rawProfile) {
-            return formatProfileForUI(rawProfile, userId);
-        }
-        return null; // No profile found
-    } catch (error) {
-        console.error("[TanStack Query] Error fetching user profile:", error);
-        return null;
-    }
+        const { data, error } = await supabase.from('user_profiles').select('*').eq('user_id', userId).maybeSingle();
+        if (error) throw error; if (!data) return null;
+        const authUser = (await supabase.auth.getUser()).data.user;
+        const addressData = (data.address || {}) as ProfileAddress;
+        const formattedProfile: FormattedUserProfile = { userId: data.user_id, name: data.name || "", email: authUser?.email || "", phone: data.mobile || "", address: { line1: addressData.line1 || "", line2: addressData.line2 || "", city: addressData.city || "", state: addressData.state || "", zip: addressData.zip || "", country: addressData.country || "" }, profileDocId: data.user_id };
+        return formattedProfile;
+    } catch (error) { console.error("[useUserProfileData] Error fetching profile:", error); throw error; }
 };
 
-/**
- * TanStack Query hook to get the formatted user profile.
- * Handles fetching, caching, and background updates.
- * @returns Query result object for the user profile.
- */
 export const useUserProfileQuery = () => {
-    const { userId, isLoading: isUserIdLoading } = useCurrentUserId();
-
-    return useQuery<FormattedUserProfile | null, Error>({
-        queryKey: [USER_PROFILE_QUERY_KEY, userId],
-        queryFn: () => fetchFormattedUserProfile(userId || ''),
-        enabled: !!userId && !isUserIdLoading, // Only run the query if userId is available
-        staleTime: 1000 * 60 * 5, // Cache is considered fresh for 5 minutes
-        gcTime: 1000 * 60 * 30, // Keep data in cache for 30 minutes even if inactive
-        refetchOnWindowFocus: true, // Refetch when window regains focus
-        refetchOnReconnect: true, // Refetch on network reconnect
-    });
+    const { user, isLoadingAuth } = useAuth(); const userId = user?.id;
+    return useQuery<FormattedUserProfile | null, Error>({ queryKey: [USER_PROFILE_QUERY_KEY, userId], queryFn: () => fetchUserProfile(userId), enabled: !!userId && !isLoadingAuth, staleTime: 300000, gcTime: 1800000, refetchOnWindowFocus: true });
 };
 
-/**
- * TanStack Mutation hook for creating a user profile.
- * @returns Mutation result object for creating a profile.
- */
-export const useCreateProfileMutation = () => {
-    const queryClient = useQueryClient();
-    const { userId } = useCurrentUserId();
+interface UpdateProfilePayload {
+    name?: string;
+    mobile?: string; // Ensure this matches the actual column name ('mobile' or 'phone')
+    address?: ProfileAddress;
+    email?: string; // Add email if you intend to update it via this mutation
+}
 
-    return useMutation<FormattedUserProfile, Error, Omit<ProfileData, 'userId'>>({
-        mutationFn: async (profileData) => {
-            if (!userId) throw new Error("User not authenticated for creation.");
-            const rawCreatedProfile = await createUserProfile(userId, profileData);
-            return formatProfileForUI(rawCreatedProfile, userId);
-        },
-        onSuccess: (data) => {
-            if (userId) {
-                queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
-                toast.success("Profile created successfully!");
-                console.log("[TanStack Mutation] Profile created:", data);
-            }
-        },
-        onError: (error) => {
-            console.error("[TanStack Mutation] Error creating profile:", error);
-            toast.error(`Failed to create profile: ${error.message}`);
-        },
-    });
-};
-
-/**
- * TanStack Mutation hook for updating a user profile.
- * @returns Mutation result object for updating a profile.
- */
 export const useUpdateProfileMutation = () => {
-    const queryClient = useQueryClient();
-    const { userId } = useCurrentUserId();
-
-    return useMutation<
-        FormattedUserProfile,
-        Error,
-        { documentId: string; data: Partial<Omit<ProfileData, 'userId'>> }
-    >({
-        mutationFn: async ({ documentId, data }) => {
-            if (!userId) throw new Error("User not authenticated for update.");
-            const rawUpdatedProfile = await updateUserProfile(documentId, data);
-            return formatProfileForUI(rawUpdatedProfile, userId);
+    const queryClient = useQueryClient(); const { user } = useAuth(); const userId = user?.id;
+    return useMutation<FormattedUserProfile, Error, UpdateProfilePayload>({
+        mutationFn: async (profileUpdates) => {
+            if (!userId) throw new Error("User not authenticated.");
+            const updateData: { [key: string]: any } = {};
+            if (profileUpdates.name !== undefined) updateData.name = profileUpdates.name; if (profileUpdates.mobile !== undefined) updateData.mobile = profileUpdates.mobile; if (profileUpdates.address !== undefined) updateData.address = profileUpdates.address; updateData.updated_at = new Date().toISOString();
+            const { data: updatedData, error } = await supabase.from('user_profiles').update(updateData).eq('user_id', userId).select().single();
+            if (error) throw error; if (!updatedData) throw new Error("Update failed: No data returned.");
+            const addressData = (updatedData.address || {}) as ProfileAddress;
+            const formattedProfile: FormattedUserProfile = { userId: updatedData.user_id, name: updatedData.name || "", email: user?.email || "", phone: updatedData.mobile || "", address: { line1: addressData.line1 || "", line2: addressData.line2 || "", city: addressData.city || "", state: addressData.state || "", zip: addressData.zip || "", country: addressData.country || "" }, profileDocId: updatedData.user_id };
+            return formattedProfile;
         },
-        onSuccess: (data) => {
-            if (userId) {
-                queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
-                toast.success("Profile updated successfully!");
-                console.log("[TanStack Mutation] Profile updated:", data);
-            }
-        },
-        onError: (error) => {
-            console.error("[TanStack Mutation] Error updating profile:", error);
-            toast.error(`Failed to update profile: ${error.message}`);
-        },
-    });
-};
-
-/**
- * TanStack Mutation hook for updating only the email in a profile.
- * @returns Mutation result object for updating profile email.
- */
-export const useUpdateProfileEmailMutation = () => {
-    const queryClient = useQueryClient();
-    const { userId } = useCurrentUserId();
-
-    return useMutation<
-        FormattedUserProfile,
-        Error,
-        { documentId: string; email: string }
-    >({
-        mutationFn: async ({ documentId, email }) => {
-            if (!userId) throw new Error("User not authenticated for email update.");
-            const rawUpdatedProfile = await updateUserProfile(documentId, { email });
-            return formatProfileForUI(rawUpdatedProfile, userId);
-        },
-        onSuccess: (data) => {
-            if (userId) {
-                queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
-                console.log("[TanStack Mutation] Profile email updated in DB:", data);
-            }
-        },
-        onError: (error) => {
-            console.error("[TanStack Mutation] Error updating profile email:", error);
-            toast.error(`Failed to update profile email: ${error.message}`);
-            throw error;
-        },
+        onSuccess: (data) => { queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data); console.log("[useUserProfileData] Profile updated in DB & cache:", data); },
+        onError: (error) => { console.error("[useUserProfileData] Mutation error updating profile:", error); },
     });
 };

@@ -16,6 +16,7 @@ dist-ssr
 *copy*
 Merger
 scripts
+supabase
 
 # Editor directories and files
 .vscode/*

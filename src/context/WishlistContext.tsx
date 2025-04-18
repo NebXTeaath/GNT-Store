@@ -1,270 +1,220 @@
-// src\context\WishlistContext.tsx
-import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react'; // Added useCallback import
-import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
-import { databases, APPWRITE_DATABASE_ID } from "@/lib/appwrite";
-import { ID, Query, Models } from "appwrite"; // Import Models
+// src/context/WishlistContext.tsx
+import React, { createContext, useContext, ReactNode, useMemo, useCallback, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query'; // Import QueryKey
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from './AuthContext';
+import { supabase } from '@/lib/supabase';
+import { FunctionsError, FunctionsHttpError, FunctionsRelayError, FunctionsFetchError } from '@supabase/supabase-js'; // Import Function error types
+
+// Types for Supabase Function responses
+type SupabaseFunctionResponse<T> = { data: T | null; error: FunctionsError | FunctionsHttpError | FunctionsRelayError | FunctionsFetchError | null };
 
 // Interfaces
-export interface WishlistItemBasic { id: string; }
-export interface WishlistItem { id: string; slug: string; title: string; price: number; discount_price: number; image: string; }
-interface ProductDetail { cart_product_id: string; cart_slug: string; cart_product_name: string; cart_price: string | number; cart_discount_price: string | number; cart_primary_image?: string; }
-interface ProductSlug { product_id: string; slug: string; }
-
-// Appwrite Wishlist Document Type (extending Models.Document)
-interface AppwriteWishlistDoc extends Models.Document {
-  userId: string;
-  productUUID: string; // Comma-separated string of product IDs
-  creationDate: string; // Or your relevant date field
+export interface WishlistItem {
+    id: string; // Product UUID
+    slug: string;
+    title: string;
+    price: number;
+    discount_price: number;
+    image: string;
 }
 
 interface WishlistContextType {
-  wishlistItems: WishlistItem[];
-  addToWishlist: (item: Omit<WishlistItem, 'quantity'>) => void;
-  removeFromWishlist: (id: string) => void;
-  clearWishlist: () => void;
-  isInWishlist: (id: string) => boolean;
-  isLoading: boolean;
-  isAuthenticated: boolean;
+    wishlistItems: WishlistItem[];
+    addToWishlist: (item: Omit<WishlistItem, 'quantity'>) => Promise<boolean>; // Removed quantity from item type
+    removeFromWishlist: (id: string) => Promise<boolean>;
+    clearWishlist: () => Promise<boolean>;
+    isInWishlist: (id: string) => boolean;
+    isLoading: boolean;
+    isAuthenticated: boolean;
+    refetchWishlist: () => void;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export const useWishlist = () => {
-  const context = useContext(WishlistContext);
-  if (context === undefined) {
-    throw new Error('useWishlist must be used within a WishlistProvider');
-  }
-  return context;
+    const context = useContext(WishlistContext);
+    if (context === undefined) {
+        throw new Error('useWishlist must be used within a WishlistProvider');
+    }
+    return context;
 };
 
-// --- Helper Function to Fetch Full Wishlist Data ---
-async function fetchFullWishlistData(userId: string | null): Promise<{ items: WishlistItem[], wishlistDocId: string | null }> {
-    if (!userId) return { items: [], wishlistDocId: null };
-    console.log(`[WishlistContext] Fetching full wishlist for user: ${userId}`);
+// Fetch wishlist data using the 'wishlist' Edge Function (GET)
+async function fetchWishlistData(): Promise<WishlistItem[]> {
     try {
-        let basicItemIds: string[] = [];
-        let wishlistDocId: string | null = null;
-
-        // Apply generic type constraint
-        const { documents } = await databases.listDocuments<AppwriteWishlistDoc>(
-            APPWRITE_DATABASE_ID,
-            'wishlist',
-            [Query.equal('userId', userId), Query.limit(1)]
-        );
-
-        if (documents.length > 0) {
-            const userWishlist = documents[0];
-            wishlistDocId = userWishlist.$id;
-            if (userWishlist.productUUID) {
-                basicItemIds = userWishlist.productUUID.split(',').filter(Boolean);
+        const { data, error } = await supabase.functions.invoke<WishlistItem[]>('wishlist', { method: 'GET' });
+        if (error) {
+            if (error instanceof FunctionsHttpError && error.context.status === 401) {
+                console.warn('Unauthorized fetching wishlist, likely logged out.');
+                return [];
             }
+            throw error;
         }
-
-        if (basicItemIds.length === 0) {
-            return { items: [], wishlistDocId };
-        }
-
-        const [detailsResult, slugsResult] = await Promise.all([
-            supabase.rpc('get_cart_product_info', { product_uuids: basicItemIds }),
-            supabase.rpc('get_product_slugs_by_ids', { product_ids: basicItemIds })
-        ]);
-
-        const { data: productDetails, error: detailsError } = detailsResult;
-        const { data: productSlugs, error: slugsError } = slugsResult;
-
-        if (detailsError || slugsError) {
-            console.error('Error fetching wishlist product details/slugs:', { detailsError, slugsError });
-            toast.error("Failed to fetch wishlist product details", { id: "fetch-wishlist-details-error" });
-            return { items: [], wishlistDocId };
-        }
-
-        // Type reduce callback parameters
-        const slugMap = (productSlugs || []).reduce((acc: Record<string, string>, item: ProductSlug) => {
-            acc[item.product_id] = item.slug;
-            return acc;
-        }, {});
-
-        // Type map callback parameter
-        const fullWishlistItems = (productDetails || []).map((product: ProductDetail) => {
-            const slug = slugMap[product.cart_product_id] || product.cart_slug || '';
-            return {
-                id: product.cart_product_id,
-                slug,
-                title: product.cart_product_name,
-                price: parseFloat(typeof product.cart_price === 'string' ? product.cart_price : product.cart_price.toString()),
-                discount_price: parseFloat(typeof product.cart_discount_price === 'string' ? product.cart_discount_price : product.cart_discount_price.toString()),
-                image: product.cart_primary_image || "/placeholder.svg",
-            };
-        });
-
-        return { items: fullWishlistItems, wishlistDocId };
-
-    } catch (error) {
-        console.error('Error fetching full wishlist data:', error);
-        toast.error("Failed to load your wishlist", { id: "load-wishlist-error" });
-        return { items: [], wishlistDocId: null };
+        return data ?? [];
+    } catch (error: any) {
+        console.error('Error fetching wishlist:', error);
+        return []; // Return empty on error
     }
 }
 
-// --- Helper function to save wishlist data to Appwrite ---
-async function saveWishlistToAppwrite(userId: string, wishlistDocId: string | null, itemIds: string[]): Promise<string | null> {
-    const productUUIDs = itemIds.join(',');
-    const currentISODate = new Date().toISOString();
+export const WishlistProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { user, isAuthenticated } = useAuth();
+    const userId = user?.id;
+    const queryClient = useQueryClient();
 
-    try {
-        if (itemIds.length > 0) {
-            if (wishlistDocId) {
-                // Update existing wishlist
-                await databases.updateDocument(
-                    APPWRITE_DATABASE_ID, 'wishlist', wishlistDocId,
-                    { productUUID: productUUIDs, creationDate: currentISODate } // Ensure field names match collection
-                );
-                return wishlistDocId;
-            } else {
-                // Create new wishlist - apply type constraint
-                const newWishlist = await databases.createDocument<AppwriteWishlistDoc>(
-                    APPWRITE_DATABASE_ID, 'wishlist', ID.unique(),
-                    { userId, productUUID: productUUIDs, creationDate: currentISODate }
-                );
-                return newWishlist.$id;
-            }
-        } else {
-            // Wishlist is empty, delete document if it exists
-            if (wishlistDocId) {
-                await databases.deleteDocument(APPWRITE_DATABASE_ID, 'wishlist', wishlistDocId);
-            }
-            return null;
-        }
-    } catch (error) {
-        console.error('Failed to save wishlist to Appwrite:', error);
-        throw new Error('Failed to save wishlist to database.'); // Throw error for mutation
-    }
-}
+    // --- TanStack Query for fetching wishlist data ---
+    const wishlistQueryKey: QueryKey = useMemo(() => ['wishlist', userId], [userId]);
 
-
-interface WishlistProviderProps {
-  children: ReactNode;
-}
-
-export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
-  const userId = user?.$id || null;
-  const queryClient = useQueryClient();
-
-  const wishlistQueryKey = useMemo(() => ['wishlist', userId], [userId]);
-
-  const {
-    data: wishlistData, // Contains { items: WishlistItem[], wishlistDocId: string | null }
-    isLoading: isWishlistLoading,
-    // isError, // Can use if needed
-    // refetch, // Can use if needed
-  } = useQuery<{ items: WishlistItem[], wishlistDocId: string | null }, Error>({
-    queryKey: wishlistQueryKey,
-    queryFn: () => fetchFullWishlistData(userId),
-    enabled: !!userId && isAuthenticated, // Only run when logged in
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30,   // 30 minutes
-    // Use placeholderData (TanStack Query v5+)
-    placeholderData: (previousData) => previousData ?? { items: [], wishlistDocId: null },
-  });
-
-  // Safely access query data
-  const wishlistItems = wishlistData?.items ?? [];
-  const wishlistDocId = wishlistData?.wishlistDocId ?? null;
-
-  // Type 'item' parameter in 'some' callback
-  const isInWishlist = useCallback((id: string): boolean => {
-    return wishlistItems.some((item: WishlistItem) => item.id === id);
-  }, [wishlistItems]);
-
-  // --- Mutations for Wishlist Actions ---
-
-   const { mutate: saveWishlistMutation } = useMutation<string | null, Error, string[]>({
-      mutationFn: (newItemIds) => {
-          if (!userId) throw new Error("User not logged in");
-          // saveWishlistToAppwrite now throws on failure
-          return saveWishlistToAppwrite(userId, wishlistDocId, newItemIds);
-      },
-      // Type oldData parameter and remove unused 'variables'
-      onSuccess: (newWishlistDocId /*, variables */) => {
-          // Update query data's wishlistDocId; rely on invalidation for items
-          queryClient.setQueryData(wishlistQueryKey, (oldData: { items: WishlistItem[], wishlistDocId: string | null } | undefined) => {
-               return { items: oldData?.items ?? [], wishlistDocId: newWishlistDocId };
-          });
-           // Invalidate to refetch the full accurate wishlist state
-          queryClient.invalidateQueries({ queryKey: wishlistQueryKey });
-          console.log("Wishlist saved successfully, new wishlistDocId:", newWishlistDocId);
-      },
-      onError: (error) => {
-           console.error("Save wishlist error:", error);
-           toast.error(error.message || "Failed to update wishlist on the server.", { id: "save-wishlist-error" });
-           // Optional: Invalidate to ensure UI reflects actual server state
-           queryClient.invalidateQueries({ queryKey: wishlistQueryKey });
-      }
-  });
-
-  // Wishlist Actions
-
-  const addToWishlist = (item: Omit<WishlistItem, 'quantity'>): void => {
-    if (!isAuthenticated || !userId) {
-      toast.error("Please log in to add items to your wishlist", { id: "login-required-toast" });
-      return;
-    }
-
-    // Add type ': WishlistItem'
-    const currentItemIds = wishlistItems.map((wi: WishlistItem) => wi.id);
-    if (currentItemIds.includes(item.id)) {
-      toast.info("Item already in wishlist", { id: "already-in-wishlist-toast" });
-      return;
-    }
-
-    const newItemIds = [...currentItemIds, item.id];
-    saveWishlistMutation(newItemIds, {
-         onSuccess: () => toast.success("Added to wishlist", { id: "wishlist-add-toast" })
+    const {
+        data: wishlistItems = [], // Default to empty array
+        isLoading: isWishlistLoading,
+        isFetching: isWishlistFetching,
+        isError: isWishlistError,
+        error: wishlistError,
+        refetch: refetchWishlist,
+    } = useQuery<WishlistItem[], Error>({
+        queryKey: wishlistQueryKey,
+        queryFn: fetchWishlistData,
+        enabled: !!userId && isAuthenticated, // Only fetch if logged in
+        staleTime: 5 * 60 * 1000, // 5 minutes stale time
+        gcTime: 15 * 60 * 1000, // 15 minutes garbage collection time
+        refetchOnWindowFocus: true,
+        placeholderData: [], // Use empty array as placeholder
+        retry: 1,
     });
-  };
 
-  const removeFromWishlist = (id: string): void => {
-    if (!isAuthenticated || !userId) { return; } // Basic check
+    // Check if an item is in the wishlist
+    const isInWishlist = useCallback((id: string): boolean => wishlistItems.some(item => item.id === id), [wishlistItems]);
 
-    // Add type ': WishlistItem'
-    const currentItemIds = wishlistItems.map((wi: WishlistItem) => wi.id);
-    // Add type ': string'
-    const newItemIds = currentItemIds.filter((itemId: string) => itemId !== id);
+    // --- TanStack Mutations for wishlist actions ---
 
-     if (newItemIds.length !== currentItemIds.length) {
-        saveWishlistMutation(newItemIds, {
-            onSuccess: () => toast.success("Removed from wishlist", { id: "remove-wishlist-toast" })
+    // FIX 3 & 4: Correct the variable types
+    interface WishlistAddPayload { product_uuid: string; }
+    interface WishlistRemovePayload { product_uuid: string; }
+    // FIX 1: Define the expected success data type for addItemMutation, allowing null for errors
+    interface AddItemResponse { alreadyExisted: boolean; item?: any; }
+
+    // Generic mutation hook (can be reused)
+    const useWishlistMutation = <TVariables, TData = any>(
+        mutationFn: (vars: TVariables) => Promise<SupabaseFunctionResponse<TData>>,
+        options?: {
+            invalidate?: boolean;
+            successToast?: string;
+            errorToastPrefix?: string;
+            onMutate?: (vars: TVariables) => void;
+            onSuccess?: (data: TData | null, variables: TVariables) => void // Allow TData | null
+        }
+    ) => {
+        return useMutation<TData | null, Error, TVariables>({ // Allow TData | null in result
+            mutationFn: async (variables) => {
+                options?.onMutate?.(variables);
+                const { data, error } = await mutationFn(variables);
+                if (error) {
+                    throw new Error(error.message || 'API call failed');
+                }
+                return data; // Return data (can be null)
+            },
+            onSuccess: (data, variables) => {
+                if (options?.invalidate !== false) {
+                    queryClient.invalidateQueries({ queryKey: wishlistQueryKey });
+                }
+                if (options?.successToast) {
+                    toast.success(options.successToast, { id: `wish-${JSON.stringify(variables)}` });
+                }
+                options?.onSuccess?.(data, variables); // Pass data (or null) to callback
+            },
+            onError: (error, variables) => {
+                toast.error(`${options?.errorToastPrefix || 'Error'}: ${error.message}`, { id: `wish-${JSON.stringify(variables)}` });
+            },
         });
-    }
-  };
+    };
 
-  const clearWishlist = (): void => {
-    if (!isAuthenticated || !userId) {
-      toast.error("Please log in to clear your wishlist", { id: "login-required-toast" });
-      return;
-    }
-    if (wishlistItems.length > 0) {
-        saveWishlistMutation([], { // Pass empty array
-             onSuccess: () => toast.success("Wishlist cleared", { id: "clear-wishlist-toast" })
-        });
-    }
-  };
+    // Add Item Mutation - FIX 1 & 3 applied
+    const { mutateAsync: addItemMutation } = useWishlistMutation<WishlistAddPayload, AddItemResponse>( // TData is AddItemResponse (not null here as success has shape)
+        (vars) => supabase.functions.invoke('wishlist', { method: 'POST', body: vars }),
+        {
+            errorToastPrefix: 'Wishlist Add Failed',
+            onSuccess: (data, vars) => { // data is AddItemResponse | null
+                 if (data?.alreadyExisted) { // Check if data exists and has the property
+                     toast.info("Item already in wishlist", { id:`wish-${vars.product_uuid}`});
+                 } else {
+                     toast.success("Added to wishlist", { id:`wish-${vars.product_uuid}`});
+                 }
+            }
+        }
+    );
 
-  return (
-    <WishlistContext.Provider value={{
-      wishlistItems,
-      addToWishlist,
-      removeFromWishlist,
-      clearWishlist,
-      isInWishlist,
-      isLoading: isWishlistLoading, // Loading state from useQuery
-      isAuthenticated // From useAuth
-    }}>
-      {children}
-    </WishlistContext.Provider>
-  );
+    // Remove Item Mutation - FIX 4 applied
+    const { mutateAsync: removeItemMutation } = useWishlistMutation<WishlistRemovePayload>(
+        (vars) => supabase.functions.invoke(`wishlist?product_uuid=${vars.product_uuid}`, { method: 'DELETE' }),
+        { successToast: "Removed from wishlist", errorToastPrefix: 'Wishlist Remove Failed' }
+    );
+
+    // Clear Wishlist Mutation
+    const { mutateAsync: clearWishlistMutation } = useWishlistMutation<void>(
+        () => supabase.functions.invoke(`wishlist?clear=true`, { method: 'DELETE' }),
+        {
+            successToast: "Wishlist cleared",
+            errorToastPrefix: 'Wishlist Clear Failed',
+            // FIX 2: Explicitly type the empty array
+            onSuccess: () => queryClient.setQueryData<WishlistItem[]>(wishlistQueryKey, [])
+        }
+    );
+
+    // --- Wishlist Action Handlers ---
+
+    const addToWishlist = useCallback(async (item: Omit<WishlistItem, 'quantity'>): Promise<boolean> => {
+        if (!isAuthenticated) { toast.error("Please log in", { id: "wish-login-toast" }); return false; }
+        if (isInWishlist(item.id)) { toast.info("Already in wishlist", { id: "wish-exists-info" }); return true; }
+        try {
+             // Pass correct payload shape
+            await addItemMutation({ product_uuid: item.id });
+            return true;
+        } catch (e) { return false; }
+    }, [isAuthenticated, isInWishlist, addItemMutation]);
+
+    const removeFromWishlist = useCallback(async (id: string): Promise<boolean> => {
+        if (!isAuthenticated) return false;
+        try {
+             // Pass correct payload shape
+            await removeItemMutation({ product_uuid: id });
+            return true;
+        } catch (e) { return false; }
+    }, [isAuthenticated, removeItemMutation]);
+
+    const clearWishlist = useCallback(async (): Promise<boolean> => {
+        if (!isAuthenticated) { toast.error("Please log in", { id: "wish-login-toast" }); return false; }
+        if (wishlistItems.length === 0) { toast.info("Wishlist already empty", { id: "wish-empty-info" }); return true; }
+        try {
+             // Call mutation without arguments
+            await clearWishlistMutation();
+            return true;
+        } catch (e) { return false; }
+    }, [isAuthenticated, wishlistItems.length, clearWishlistMutation]);
+
+    // Display error toast if fetching fails
+    useEffect(() => {
+        if (isWishlistError && wishlistError) {
+            toast.error("Error loading wishlist", { id: "wish-load-fail", description: wishlistError.message });
+        }
+    }, [isWishlistError, wishlistError]);
+
+    // --- Context Provider Value ---
+    const contextValue: WishlistContextType = {
+        wishlistItems,
+        addToWishlist,
+        removeFromWishlist,
+        clearWishlist,
+        isInWishlist,
+        isLoading: isWishlistLoading || isWishlistFetching,
+        isAuthenticated,
+        refetchWishlist,
+    };
+
+    return (
+        <WishlistContext.Provider value={contextValue}>
+            {children}
+        </WishlistContext.Provider>
+    );
 };
