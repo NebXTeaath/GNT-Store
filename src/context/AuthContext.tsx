@@ -1,7 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, Session } from '@/lib/supabase';
-import { User, Provider, AuthError, WeakPassword } from '@supabase/supabase-js'; // Correct imports
+import { User, Provider, AuthError, WeakPassword } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useLoading } from '@/components/global/Loading/LoadingContext';
@@ -11,11 +11,11 @@ interface AuthContextProps {
     user: User | null;
     session: Session | null;
     isLoadingAuth: boolean;
-    signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-    // **** MODIFIED SIGNATURE ****
+    signIn: (email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
     signUp: (name: string, email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<{ error: AuthError | null }>;
-    sendPasswordReset: (email: string) => Promise<{ error: AuthError | null }>;
+    // **** MODIFIED SIGNATURE ****
+    sendPasswordReset: (email: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
     updateUserEmail: (newEmail: string) => Promise<{ error: AuthError | null }>;
     updateUserPassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
     signInWithProvider: (provider: Provider) => Promise<{ error: AuthError | null }>;
@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const queryClient = useQueryClient();
     const { setIsLoading: setIsLoadingGlobal, setLoadingMessage } = useLoading();
 
+    // useEffect for session and auth listener... (keep existing code)
     useEffect(() => {
         let isMounted = true;
         setIsLoadingAuth(true);
@@ -88,70 +89,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
     }, [queryClient, user?.id]);
 
+
     const performAuthAction = useCallback(async <T extends { error: AuthError | null }>(
         action: () => Promise<T>,
         loadingMsg: string,
         successMsg: string,
         errorMsgPrefix: string
     ): Promise<{ error: AuthError | null }> => {
-        setIsLoadingGlobal(true);
-        setLoadingMessage(loadingMsg);
+        // Don't set loading globally here for actions triggered by captcha,
+        // let the calling component manage its specific loading state.
+        // setIsLoadingGlobal(true);
+        // setLoadingMessage(loadingMsg);
         try {
             const { error } = await action();
             if (error) {
                 console.error(`${errorMsgPrefix} Error:`, error);
-                // Don't show toast here if the caller (e.g., Login form) handles it
-                // toast.error(error.message || `${errorMsgPrefix} failed.`);
+                // Toast is handled by the calling component/modal now
                 return { error };
             }
+            // Only show success toast if provided (some actions might not need it)
             if (successMsg) toast.success(successMsg);
             return { error: null };
         } catch (error: any) {
             console.error(`Unexpected ${errorMsgPrefix} Error:`, error);
             const message = error.message || `An unexpected error occurred.`;
-            // Don't show toast here if the caller (e.g., Login form) handles it
-            // toast.error(message);
+            // Toast handled by caller
             return { error: { name: "UnexpectedError", message } as AuthError };
         } finally {
-            setIsLoadingGlobal(false);
-            setLoadingMessage("");
+            // setIsLoadingGlobal(false);
+            // setLoadingMessage("");
         }
-    }, [setIsLoadingGlobal, setLoadingMessage]);
+    }, [setIsLoadingGlobal, setLoadingMessage]); // Keep dependencies as needed
 
-    // --- Sign In ---
+    // --- Sign In --- (Keep existing modified code)
     const signIn = useCallback(
-        (email: string, password: string) => performAuthAction(
-            () => supabase.auth.signInWithPassword({ email, password }),
-            "Logging in...", "", "Sign In" // Remove success toast, handle in component
-        ),
-        [performAuthAction]
+        (email: string, password: string, captchaToken: string | null) => {
+            const options: { captchaToken?: string } = {};
+             if (captchaToken) {
+                 options.captchaToken = captchaToken;
+             } else {
+                console.warn("Attempting signin without captcha token. Supabase might reject this if captcha is enabled.");
+             }
+            // Don't manage global loading/toast here, handled in LoginForm
+            return supabase.auth.signInWithPassword({ email, password, options });
+        },
+        [] // Removed performAuthAction dependency
     );
 
-    // --- Sign Up --- **** MODIFIED ****
+    // --- Sign Up --- (Keep existing modified code)
     const signUp = useCallback(
         (name: string, email: string, password: string, captchaToken: string | null) => {
-             // Check if captcha is required and token is provided
              const options: { data: { name: string }; captchaToken?: string } = {
                  data: { name: name }
              };
              if (captchaToken) {
                  options.captchaToken = captchaToken;
              } else {
-                // If captcha is required by Supabase but no token is provided,
-                // Supabase will return an error, which performAuthAction will catch.
                 console.warn("Attempting signup without captcha token. Supabase might reject this if captcha is enabled.");
              }
-
-            return performAuthAction(
-                // Pass options with potential captchaToken
-                () => supabase.auth.signUp({ email, password, options }),
-                "Creating account...", "", "Sign Up" // Remove success toast, handle in component
-            );
+             // Don't manage global loading/toast here, handled in LoginForm
+             return supabase.auth.signUp({ email, password, options });
         },
-        [performAuthAction]
+        [] // Removed performAuthAction dependency
     );
 
-    // --- Sign Out ---
+    // --- Sign Out --- (Keep existing code)
     const signOut = useCallback(async () => {
         setIsLoadingGlobal(true); setLoadingMessage("Logging out...");
         const { error } = await supabase.auth.signOut();
@@ -161,19 +163,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
     }, [setIsLoadingGlobal, setLoadingMessage]);
 
-    // --- Send Password Reset ---
+    // --- Send Password Reset --- **** MODIFIED ****
     const sendPasswordReset = useCallback(
-        (email: string) => {
+        (email: string, captchaToken: string | null) => { // Added captchaToken
             const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || `${window.location.origin}/reset-password`;
-            return performAuthAction(
-                () => supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl }),
-                "Sending reset link...", "Password reset email sent. Check your inbox.", "Password Reset"
-            );
+            const options: { redirectTo?: string; captchaToken?: string } = {
+                redirectTo: redirectUrl,
+            };
+            if (captchaToken) {
+                options.captchaToken = captchaToken;
+            } else {
+                // If captcha is required by Supabase but no token is provided,
+                // Supabase will likely return an error.
+                 console.warn("Attempting password reset without captcha token. Supabase might reject this if captcha is enabled.");
+            }
+
+            // Call supabase directly, let LoginModal handle loading/toast/errors
+            return supabase.auth.resetPasswordForEmail(email, options);
         },
-        [performAuthAction]
+        [] // Removed performAuthAction dependency
     );
 
-    // --- Update Email ---
+    // --- Update Email --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
     const updateUserEmail = useCallback(
         (newEmail: string) => performAuthAction(
             () => supabase.auth.updateUser({ email: newEmail }),
@@ -182,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         [performAuthAction]
     );
 
-    // --- Update Password ---
+    // --- Update Password --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
     const updateUserPassword = useCallback(
         (newPassword: string) => performAuthAction(
             () => supabase.auth.updateUser({ password: newPassword }),
@@ -191,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         [performAuthAction]
     );
 
-    // --- Sign In With Provider (OAuth) ---
+    // --- Sign In With Provider (OAuth) --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
     const signInWithProvider = useCallback(
         (provider: Provider) => {
              const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin;
@@ -203,7 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         [performAuthAction]
     );
 
-    // --- Refresh Session ---
+    // --- Refresh Session --- (Keep existing code)
     const refreshSession = useCallback(async () => {
         try {
             const { error } = await supabase.auth.refreshSession();
@@ -221,7 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signIn,
         signUp,
         signOut,
-        sendPasswordReset,
+        sendPasswordReset, // Ensure the modified sendPasswordReset is included
         updateUserEmail,
         updateUserPassword,
         signInWithProvider,
@@ -231,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// useAuth hook and exports... (keep existing code)
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
