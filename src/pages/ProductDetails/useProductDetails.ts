@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-// Interfaces should match the structure returned by the get_product_details_with_slug RPC
+// Interfaces should match the structure returned by the get_product_details_by_slug RPC
 interface ProductImage {
   url: string;
   is_primary?: boolean;
@@ -30,7 +30,7 @@ export interface ProductDetailsData {
   o_product_description: string;
   o_price: string;
   o_discount_price: string;
-  o_images: ProductImage[][];
+  o_images: ProductImage[];
   o_is_featured: boolean;
   o_is_bestseller: boolean;
   o_category_name: string;
@@ -72,7 +72,7 @@ const fetchProductDetailsBySlug = async (
     }
     
     // If we get here, we know a product with this slug exists
-    const { data, error } = await supabase.rpc("get_product_details_with_slug", {
+    const { data, error } = await supabase.rpc("get_product_details_by_slug", {
       p_target_slug: slug,
     });
 

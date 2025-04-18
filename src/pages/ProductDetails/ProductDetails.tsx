@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LoginModal from "@/pages/Login/LoginModal";
 import DescriptionModal from "./DescriptionModal";
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
-import { useProductDetails, useProductDetailsBySlug, ProductDetailsData } from "@/pages/ProductDetails/useProductDetails"; // Import type
+import { useProductDetails, useProductDetailsBySlug } from "@/pages/ProductDetails/useProductDetails"; // Import type
 import { OptimizedImage } from "@/pages/ProductCard/optimized-image";
 import SEO from '@/components/seo/SEO'; // Import SEO component
 import StructuredData from '@/components/seo/StructuredData'; // Import StructuredData component
@@ -161,8 +161,8 @@ export default function ProductDetailsPage() {
         ? productData.o_product_description.substring(0, 160) + (productData.o_product_description.length > 160 ? '...' : '')
         : `Buy ${productData.o_product_name} at GNT Store. Check details and price.`;
       const canonical = `${siteUrl}/product/${productData.o_slug}`;
-      const ogImage = productData.o_images?.[0]?.[0]?.url && !productData.o_images[0][0].url.includes('placeholder')
-        ? productData.o_images[0][0].url
+      const ogImage = productData.o_images?.[0]?.url && !productData.o_images[0].url.includes('placeholder')
+        ? productData.o_images[0].url
         : `${siteUrl}/favicon/og-image.png`;
 
       setSeoTitle(title);
@@ -245,7 +245,7 @@ export default function ProductDetailsPage() {
         title: productData.o_product_name,
         price: parseFloat(productData.o_price),
         discount_price: parseFloat(productData.o_discount_price),
-        image: productData.o_images?.[0]?.[0]?.url || ""
+        image: productData.o_images?.[0]?.url || ""
       }, quantity);
     } else {
       console.warn("Add to cart called without product data or valid quantity.");
@@ -269,7 +269,7 @@ export default function ProductDetailsPage() {
           title: productData.o_product_name,
           price: parseFloat(productData.o_price),
           discount_price: parseFloat(productData.o_discount_price),
-          image: productData.o_images?.[0]?.[0]?.url || ""
+          image: productData.o_images?.[0]?.url || ""
         });
       }
     }
@@ -415,7 +415,7 @@ export default function ProductDetailsPage() {
   }
 
   // --- Prepare data for rendering (productData is guaranteed non-null here after checks) ---
-  const images = productData.o_images?.[0]?.map(img => img.url) ?? ["/placeholder.svg"];
+  const images = productData.o_images?.map((img: { url: string }) => img.url) ?? ["/placeholder.svg"];
   const price = parseFloat(productData.o_price);
   const discountPrice = parseFloat(productData.o_discount_price);
   const isProductInWishlist = isInWishlist(productData.o_product_id);
@@ -469,7 +469,7 @@ export default function ProductDetailsPage() {
         className="w-full h-full"
       >
         <CarouselContent className="h-full">
-          {images.map((img, index) => (
+          {images.map((img: string, index: number) => (
             <CarouselItem key={index} className="h-full flex items-center justify-center">
               <div className="w-full h-full flex items-center justify-center p-2 sm:p-4">
                 <img
@@ -527,7 +527,7 @@ export default function ProductDetailsPage() {
     {/* Thumbnails */}
     {images.length > 1 && (
       <div className="grid grid-cols-4 gap-2 md:gap-4">
-        {images.slice(0, 4).map((img, index) => (
+        {images.slice(0, 4).map((img: string, index: number) => (
           <motion.div
             key={index}
             initial={{ opacity: 0, scale: 0.95 }}
