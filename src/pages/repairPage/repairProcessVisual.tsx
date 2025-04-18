@@ -29,10 +29,7 @@ export default function RepairProcessVisual() {
                  <ArrowRight size={20} />
               </div>
             )}
-             {/* Vertical connector for smaller screens (optional) */}
-             {index < steps.length - 1 && (
-                <div className="md:hidden h-4 border-l border-gray-600 my-1"></div>
-             )}
+             {index < steps.length - 1 && ( <div className="md:hidden h-4 border-l border-gray-600 my-1"></div> )}
           </React.Fragment>
         ))}
       </div>

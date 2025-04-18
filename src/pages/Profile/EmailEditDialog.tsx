@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, Shield } from "lucide-react";
+import { Loader2, Mail } from "lucide-react"; // Removed Shield icon
 import {
   Dialog,
   DialogContent,
@@ -28,52 +28,56 @@ export function EmailEditDialog({
   currentEmail,
   onEmailUpdated,
 }: EmailEditDialogProps) {
-  const { updateEmail } = useAuth();
+  // FIX: Use the correct function from context
+  const { updateUserEmail } = useAuth();
   const [newEmail, setNewEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // const [password, setPassword] = useState(""); // Removed password state
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Reset form when dialog opens/closes
   React.useEffect(() => {
     if (open) {
       setNewEmail("");
-      setPassword("");
+      // setPassword(""); // Removed password reset
     }
   }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!newEmail) {
-      toast.error("Please enter a new email address");
+
+    if (!newEmail || !newEmail.includes('@')) { // Basic email format check
+      toast.error("Please enter a valid new email address");
       return;
     }
-    
+
     if (newEmail === currentEmail) {
       toast.error("New email is the same as current email");
       return;
     }
-    
-    if (!password) {
-      toast.error("Please enter your password to confirm");
-      return;
-    }
-    
+
+    // if (!password) { // Removed password check
+    //   toast.error("Please enter your password to confirm");
+    //   return;
+    // }
+
+    setIsUpdating(true);
     try {
-      setIsUpdating(true);
-      await updateEmail(newEmail, password);
-      
-      // Call the callback to update the profile with the new email
+      // FIX: Call updateUserEmail with only the new email
+      await updateUserEmail(newEmail);
+
+      // Callback can still be called, but the actual update is pending email confirmation
       onEmailUpdated(newEmail);
-      
-      // Close the dialog
-      onOpenChange(false);
-      
-      // Show success message
-      toast.success("Email updated successfully");
-    } catch (error) {
-      console.error("Failed to update email:", error);
-      toast.error("Failed to update email. Please check your password and try again.");
+      onOpenChange(false); // Close dialog
+
+      // FIX: Update success message to reflect confirmation process
+      toast.success("Email change request sent", {
+          description: "Please check both your old and new email inboxes to confirm the change.",
+          duration: 7000, // Longer duration for this message
+      });
+
+    } catch (error: any) { // Catch specific error type if possible
+      console.error("Failed to request email update:", error);
+      // FIX: Use the error message from the AuthError if available
+      toast.error("Failed to request email update", { description: error?.message || "Please try again." });
     } finally {
       setIsUpdating(false);
     }
@@ -87,21 +91,22 @@ export function EmailEditDialog({
             <Mail className="mr-2 h-5 w-5" /> Update Email Address
           </DialogTitle>
           <DialogDescription className="text-gray-400">
-            Enter your new email address and current password to confirm
+            Enter your new email address. A confirmation link will be sent to both your old and new addresses.
           </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label htmlFor="current-email">Current Email</Label>
             <Input
               id="current-email"
               value={currentEmail}
               disabled
-              className="bg-[#2a2d36] border-[#3f4354] text-gray-400"
+              readOnly // Add readOnly for clarity
+              className="bg-[#2a2d36]/70 border-[#3f4354] text-gray-400 cursor-not-allowed"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="new-email">New Email Address</Label>
             <Input
@@ -112,27 +117,12 @@ export function EmailEditDialog({
               placeholder="Enter your new email address"
               className="bg-[#2a2d36] border-[#3f4354]"
               required
+              disabled={isUpdating} // Disable while updating
             />
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="password" className="flex items-center">
-              <Shield className="mr-2 h-4 w-4" /> Password Confirmation
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your current password"
-              className="bg-[#2a2d36] border-[#3f4354]"
-              required
-            />
-            <p className="text-xs text-gray-500">
-              For security, we need your current password to confirm this change
-            </p>
-          </div>
-          
+
+          {/* Removed Password Input Section */}
+
           <DialogFooter className="mt-6">
             <Button
               type="button"
@@ -146,15 +136,15 @@ export function EmailEditDialog({
             <Button
               type="submit"
               className="bg-[#5865f2] hover:bg-[#4752c4]"
-              disabled={isUpdating}
+              disabled={isUpdating || !newEmail || newEmail === currentEmail} // Add basic validation disabling
             >
               {isUpdating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  Sending Request...
                 </>
               ) : (
-                "Update Email"
+                "Request Email Change"
               )}
             </Button>
           </DialogFooter>

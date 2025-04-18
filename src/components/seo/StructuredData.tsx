@@ -1,7 +1,8 @@
 // src/components/seo/StructuredData.tsx
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
-import type { ProductDetailsData } from '@/pages/ProductDetails/useProductDetails'; // Adjust path if necessary
+// Ensure the type import reflects the CORRECTED single array structure
+import type { ProductDetailsData } from '@/pages/ProductDetails/useProductDetails';
 
 interface StructuredDataProps {
   productData: ProductDetailsData | null;
@@ -9,19 +10,20 @@ interface StructuredDataProps {
 
 const StructuredData: React.FC<StructuredDataProps> = ({ productData }) => {
   if (!productData) {
-    return null; // Don't render anything if no product data
+    return null;
   }
 
   const siteUrl = window.location.origin;
 
   // Helper to safely get the first image URL or a default
   const getPrimaryImageUrl = (): string | undefined => {
-    const firstImageSet = productData.o_images?.[0];
-    const firstImage = firstImageSet?.[0]?.url;
+    // FIX: Access the first element's URL directly from the o_images array
+    const firstImage = productData.o_images?.[0]?.url; // Get URL of the first image object
+    // Return the URL only if it's valid and not a placeholder
     return firstImage && !firstImage.includes('placeholder') ? firstImage : undefined;
   };
 
-  // Helper to build category string
+  // Helper to build category string (remains the same)
   const buildCategoryString = (): string => {
       const parts = [
           "Electronics", // Top level category
@@ -38,7 +40,7 @@ const StructuredData: React.FC<StructuredDataProps> = ({ productData }) => {
     "name": productData.o_product_name,
     "description": productData.o_product_description,
     "sku": productData.o_product_id, // Using product_id as SKU
-    "image": getPrimaryImageUrl(), // Primary image URL
+    "image": getPrimaryImageUrl(), // Correctly gets the first image URL now
     "category": buildCategoryString(),
     "brand": {
       "@type": "Brand",
@@ -48,40 +50,41 @@ const StructuredData: React.FC<StructuredDataProps> = ({ productData }) => {
       "@type": "Offer",
       "url": `${siteUrl}/product/${productData.o_slug}`, // Canonical product URL
       "priceCurrency": "INR",
-      "price": productData.o_discount_price, // Use the current selling price
+       // Convert string price to number for schema
+      "price": parseFloat(productData.o_discount_price).toFixed(2),
       "priceValidUntil": new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(), // Example: Valid for 1 year
       "itemCondition": productData.o_condition?.toLowerCase() === 'pre-owned' ? 'https://schema.org/UsedCondition' : 'https://schema.org/NewCondition',
-      "availability": "https://schema.org/InStock", // Adjust if you have stock levels
-      // Consider adding seller information if relevant
-      // "seller": {
-      //   "@type": "Organization",
-      //   "name": "GNT Store"
-      // }
+       // Make sure stock reflects reality, or use LimitedAvailability/OutOfStock etc.
+      "availability": productData.o_stock_units && productData.o_stock_units > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      "seller": { // Good practice to include seller
+        "@type": "Organization",
+        "name": "GNT Store"
+      }
     },
-    // Add aggregateRating and reviews if available
-    // "aggregateRating": {
+    // Add aggregateRating and reviews if available from productData
+    // Example:
+    // "aggregateRating": productData.o_review_count > 0 ? {
     //   "@type": "AggregateRating",
-    //   "ratingValue": "4.5", // Example data
-    //   "reviewCount": "89" // Example data
-    // },
-    // "review": [
-    //   {
-    //     "@type": "Review",
-    //     "reviewRating": { "@type": "Rating", "ratingValue": "5" },
-    //     "author": { "@type": "Person", "name": "Reviewer Name" },
-    //     "reviewBody": "Excellent product!"
-    //   }
-    // ]
+    //   "ratingValue": productData.o_average_rating?.toString() ?? "0",
+    //   "reviewCount": productData.o_review_count?.toString() ?? "0"
+    // } : undefined,
   };
 
    // Only include image property if a valid URL was found
    if (!schema.image) {
       delete schema.image;
    }
+   // Remove aggregateRating if not applicable
+   // if (!schema.aggregateRating) {
+   //    delete schema.aggregateRating;
+   // }
+
 
   return (
     <Helmet>
       <script type="application/ld+json">
+        {/* Use null, 2 for pretty printing during development if needed */}
+        {/* JSON.stringify(schema, null, 2) */}
         {JSON.stringify(schema)}
       </script>
     </Helmet>
