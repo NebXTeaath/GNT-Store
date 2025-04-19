@@ -11,12 +11,13 @@ node_modules
 Admin
 dist
 dist-ssr
+supabase
 *.local
 *.env*
 *copy*
 Merger
 scripts
-supabase
+
 
 # Editor directories and files
 .vscode/*
