@@ -1,349 +1,416 @@
 // src/pages/Login/login.tsx
-import React, { useState, useEffect, useRef, useCallback } from "react"; // Import React explicitly
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth, SupabaseAuthError } from "@/context/AuthContext"; // Import AuthError type if needed
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, EyeOff, LogIn, UserPlus, AlertCircle } from "lucide-react";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { Eye, EyeOff, LogIn, UserPlus, AlertCircle, Loader2, Send } from "lucide-react";
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface LoginFormProps {
-  onSuccess?: () => void;
-  onRegisterSuccess?: (email: string) => void;
-  initialTab?: "login" | "register";
-  onTabChange?: (tab: "login" | "register" | "forgot-password") => void;
-  onForgotPassword?: () => void;
+    onSuccess?: () => void;
+    onRegisterSuccess?: (email: string) => void;
+    initialTab?: "login" | "register";
+    onTabChange?: (tab: "login" | "register" | "forgot-password") => void;
+    onForgotPassword?: () => void;
 }
 
-export default function LoginForm({
-  onSuccess,
-  onRegisterSuccess,
-  initialTab = "login",
-  onTabChange,
-  onForgotPassword
-}: LoginFormProps) {
-  // Use the modified signIn from useAuth
-  const { signIn: login, signUp: register } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState(initialTab);
+type CapturedSubmitData = {
+    email: string;
+    password?: string;
+    name?: string;
+} | null;
 
-  // HCAPTCHA State and Ref
-  const captchaRef = useRef<HCaptcha>(null);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const hCaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITEKEY;
-  // **** NEW STATE ****
-  const [captchaAction, setCaptchaAction] = useState<'login' | 'register' | null>(null);
+type ActionType = 'login' | 'register' | 'resend';
 
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-  const [registerForm, setRegisterForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+export default function LoginForm(props: LoginFormProps) {
+    const {
+        onSuccess,
+        onRegisterSuccess,
+        initialTab = "login",
+        onTabChange,
+        onForgotPassword
+    } = props;
 
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    const { signIn: login, signUp: register } = useAuth();
+    const [isLoading, setIsLoading] = useState(false); // For login/register
+    const [isResending, setIsResending] = useState(false); // For resend button
+    const [error, setError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [activeTab, setActiveTab] = useState(initialTab);
+    const [showResendEmailButton, setShowResendEmailButton] = useState(false);
 
-  const handleTabChange = (value: string) => {
-    const tab = value as "login" | "register";
-    setActiveTab(tab);
-    setError("");
-    setCaptchaToken(null);
-    setCaptchaAction(null); // Reset action on tab change
-    captchaRef.current?.resetCaptcha();
-    if (onTabChange) {
-      onTabChange(tab);
-    }
-  };
+    const captchaRef = useRef<TurnstileInstance>(null);
+    const [captchaKey, setCaptchaKey] = useState<string>(() => `init-${Math.random().toString(36).substring(2, 15)}`);
+    const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
 
-  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setLoginForm((prev) => ({ ...prev, [name]: value }));
-  };
+    const actionRef = useRef<ActionType | null>(null);
+    const capturedSubmitDataRef = useRef<CapturedSubmitData>(null);
+    const isVerificationAttemptCompleteRef = useRef<boolean>(true);
 
-  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setRegisterForm((prev) => ({ ...prev, [name]: value }));
-  };
+    const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+    const [registerForm, setRegisterForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
 
-  // **** MODIFIED Login Handler: Trigger Captcha ****
-  const handleLogin = async (e?: React.FormEvent<HTMLFormElement>) => {
-    if (e) e.preventDefault();
-    setIsLoading(true);
-    setError("");
-    setCaptchaToken(null); // Reset token
+    useEffect(() => { setActiveTab(initialTab); }, [initialTab]);
 
-    if (!hCaptchaSiteKey) {
-        console.error("Login Error: hCaptcha site key is not configured.");
-        setError("Captcha configuration error. Please contact support.");
-        toast.error("Configuration Error", {description: "Captcha site key is missing."});
-        setIsLoading(false);
-        return;
-    }
-    if (!captchaRef.current) {
-        console.error("Login Error: hCaptcha ref is not available.");
-        setError("Captcha component failed to load. Please refresh.");
-        toast.error("Captcha Error", { description: "Captcha component not ready." });
-        setIsLoading(false);
-        return;
-    }
+    const handleTabChange = (value: string) => {
+        const tab = value as "login" | "register";
+        setActiveTab(tab);
+        setError("");
+        setShowResendEmailButton(false);
+        isVerificationAttemptCompleteRef.current = true;
+        console.log(`[${new Date().toISOString()}] Tab changed to ${tab}. Resetting captcha state.`);
+        resetCaptchaState();
+        if (onTabChange) { onTabChange(tab); }
+    };
 
-    setCaptchaAction('login'); // Set action type for onVerifyCaptcha
-    console.log("Executing captcha for LOGIN action...");
-    try {
-        captchaRef.current.execute(); // Trigger the invisible captcha challenge
-        // The actual login call now happens in onVerifyCaptcha
-    } catch (err) {
-        console.error("Error executing hCaptcha for login:", err);
-        setError("Failed to start captcha verification. Please try again.");
-        toast.error("Captcha Error", { description: "Could not start captcha challenge." });
-        setCaptchaAction(null);
-        setIsLoading(false);
-    }
-  };
+    const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target; setLoginForm((prev) => ({ ...prev, [name]: value }));
+        if (error || showResendEmailButton) { setError(""); setShowResendEmailButton(false); }
+    };
+    const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target; setRegisterForm((prev) => ({ ...prev, [name]: value }));
+    };
 
-  // **** MODIFIED Registration Handler: Trigger Captcha ****
-  const handleRegister = async (e?: React.FormEvent<HTMLFormElement>) => {
-    if (e) e.preventDefault();
-    console.log("handleRegister called");
+    // Centralized Reset Function
+    const resetCaptchaState = useCallback((reason: string = "unknown") => { // Added reason for logging
+        console.log(`[${new Date().toISOString()}] --- Resetting Captcha State (Reason: ${reason}) ---`);
+        actionRef.current = null;
+        capturedSubmitDataRef.current = null;
+        isVerificationAttemptCompleteRef.current = true; // Ensure it's reset
+        setShowResendEmailButton(false);
 
-    if (registerForm.password !== registerForm.confirmPassword) {
-      setError("Passwords do not match");
-      toast.error("Passwords do not match");
-      return;
-    }
-    if (!hCaptchaSiteKey) {
-        console.error("Register Error: hCaptcha site key is not configured.");
-        setError("Captcha configuration error. Please contact support.");
-        toast.error("Configuration Error", {description: "Captcha site key is missing."});
-        return;
-    }
-     if (!captchaRef.current) {
-        console.error("Register Error: hCaptcha ref is not available.");
-        setError("Captcha component failed to load. Please refresh.");
-        toast.error("Captcha Error", { description: "Captcha component not ready." });
-        return;
-    }
-
-    setIsLoading(true);
-    setError("");
-    setCaptchaToken(null); // Reset token
-
-    setCaptchaAction('register'); // Set action type for onVerifyCaptcha
-    console.log("Executing captcha for REGISTER action...");
-     try {
-         captchaRef.current.execute(); // Trigger the invisible captcha challenge
-         // The actual register call now happens in onVerifyCaptcha
-     } catch (err) {
-         console.error("Error executing hCaptcha for register:", err);
-         setError("Failed to start captcha verification. Please try again.");
-         toast.error("Captcha Error", { description: "Could not start captcha challenge." });
-         setCaptchaAction(null);
-         setIsLoading(false);
-     }
-  };
-
-  // **** MODIFIED Captcha Verification Handler: Handles both Login and Register ****
-  const onVerifyCaptcha = async (token: string) => {
-    console.log(`hCaptcha verified for action: ${captchaAction}, token received.`);
-    setCaptchaToken(token); // Store the token temporarily if needed, maybe pass directly
-
-    if (!captchaAction) {
-      console.error("Captcha verified but no action (login/register) was set.");
-      setError("An internal error occurred during verification. Please try again.");
-      toast.error("Verification Error", { description: "Unknown verification step." });
-      setIsLoading(false);
-      setCaptchaAction(null); // Reset action
-      captchaRef.current?.resetCaptcha();
-      return;
-    }
-
-    // Proceed with the appropriate action (login or register)
-    try {
-      let result: { error: SupabaseAuthError | null } | null = null;
-      const currentAction = captchaAction; // Capture action before resetting
-
-      if (currentAction === 'login') {
-        result = await login(loginForm.email, loginForm.password, token); // Pass token to login
-        if (result.error) {
-          setError(result.error.message || "Login failed. Please check credentials or try again.");
-          toast.error("Login failed", { description: result.error.message });
-        } else {
-          if (onSuccess) onSuccess(); // Call onSuccess only on successful login
+        try {
+            if (captchaRef.current) {
+                captchaRef.current.reset();
+                console.log(`[${new Date().toISOString()}] Explicit captchaRef.current.reset() called.`);
+            } else {
+                console.warn(`[${new Date().toISOString()}] captchaRef.current is null, cannot call reset().`);
+            }
+        } catch (err) {
+            console.warn(`[${new Date().toISOString()}] Error calling captchaRef.current.reset():`, err);
         }
-      } else if (currentAction === 'register') {
-        result = await register(registerForm.name, registerForm.email, registerForm.password, token); // Pass token to register
-        if (result.error) {
-          let errorMessage = result.error.message || "Failed to create account.";
-           if (result.error.message.includes("User already registered")) {
-              errorMessage = "An account with this email already exists. Try logging in.";
-           } else if (result.error.message.toLowerCase().includes("captcha verification failed")) {
-               errorMessage = "Captcha verification failed. Please try again.";
-           }
-           setError(errorMessage);
-           toast.error("Registration Failed", { description: errorMessage });
-        } else {
-          if (onRegisterSuccess) onRegisterSuccess(registerForm.email); // Call onRegisterSuccess only on successful registration
+        // Force re-render *after* attempting reset
+        setCaptchaKey(prev => `k-${Math.random().toString(36).substring(2, 10)}`); // Ensure new key
+        console.log(`[${new Date().toISOString()}] --- Captcha State Reset Complete (Key Updated) ---`);
+    }, []); // Dependency array is empty
+
+
+    // Unified submit trigger
+    const initiateActionWithCaptcha = async (actionType: ActionType) => {
+        if (isLoading || isResending) {
+             console.log(`[${new Date().toISOString()}] Action ${actionType} initiated, but already loading (isLoading: ${isLoading}, isResending: ${isResending}). Ignoring.`);
+             return;
+         }
+
+        console.log(`[${new Date().toISOString()}] Initiating action: ${actionType}`);
+        setError("");
+        setShowResendEmailButton(false);
+
+        // --- Validate Inputs & Capture Data ---
+        let dataToSubmit: CapturedSubmitData = null;
+        if (actionType === 'login') {
+            if (!loginForm.email || !loginForm.password) { setError("Please fill in all fields."); toast.error("Missing information"); return; }
+            dataToSubmit = { email: loginForm.email, password: loginForm.password };
+        } else if (actionType === 'register') {
+            if (!registerForm.name || !registerForm.email || !registerForm.password || !registerForm.confirmPassword) { setError("Please fill in all fields."); toast.error("Missing information"); return; }
+            if (registerForm.password !== registerForm.confirmPassword) { setError("Passwords do not match."); toast.error("Passwords do not match"); return; }
+            dataToSubmit = { name: registerForm.name, email: registerForm.email, password: registerForm.password };
+        } else { // resend
+            if (!loginForm.email) { toast.error("Please enter your email first.", { id: "resend-no-email" }); return; }
+            dataToSubmit = { email: loginForm.email };
         }
-      }
-    } catch (err: any) {
-      console.error(`Unexpected ${captchaAction} error in component:`, err);
-      const message = err.message || `An unexpected error occurred during ${captchaAction}.`;
-      setError(message);
-      toast.error(`${captchaAction === 'login' ? 'Login' : 'Registration'} Error`, { description: message });
-    } finally {
-      setIsLoading(false);
-      setCaptchaToken(null); // Clear token
-      setCaptchaAction(null); // Clear action
-      captchaRef.current?.resetCaptcha(); // Reset hCaptcha widget visual state if needed
-    }
-  };
 
-  // **** MODIFIED Captcha Error Handler ****
-  const onErrorCaptcha = (err: string) => {
-    console.error("hCaptcha Error:", err);
-    setError("Captcha challenge failed. Please try again.");
-    toast.error("Captcha Error", { description: "Could not verify captcha. Please try again." });
-    setIsLoading(false); // Stop loading
-    setCaptchaToken(null);
-    setCaptchaAction(null); // Reset action
-  };
+        // --- Check Captcha Readiness ---
+        if (!TurnstileSiteKey) { setError("Captcha configuration error."); toast.error("Configuration Error"); return; }
+        if (!captchaRef.current) { setError("Captcha component not ready. Please wait."); toast.error("Captcha Error"); return; }
 
-  // **** MODIFIED Captcha Expired Handler ****
-  const onExpireCaptcha = () => {
-    console.warn("hCaptcha token expired.");
-    setError("Captcha challenge expired. Please complete the challenge again.");
-    toast.warning("Captcha Expired", { description: "Please complete the captcha challenge again." });
-    setCaptchaToken(null);
-    setCaptchaAction(null); // Reset action
-    // Keep isLoading true if we expect the user to retry immediately,
-    // or set to false if they need to click the button again. Setting to false is usually safer.
-    setIsLoading(false);
-  };
-  // **** END HCAPTCHA ****
+        // --- Set State Before Execution ---
+        actionRef.current = actionType;
+        capturedSubmitDataRef.current = dataToSubmit;
+        isVerificationAttemptCompleteRef.current = false; // Mark attempt as started
+        console.log(`[${new Date().toISOString()}] Captured data for submission:`, dataToSubmit ? {...dataToSubmit, password: dataToSubmit.password ? '***' : undefined} : null);
 
-  const handleForgotPassword = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setError("");
-    if (onForgotPassword) {
-      onForgotPassword();
-    }
-  };
+        // Set SPECIFIC Loading State
+        if (actionType === 'resend') {
+            setIsResending(true);
+        } else {
+            setIsLoading(true);
+        }
 
-  return (
-    // Use React.Fragment or a div as the top-level element if needed
-    <>
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger id="login-tab" value="login">
-            Login
-          </TabsTrigger>
-          <TabsTrigger value="register">
-            Register
-          </TabsTrigger>
-        </TabsList>
+        // --- Execute Captcha ---
+        console.log(`[${new Date().toISOString()}] Executing Turnstile for ${actionType}...`);
+        try {
+            if (captchaRef.current) {
+                await captchaRef.current.execute();
+                 console.log(`[${new Date().toISOString()}] Turnstile execution requested for ${actionType}. Waiting for callback...`);
+            } else {
+                 throw new Error("Captcha reference is not available.");
+            }
+        } catch (err) {
+            console.error(`[${new Date().toISOString()}] Error *executing* Turnstile for ${actionType}:`, err);
+            setError(`Failed to start captcha challenge for ${actionType}. Please try again.`);
+            toast.error("Captcha Error", { description: "Could not start challenge." });
+            if (actionType === 'resend') setIsResending(false); else setIsLoading(false);
+            resetCaptchaState(`execute_error_${actionType}`); // Pass reason
+        }
+    };
 
-        {/* Login Tab Content */}
-        <TabsContent value="login">
-          {/* Use onSubmit={handleLogin} here */}
-          <form onSubmit={handleLogin} className="space-y-4">
-             {/* Email */}
-             <div className="space-y-2">
-                <Label htmlFor="login-email" className="text-white">Email</Label>
-                {isLoading && activeTab === 'login' ? ( <Skeleton className="h-10 w-full bg-[#2a2d36]" /> ) : (
-                  <Input id="login-email" name="email" type="email" placeholder="your.email@example.com" value={loginForm.email} onChange={handleLoginChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading} />
-                )}
-             </div>
-             {/* Password */}
-             <div className="space-y-2">
-                <Label htmlFor="login-password" className="text-white">Password</Label>
-                {isLoading && activeTab === 'login' ? ( <Skeleton className="h-10 w-full bg-[#2a2d36]" /> ) : (
-                  <div className="relative">
-                    <Input id="login-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={loginForm.password} onChange={handleLoginChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading} />
-                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" onClick={() => setShowPassword(!showPassword)} disabled={isLoading}>
-                      {showPassword ? (<EyeOff className="h-4 w-4" />) : (<Eye className="h-4 w-4" />)}
-                    </button>
-                  </div>
-                )}
-             </div>
-             {error && activeTab === 'login' && <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{error}</p>}
-             <div className="flex justify-end">
-               <button type="button" onClick={handleForgotPassword} className="text-sm text-[#5865f2] hover:text-[#4752c4]" disabled={isLoading}> Forgot password? </button>
-             </div>
-             {/* Login Button */}
-             <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4]" disabled={isLoading}>
-                {isLoading && captchaAction === 'login' ? ( <span className="flex items-center justify-center"> <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg> Verifying... </span> ) : ( <span className="flex items-center justify-center"> <LogIn className="mr-2 h-4 w-4" /> Login </span> )}
-             </Button>
-             <div className="text-center text-sm text-gray-400"> Don't have an account?{" "} <button type="button" className="text-[#5865f2] hover:text-[#4752c4]" onClick={() => handleTabChange("register")} disabled={isLoading}> Sign up </button> </div>
-          </form>
-        </TabsContent>
+    // --- Specific Action Handlers ---
+    const handleLogin = (e?: React.FormEvent<HTMLFormElement>) => { if (e) e.preventDefault(); initiateActionWithCaptcha('login'); };
+    const handleRegister = (e?: React.FormEvent<HTMLFormElement>) => { if (e) e.preventDefault(); initiateActionWithCaptcha('register'); };
+    const handleResendVerificationEmail = () => {
+        console.log(`[${new Date().toISOString()}] Resend button clicked. Resetting captcha first.`);
+        resetCaptchaState('resend_click'); // Pass reason
+        // Small delay to allow state update and potential widget reset before executing again
+        setTimeout(() => {
+            console.log(`[${new Date().toISOString()}] Initiating resend action after reset.`);
+            initiateActionWithCaptcha('resend');
+        }, 50); // Short delay
+    };
+    const handleForgotPassword = (e: React.MouseEvent) => { e.preventDefault(); setError(""); setShowResendEmailButton(false); isVerificationAttemptCompleteRef.current = true; if (onForgotPassword) onForgotPassword(); };
 
-        {/* Registration Tab Content */}
-        <TabsContent value="register">
-          {/* Use onSubmit={handleRegister} here */}
-          <form onSubmit={handleRegister} className="space-y-4">
-             {/* Name */}
-             <div className="space-y-2">
-                <Label htmlFor="register-name" className="text-white">Full Name</Label>
-                {isLoading && activeTab === 'register' ? ( <Skeleton className="h-10 w-full bg-[#2a2d36]" /> ) : (
-                  <Input id="register-name" name="name" placeholder="John Doe" value={registerForm.name} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading} />
-                )}
-             </div>
-             {/* Email */}
-             <div className="space-y-2">
-                <Label htmlFor="register-email" className="text-white">Email</Label>
-                {isLoading && activeTab === 'register' ? ( <Skeleton className="h-10 w-full bg-[#2a2d36]" /> ) : (
-                  <Input id="register-email" name="email" type="email" placeholder="your.email@example.com" value={registerForm.email} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading} />
-                )}
-             </div>
-             {/* Password */}
-             <div className="space-y-2">
-                <Label htmlFor="register-password" className="text-white">Password</Label>
-                {isLoading && activeTab === 'register' ? ( <Skeleton className="h-10 w-full bg-[#2a2d36]" /> ) : (
-                  <div className="relative">
-                    <Input id="register-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={registerForm.password} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading} />
-                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" onClick={() => setShowPassword(!showPassword)} disabled={isLoading}>
-                       {showPassword ? (<EyeOff className="h-4 w-4" />) : (<Eye className="h-4 w-4" />)}
-                    </button>
-                  </div>
-                )}
-             </div>
-             {/* Confirm Password */}
-             <div className="space-y-2">
-                <Label htmlFor="register-confirm-password" className="text-white"> Confirm Password </Label>
-                {isLoading && activeTab === 'register' ? ( <Skeleton className="h-10 w-full bg-[#2a2d36]" /> ) : (
-                  <Input id="register-confirm-password" name="confirmPassword" type="password" placeholder="••••••••" value={registerForm.confirmPassword} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading} />
-                )}
-             </div>
 
-             {error && activeTab === 'register' && <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{error}</p>}
+    // --- Captcha Verification Callback ---
+    const onVerifyCaptcha = async (token: string) => {
+        const actionBeingVerified = actionRef.current;
+        const capturedData = capturedSubmitDataRef.current;
 
-             {/* Register Button */}
-             <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4]" disabled={isLoading}>
-                {isLoading && captchaAction === 'register' ? ( <span className="flex items-center justify-center"> <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg> Verifying... </span> ) : ( <span className="flex items-center justify-center"> <UserPlus className="mr-2 h-4 w-4" /> Register </span> )}
-             </Button>
-             <div className="text-center text-sm text-gray-400"> Already have an account?{" "} <button type="button" className="text-[#5865f2] hover:text-[#4752c4]" onClick={() => handleTabChange("login")} disabled={isLoading}> Log in </button> </div>
-          </form>
-        </TabsContent>
-      </Tabs>
+        console.log(`[${new Date().toISOString()}] ===> onVerifyCaptcha ENTERED. Action: ${actionBeingVerified}, Token Start: ${token.substring(0, 5)}...`);
 
-      {/* **** RENDER HCAPTCHA OUTSIDE TABS CONTENT **** */}
-      {/* It's invisible, so placement isn't critical visually, but needs to be mounted */}
-      {hCaptchaSiteKey && (
-        <div style={{ position: 'absolute', left: '-9999px' }}> {/* Hide visually but keep mounted */}
-          <HCaptcha
-              sitekey={hCaptchaSiteKey}
-              onVerify={onVerifyCaptcha}
-              onError={onErrorCaptcha}
-              onExpire={onExpireCaptcha}
-              ref={captchaRef}
-              size="invisible" // Keep invisible
-          />
-        </div>
-      )}
-      {/* **** END HCAPTCHA RENDER **** */}
-    </>
-  );
+        if (isVerificationAttemptCompleteRef.current) {
+            console.warn(`[${new Date().toISOString()}] onVerifyCaptcha for ${actionBeingVerified} called, but verification attempt was already complete. Ignoring potentially duplicate callback.`);
+            return;
+        }
+         isVerificationAttemptCompleteRef.current = true; // Mark as complete EARLY
+         console.log(`[${new Date().toISOString()}] Verification attempt for ${actionBeingVerified} marked as complete.`);
+
+        // Check actionRef and capturedData immediately after marking complete
+        if (!actionBeingVerified) {
+            console.warn(`[${new Date().toISOString()}] onVerifyCaptcha: No actionRef found after marking complete. Resetting.`);
+            resetCaptchaState('no_action_ref');
+            setIsLoading(false); setIsResending(false); // Reset both loading states
+            return;
+        }
+        if (!capturedData || !capturedData.email) {
+            console.error(`[${new Date().toISOString()}] CRITICAL: Captcha verified for ${actionBeingVerified}, but captured data ref is null or missing email!`);
+            setError("An internal error occurred (missing submit data). Please try again.");
+            setIsLoading(false); setIsResending(false); // Reset both loading states
+            resetCaptchaState('missing_captured_data');
+            return;
+        }
+
+        const emailForApi = capturedData.email;
+        let apiError: any = null;
+        let apiSuccess = false;
+        let shouldShowResendBtnAgain = false;
+
+        // Wrap the entire API interaction logic in a try/finally to ensure loading state reset
+        try {
+            console.log(`[${new Date().toISOString()}] Calling Supabase API for ${actionBeingVerified} with token starting ${token.substring(0,5)}...`);
+            // --- API Calls ---
+            if (actionBeingVerified === 'login') {
+                 if (!capturedData.password) throw new Error("Missing password for login.");
+                 const result = await login(emailForApi, capturedData.password, token);
+                 if (result.error) throw result.error; // Throw error to be caught
+                 else apiSuccess = true;
+            } else if (actionBeingVerified === 'register') {
+                 if (typeof capturedData.name !== 'string' || !capturedData.password) throw new Error("Missing data for registration.");
+                 const result = await register(capturedData.name, emailForApi, capturedData.password, token);
+                 if (result.error) throw result.error; // Throw error
+                 else apiSuccess = true;
+            } else if (actionBeingVerified === 'resend') {
+                const { error: resendError } = await supabase.auth.resend({ type: 'signup', email: emailForApi, options: { captchaToken: token } });
+                if (resendError) throw resendError; // Throw error
+                else apiSuccess = true;
+            }
+            console.log(`[${new Date().toISOString()}] Supabase API call for ${actionBeingVerified} completed successfully.`);
+
+            // --- Handle Success ---
+            setError("");
+            setShowResendEmailButton(false);
+            const successMessage = actionBeingVerified === 'login' ? "Login successful!"
+                                 : actionBeingVerified === 'register' ? "Registration successful!"
+                                 : "Verification email resent successfully!";
+            toast.success(successMessage, {
+                description: actionBeingVerified === 'resend' ? `Check your inbox at ${emailForApi}` : undefined,
+                duration: actionBeingVerified === 'resend' ? 7000 : undefined,
+            });
+            if (actionBeingVerified === 'login' && onSuccess) onSuccess();
+            if (actionBeingVerified === 'register' && onRegisterSuccess) onRegisterSuccess(emailForApi); // Use emailForApi
+
+        } catch (caughtError: any) {
+            // --- Handle ALL Errors (API or Catch block) ---
+            apiError = caughtError; // Assign caught error
+            console.error(`[${new Date().toISOString()}] ${actionBeingVerified} API Error/Catch Block:`, apiError);
+            let errorMessage = apiError.message || `An unexpected error occurred during ${actionBeingVerified}.`;
+
+            // --- Specific error message tailoring ---
+             if (apiError.message?.includes("timeout") || apiError.message?.includes("duplicate") || apiError.message?.includes("already-seen-response")) {
+                 errorMessage = "Captcha timed out or was already used. Please try submitting again.";
+             } else if (apiError.message?.includes("Captcha") || apiError.message?.includes("verification failed")) {
+                 errorMessage = "Captcha verification failed or token was invalid. Please try again.";
+             } else if (apiError.message?.includes("Invalid login credentials")) {
+                 errorMessage = "Invalid email or password.";
+             } else if (apiError.message?.includes("User already registered")) {
+                 errorMessage = "An account with this email already exists.";
+             } else if (apiError.message?.includes("Email not confirmed")) {
+                 errorMessage = "Email not confirmed. Check your inbox or resend the verification email.";
+                 shouldShowResendBtnAgain = (actionBeingVerified === 'login');
+             } else if (apiError.status === 422 || apiError.message?.includes("Anonymous sign-ins are disabled")) {
+                 errorMessage = "Submitted data was invalid. Please check details and try again.";
+             } else if (apiError.message?.toLowerCase().includes("for security purposes")) {
+                 errorMessage = "Too many requests. Please wait a minute and try again.";
+                 shouldShowResendBtnAgain = true; // Allow retry after rate limit
+             }
+            // --- End specific error tailoring ---
+
+            setError(errorMessage);
+            toast.error(`${actionBeingVerified === 'login' ? 'Login' : actionBeingVerified === 'register' ? 'Registration' : 'Resend'} Failed`, { description: errorMessage });
+            setShowResendEmailButton(shouldShowResendBtnAgain);
+
+        } finally {
+            // --- GUARANTEED Cleanup ---
+            console.log(`---> FINALLY sequence for action ${actionBeingVerified}: Stopping loading state.`);
+            if (actionBeingVerified === 'resend') {
+                setIsResending(false);
+            } else {
+                setIsLoading(false);
+            }
+
+            // Reset captcha UNLESS we need to show the resend button
+            if (!shouldShowResendBtnAgain) {
+                console.log(`---> FINALLY sequence: Performing standard captcha reset.`);
+                resetCaptchaState(`finally_${actionBeingVerified}_${apiSuccess ? 'success' : 'error'}`);
+            } else {
+                console.log(`---> FINALLY sequence: Not resetting captcha widget (showing Resend button), but clearing action refs.`);
+                // Clear action/data refs to prevent reuse on next click, but keep widget state
+                actionRef.current = null;
+                capturedSubmitDataRef.current = null;
+                // isVerificationAttemptCompleteRef is already true here
+            }
+            console.log(`[${new Date().toISOString()}] ===> onVerifyCaptcha EXIT. Action: ${actionBeingVerified}`);
+        }
+    };
+    // --- End onVerifyCaptcha ---
+
+    // --- Captcha Error/Expire Handlers ---
+    const onErrorCaptcha = (errorCode: string) => {
+        console.error("Turnstile Widget Error:", errorCode);
+        setError(`Captcha challenge failed (${errorCode}). Please try again.`);
+        toast.error("Captcha Error", { description: `Could not verify captcha. Error: ${errorCode}` });
+        setIsLoading(false);
+        setIsResending(false);
+        resetCaptchaState('onError'); // Reset captcha fully
+    };
+    const onExpireCaptcha = () => {
+        console.warn("Turnstile token expired.");
+        const currentActionInProgress = isLoading || isResending;
+        if (currentActionInProgress) {
+            setError("Captcha challenge expired before completion. Please try again.");
+            toast.warning("Captcha Expired", { description: "Please try submitting again." });
+        }
+        setIsLoading(false);
+        setIsResending(false);
+        resetCaptchaState('onExpire'); // Reset captcha fully
+    };
+    // --- End Captcha Handlers ---
+
+    // --- JSX Rendering ---
+    return (
+        <>
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger id="login-tab" value="login" disabled={isLoading || isResending}>Login</TabsTrigger>
+                    <TabsTrigger value="register" disabled={isLoading || isResending}>Register</TabsTrigger>
+                </TabsList>
+
+                {/* Login Form */}
+                <TabsContent value="login">
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        {/* Inputs */}
+                        <div className="space-y-2">
+                            <Label htmlFor="login-email" className="text-white">Email</Label>
+                            <Input id="login-email" name="email" type="email" placeholder="your.email@example.com" value={loginForm.email} onChange={handleLoginChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading || isResending} />
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="login-password" className="text-white">Password</Label>
+                             <div className="relative">
+                                 <Input id="login-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={loginForm.password} onChange={handleLoginChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading || isResending} />
+                                 <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" onClick={() => setShowPassword(!showPassword)} disabled={isLoading || isResending} aria-label={showPassword ? "Hide password" : "Show password"}>
+                                     {showPassword ? (<EyeOff className="h-4 w-4" />) : (<Eye className="h-4 w-4" />)}
+                                 </button>
+                             </div>
+                        </div>
+                        {/* Error */}
+                        {error && <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{error}</p>}
+                        {/* Resend Button */}
+                        {showResendEmailButton && (
+                            <Button type="button" variant="link" className="text-sm text-[#5865f2] hover:text-[#4752c4] p-0 h-auto mt-1 self-start flex items-center justify-start" onClick={handleResendVerificationEmail} disabled={isLoading || isResending} >
+                                {isResending ? ( <> <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Sending... </> ) : ( <> <Send className="mr-1 h-3 w-3"/> Resend verification email </> )}
+                            </Button>
+                        )}
+                        {/* Forgot Password */}
+                        <div className="flex justify-end"> <button type="button" onClick={handleForgotPassword} className="text-sm text-[#5865f2] hover:text-[#4752c4]" disabled={isLoading || isResending}> Forgot password? </button> </div>
+                        {/* Submit Button */}
+                        <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4]" disabled={isLoading || isResending}>
+                            {(isLoading || isResending) ? (
+                                <span className="flex items-center justify-center">
+                                    <Loader2 className="animate-spin mr-2 h-4 w-4"/>
+                                    {/* Determine text based on which state is true */}
+                                    {isLoading ? 'Logging In...' : 'Processing...'}
+                                </span>
+                             ) : (
+                                <span className="flex items-center justify-center"> <LogIn className="mr-2 h-4 w-4" /> Login </span>
+                             )}
+                        </Button>
+                        {/* Switch to Register */}
+                        <div className="text-center text-sm text-gray-400"> Don't have an account?{" "} <button type="button" className="text-[#5865f2] hover:text-[#4752c4]" onClick={() => handleTabChange("register")} disabled={isLoading || isResending}> Sign up </button> </div>
+                    </form>
+                </TabsContent>
+
+                {/* Register Form */}
+                <TabsContent value="register">
+                     <form onSubmit={handleRegister} className="space-y-4">
+                          {/* Inputs */}
+                          <div className="space-y-2">
+                             <Label htmlFor="register-name" className="text-white">Full Name</Label>
+                             <Input id="register-name" name="name" placeholder="John Doe" value={registerForm.name} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading || isResending} />
+                          </div>
+                          <div className="space-y-2">
+                             <Label htmlFor="register-email" className="text-white">Email</Label>
+                             <Input id="register-email" name="email" type="email" placeholder="your.email@example.com" value={registerForm.email} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading || isResending} />
+                          </div>
+                          <div className="space-y-2">
+                             <Label htmlFor="register-password" className="text-white">Password</Label>
+                             <div className="relative">
+                                 <Input id="register-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={registerForm.password} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading || isResending} />
+                                 <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" onClick={() => setShowPassword(!showPassword)} disabled={isLoading || isResending} aria-label={showPassword ? "Hide password" : "Show password"}>
+                                     {showPassword ? (<EyeOff className="h-4 w-4" />) : (<Eye className="h-4 w-4" />)}
+                                 </button>
+                             </div>
+                          </div>
+                          <div className="space-y-2">
+                             <Label htmlFor="register-confirm-password" className="text-white"> Confirm Password </Label>
+                              <Input id="register-confirm-password" name="confirmPassword" type="password" placeholder="••••••••" value={registerForm.confirmPassword} onChange={handleRegisterChange} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading || isResending} />
+                          </div>
+                        {/* Error */}
+                        {error && <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{error}</p>}
+                        {/* Submit Button */}
+                        <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4]" disabled={isLoading || isResending}>
+                            {isLoading ? ( <span className="flex items-center justify-center"> <Loader2 className="animate-spin mr-2 h-4 w-4"/> Verifying... </span> ) : ( <span className="flex items-center justify-center"> <UserPlus className="mr-2 h-4 w-4" /> Register </span> )}
+                        </Button>
+                        {/* Switch to Login */}
+                        <div className="text-center text-sm text-gray-400"> Already have an account?{" "} <button type="button" className="text-[#5865f2] hover:text-[#4752c4]" onClick={() => handleTabChange("login")} disabled={isLoading || isResending}> Log in </button> </div>
+                    </form>
+                </TabsContent>
+            </Tabs>
+
+            {/* Turnstile Widget */}
+            {TurnstileSiteKey ? ( <Turnstile ref={captchaRef} siteKey={TurnstileSiteKey} onSuccess={onVerifyCaptcha} onError={onErrorCaptcha} onExpire={onExpireCaptcha} key={captchaKey} options={{ theme: 'dark', size: 'invisible', execution: 'execute', responseField: false }} /> ) : ( <p className="text-xs text-yellow-500 text-center mt-2">Captcha is not configured.</p> )}
+        </>
+    );
 }

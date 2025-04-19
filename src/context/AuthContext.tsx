@@ -136,22 +136,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         [] // Removed performAuthAction dependency
     );
 
-    // --- Sign Up --- (Keep existing modified code)
-    const signUp = useCallback(
-        (name: string, email: string, password: string, captchaToken: string | null) => {
-             const options: { data: { name: string }; captchaToken?: string } = {
-                 data: { name: name }
-             };
-             if (captchaToken) {
-                 options.captchaToken = captchaToken;
-             } else {
-                console.warn("Attempting signup without captcha token. Supabase might reject this if captcha is enabled.");
-             }
-             // Don't manage global loading/toast here, handled in LoginForm
-             return supabase.auth.signUp({ email, password, options });
-        },
-        [] // Removed performAuthAction dependency
-    );
+    // Updated signUp function for AuthContext.tsx
+const signUp = useCallback(
+    (name: string, email: string, password: string, captchaToken: string | null) => {
+        // This is very important - keep the structure exactly as Supabase expects
+        const options: any = { 
+            data: { name }
+        };
+        
+        // Add captchaToken directly at the options level (not within data)
+        if (captchaToken) {
+            options.captchaToken = captchaToken;
+        } else {
+            console.warn("Attempting signup without captcha token");
+        }
+    
+        console.log("Registration payload structure:", {
+            email,
+            password,
+            options: {
+                ...options,
+                captchaToken: captchaToken ? `${captchaToken.substring(0, 10)}...` : null
+            }
+        });
+        
+        // Call Supabase directly with the correct structure
+        return supabase.auth.signUp({ 
+            email, 
+            password, 
+            options 
+        });
+    },
+    []
+);
 
     // --- Sign Out --- (Keep existing code)
     const signOut = useCallback(async () => {
