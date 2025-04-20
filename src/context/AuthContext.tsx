@@ -14,9 +14,9 @@ interface AuthContextProps {
     signIn: (email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
     signUp: (name: string, email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<{ error: AuthError | null }>;
-    // **** MODIFIED SIGNATURE ****
+    // **** SIGNATURE MODIFIED ****
     sendPasswordReset: (email: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
-    updateUserEmail: (newEmail: string) => Promise<{ error: AuthError | null }>;
+    updateUserEmail: (newEmail: string) => Promise<{ error: AuthError | null }>; // No captcha token needed here, server handles if enabled
     updateUserPassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
     signInWithProvider: (provider: Provider) => Promise<{ error: AuthError | null }>;
     refreshSession: () => Promise<void>;
@@ -79,6 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 } else if (_event === 'USER_UPDATED' && currentUser) {
                      console.log(`[Auth] USER_UPDATED ${currentUser.id}. Invalidating profile.`);
                      queryClient.invalidateQueries({ queryKey: ['userProfile', currentUser.id] });
+                } else if (_event === 'PASSWORD_RECOVERY') {
+                    console.log("[Auth] PASSWORD_RECOVERY event detected.");
+                    // No specific action needed here, ResetPassword component handles session presence
                 }
             }
         );
@@ -87,41 +90,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isMounted = false;
             authListener?.subscription.unsubscribe();
         };
-    }, [queryClient, user?.id]);
+    }, [queryClient, user?.id]); // Keep user?.id dependency
 
 
+    // Centralized Auth Action Wrapper (kept for actions like OAuth, potentially others)
     const performAuthAction = useCallback(async <T extends { error: AuthError | null }>(
         action: () => Promise<T>,
         loadingMsg: string,
         successMsg: string,
         errorMsgPrefix: string
     ): Promise<{ error: AuthError | null }> => {
-        // Don't set loading globally here for actions triggered by captcha,
-        // let the calling component manage its specific loading state.
-        // setIsLoadingGlobal(true);
-        // setLoadingMessage(loadingMsg);
+        setIsLoadingGlobal(true);
+        setLoadingMessage(loadingMsg);
         try {
             const { error } = await action();
             if (error) {
                 console.error(`${errorMsgPrefix} Error:`, error);
-                // Toast is handled by the calling component/modal now
+                toast.error(`${errorMsgPrefix} Failed`, { description: error.message });
                 return { error };
             }
-            // Only show success toast if provided (some actions might not need it)
             if (successMsg) toast.success(successMsg);
             return { error: null };
         } catch (error: any) {
             console.error(`Unexpected ${errorMsgPrefix} Error:`, error);
             const message = error.message || `An unexpected error occurred.`;
-            // Toast handled by caller
+            toast.error(`${errorMsgPrefix} Unexpected Error`, { description: message });
             return { error: { name: "UnexpectedError", message } as AuthError };
         } finally {
-            // setIsLoadingGlobal(false);
-            // setLoadingMessage("");
+            setIsLoadingGlobal(false);
+            setLoadingMessage("");
         }
-    }, [setIsLoadingGlobal, setLoadingMessage]); // Keep dependencies as needed
+    }, [setIsLoadingGlobal, setLoadingMessage]);
 
-    // --- Sign In --- (Keep existing modified code)
+    // --- Sign In --- (No change needed)
     const signIn = useCallback(
         (email: string, password: string, captchaToken: string | null) => {
             const options: { captchaToken?: string } = {};
@@ -130,47 +131,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
              } else {
                 console.warn("Attempting signin without captcha token. Supabase might reject this if captcha is enabled.");
              }
-            // Don't manage global loading/toast here, handled in LoginForm
             return supabase.auth.signInWithPassword({ email, password, options });
         },
-        [] // Removed performAuthAction dependency
+        []
     );
 
-    // Updated signUp function for AuthContext.tsx
-const signUp = useCallback(
-    (name: string, email: string, password: string, captchaToken: string | null) => {
-        // This is very important - keep the structure exactly as Supabase expects
-        const options: any = { 
-            data: { name }
-        };
-        
-        // Add captchaToken directly at the options level (not within data)
-        if (captchaToken) {
-            options.captchaToken = captchaToken;
-        } else {
-            console.warn("Attempting signup without captcha token");
-        }
-    
-        console.log("Registration payload structure:", {
-            email,
-            password,
-            options: {
-                ...options,
-                captchaToken: captchaToken ? `${captchaToken.substring(0, 10)}...` : null
+    // --- Sign Up --- (No change needed)
+    const signUp = useCallback(
+        (name: string, email: string, password: string, captchaToken: string | null) => {
+            const options: any = {
+                data: { name }
+            };
+            if (captchaToken) {
+                options.captchaToken = captchaToken;
+            } else {
+                console.warn("Attempting signup without captcha token");
             }
-        });
-        
-        // Call Supabase directly with the correct structure
-        return supabase.auth.signUp({ 
-            email, 
-            password, 
-            options 
-        });
-    },
-    []
-);
+            return supabase.auth.signUp({
+                email,
+                password,
+                options
+            });
+        },
+        []
+    );
 
-    // --- Sign Out --- (Keep existing code)
+    // --- Sign Out --- (No change needed)
     const signOut = useCallback(async () => {
         setIsLoadingGlobal(true); setLoadingMessage("Logging out...");
         const { error } = await supabase.auth.signOut();
@@ -182,11 +168,14 @@ const signUp = useCallback(
 
     // --- Send Password Reset --- **** MODIFIED ****
     const sendPasswordReset = useCallback(
-        (email: string, captchaToken: string | null) => { // Added captchaToken
+        // Added captchaToken parameter
+        (email: string, captchaToken: string | null) => {
             const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || `${window.location.origin}/reset-password`;
-            const options: { redirectTo?: string; captchaToken?: string } = {
+            const options: { redirectTo?: string; captchaToken?: string } = { // Added captchaToken type
                 redirectTo: redirectUrl,
             };
+
+            // Add captcha token to options if provided
             if (captchaToken) {
                 options.captchaToken = captchaToken;
             } else {
@@ -196,30 +185,35 @@ const signUp = useCallback(
             }
 
             // Call supabase directly, let LoginModal handle loading/toast/errors
+            console.log(`[AuthContext] Calling resetPasswordForEmail for ${email} with options:`, {redirectTo: options.redirectTo, captchaToken: options.captchaToken ? '***' : null});
             return supabase.auth.resetPasswordForEmail(email, options);
         },
-        [] // Removed performAuthAction dependency
+        [] // Dependencies remain empty
     );
 
-    // --- Update Email --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
+    // --- Update Email --- (No change needed - token handled server-side)
+    // Note: The success toast is handled by the caller (EmailEditDialog) now
     const updateUserEmail = useCallback(
-        (newEmail: string) => performAuthAction(
-            () => supabase.auth.updateUser({ email: newEmail }),
-            "Requesting email change...", "Email change request sent. Check both email inboxes.", "Email Update"
-        ),
-        [performAuthAction]
+        async (newEmail: string) => {
+            const { error } = await supabase.auth.updateUser({ email: newEmail });
+            if (error) console.error("Email Update Error:", error);
+            return { error };
+        },
+        [] // No dependency on performAuthAction
     );
 
-    // --- Update Password --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
+    // --- Update Password --- (No change needed - called from ResetPassword page)
     const updateUserPassword = useCallback(
-        (newPassword: string) => performAuthAction(
-            () => supabase.auth.updateUser({ password: newPassword }),
-            "Updating password...", "Password updated successfully.", "Password Update"
-        ),
-        [performAuthAction]
+        async (newPassword: string) => {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) console.error("Password Update Error:", error);
+            // Let ResetPassword handle success/error toasts
+            return { error };
+        },
+        []
     );
 
-    // --- Sign In With Provider (OAuth) --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
+    // --- Sign In With Provider (OAuth) --- (Kept performAuthAction for loading/redirect message)
     const signInWithProvider = useCallback(
         (provider: Provider) => {
              const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin;
@@ -231,7 +225,7 @@ const signUp = useCallback(
         [performAuthAction]
     );
 
-    // --- Refresh Session --- (Keep existing code)
+    // --- Refresh Session --- (No change needed)
     const refreshSession = useCallback(async () => {
         try {
             const { error } = await supabase.auth.refreshSession();
@@ -259,7 +253,6 @@ const signUp = useCallback(
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// useAuth hook and exports... (keep existing code)
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {

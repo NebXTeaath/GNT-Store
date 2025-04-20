@@ -46,6 +46,7 @@ export default function LoginForm(props: LoginFormProps) {
     const captchaRef = useRef<TurnstileInstance>(null);
     const [captchaKey, setCaptchaKey] = useState<string>(() => `init-${Math.random().toString(36).substring(2, 15)}`);
     const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
+    console.log("[LoginForm] Turnstile Site Key:", TurnstileSiteKey ? `${TurnstileSiteKey.substring(0,5)}...` : 'MISSING!');
 
     const actionRef = useRef<ActionType | null>(null);
     const capturedSubmitDataRef = useRef<CapturedSubmitData>(null);
@@ -53,6 +54,9 @@ export default function LoginForm(props: LoginFormProps) {
 
     const [loginForm, setLoginForm] = useState({ email: "", password: "" });
     const [registerForm, setRegisterForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+    const onCaptchaLoad = () => {
+        console.log(`[${new Date().toISOString()}] Turnstile widget loaded successfully.`);
+    };
 
     useEffect(() => { setActiveTab(initialTab); }, [initialTab]);
 
@@ -176,6 +180,8 @@ export default function LoginForm(props: LoginFormProps) {
 
     // --- Captcha Verification Callback ---
     const onVerifyCaptcha = async (token: string) => {
+        // ADD THIS LOG VERY FIRST
+    console.log(`[${new Date().toISOString()}] ===> onVerifyCaptcha CALLED! ActionRef: ${actionRef.current}, Token: ${token ? token.substring(0, 5) + '...' : 'null'}`);
         const actionBeingVerified = actionRef.current;
         const capturedData = capturedSubmitDataRef.current;
 
@@ -214,7 +220,9 @@ export default function LoginForm(props: LoginFormProps) {
             // --- API Calls ---
             if (actionBeingVerified === 'login') {
                  if (!capturedData.password) throw new Error("Missing password for login.");
+                 console.log(`[${new Date().toISOString()}] Attempting Supabase login for ${emailForApi} with token ${token.substring(0,5)}...`);
                  const result = await login(emailForApi, capturedData.password, token);
+                 console.log(`[${new Date().toISOString()}] Supabase login call finished. Error:`, result.error);
                  if (result.error) throw result.error; // Throw error to be caught
                  else apiSuccess = true;
             } else if (actionBeingVerified === 'register') {
@@ -410,7 +418,7 @@ export default function LoginForm(props: LoginFormProps) {
             </Tabs>
 
             {/* Turnstile Widget */}
-            {TurnstileSiteKey ? ( <Turnstile ref={captchaRef} siteKey={TurnstileSiteKey} onSuccess={onVerifyCaptcha} onError={onErrorCaptcha} onExpire={onExpireCaptcha} key={captchaKey} options={{ theme: 'dark', size: 'invisible', execution: 'execute', responseField: false }} /> ) : ( <p className="text-xs text-yellow-500 text-center mt-2">Captcha is not configured.</p> )}
+            {TurnstileSiteKey ? ( <Turnstile onLoad={onCaptchaLoad} ref={captchaRef} siteKey={TurnstileSiteKey} onSuccess={onVerifyCaptcha} onError={onErrorCaptcha} onExpire={onExpireCaptcha}  options={{ theme: 'dark', size: 'invisible', execution: 'execute', responseField: false }} /> ) : ( <p className="text-xs text-yellow-500 text-center mt-2">Captcha is not configured.</p> )}
         </>
     );
 }
