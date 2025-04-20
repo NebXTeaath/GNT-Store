@@ -1,7 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, Session } from '@/lib/supabase';
-import { User, Provider, AuthError, WeakPassword } from '@supabase/supabase-js';
+import { User, Provider, AuthError } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useLoading } from '@/components/global/Loading/LoadingContext';
@@ -9,12 +9,18 @@ import { useLoading } from '@/components/global/Loading/LoadingContext';
 interface AuthContextProps {
     isAuthenticated: boolean;
     user: User | null;
-    session: Session | null;
+    session: Session | null; // Expose the full session object
     isLoadingAuth: boolean;
-    signIn: (email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
-    signUp: (name: string, email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
+    // --- Login Modal State & Control ---
+    isLoginModalOpen: boolean;
+    openLoginModal: (redirectPath?: string) => void;
+    closeLoginModal: () => void;
+    redirectPathAfterLogin: string | null;
+    clearRedirectPath: () => void;
+    // --- Auth Functions ---
+    signIn: (email: string, password: string, captchaToken: string | null) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
+    signUp: (name: string, email: string, password: string, captchaToken: string | null) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
     signOut: () => Promise<{ error: AuthError | null }>;
-    // **** MODIFIED SIGNATURE ****
     sendPasswordReset: (email: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
     updateUserEmail: (newEmail: string) => Promise<{ error: AuthError | null }>;
     updateUserPassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
@@ -28,244 +34,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [redirectPathAfterLogin, setRedirectPathAfterLogin] = useState<string | null>(null);
     const queryClient = useQueryClient();
     const { setIsLoading: setIsLoadingGlobal, setLoadingMessage } = useLoading();
 
-    // useEffect for session and auth listener... (keep existing code)
+    // --- Modal Control Functions ---
+    const openLoginModal = useCallback((redirectPath: string = '/') => { console.log('[AuthContext] Opening login modal, redirect:', redirectPath); setRedirectPathAfterLogin(redirectPath); setIsLoginModalOpen(true); }, []);
+    const closeLoginModal = useCallback(() => { console.log('[AuthContext] Closing login modal.'); setIsLoginModalOpen(false); }, []);
+    const clearRedirectPath = useCallback(() => { console.log('[AuthContext] Clearing redirect path.'); setRedirectPathAfterLogin(null); }, []);
+
+    // --- Auth State Listener Effect ---
     useEffect(() => {
         let isMounted = true;
         setIsLoadingAuth(true);
-        supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-            if (!isMounted) return;
-            if (error) console.error("Error fetching initial session:", error);
-            setSession(initialSession);
-            setUser(initialSession?.user ?? null);
-            setIsLoadingAuth(false);
-        }).catch(err => {
-            if (!isMounted) return;
-            console.error("Catch block: Error fetching initial session:", err);
-            setIsLoadingAuth(false);
-        });
-
-        const { data: authListener } = supabase.auth.onAuthStateChange(
-            async (_event, newSession) => {
-                if (!isMounted) return;
-                const currentUser = newSession?.user ?? null;
-                const previousUserId = user?.id;
-
-                setSession(newSession);
-                setUser(currentUser);
-                setIsLoadingAuth(false); // Update loading state on change
-
-                // Invalidate/remove queries based on auth events
-                if (_event === 'SIGNED_IN' && currentUser) {
-                    console.log(`[Auth] SIGNED_IN ${currentUser.id}. Invalidating caches.`);
-                    queryClient.invalidateQueries({ queryKey: ['userProfile', currentUser.id] });
-                    queryClient.invalidateQueries({ queryKey: ['cart', currentUser.id] });
-                    queryClient.invalidateQueries({ queryKey: ['wishlist', currentUser.id] });
-                    queryClient.invalidateQueries({ queryKey: ['orders', currentUser.id] });
-                    queryClient.invalidateQueries({ queryKey: ['repairrequests', currentUser.id] });
-                } else if (_event === 'SIGNED_OUT') {
-                     console.log(`[Auth] SIGNED_OUT (was ${previousUserId}). Removing caches.`);
-                     if (previousUserId) {
-                         queryClient.removeQueries({ queryKey: ['userProfile', previousUserId] });
-                         queryClient.removeQueries({ queryKey: ['cart', previousUserId] });
-                         queryClient.removeQueries({ queryKey: ['wishlist', previousUserId] });
-                         queryClient.removeQueries({ queryKey: ['orders', previousUserId] });
-                         queryClient.removeQueries({ queryKey: ['repairrequests', previousUserId] });
-                     }
-                     queryClient.removeQueries({ queryKey: ['userProfile', null] });
-                     queryClient.removeQueries({ queryKey: ['cart', null] });
-                } else if (_event === 'USER_UPDATED' && currentUser) {
-                     console.log(`[Auth] USER_UPDATED ${currentUser.id}. Invalidating profile.`);
-                     queryClient.invalidateQueries({ queryKey: ['userProfile', currentUser.id] });
-                }
-            }
-        );
-
-        return () => {
-            isMounted = false;
-            authListener?.subscription.unsubscribe();
-        };
-    }, [queryClient, user?.id]);
+        supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => { if (!isMounted) return; if (error) console.error("[Auth] Initial session error:", error); else console.log("[Auth] Initial session:", initialSession ? `User: ${initialSession.user.id}, AAL: ${(initialSession.user as any)?.aal}` : "None"); setSession(initialSession); setUser(initialSession?.user ?? null); setIsLoadingAuth(false); }).catch(err => { if (!isMounted) return; console.error("[Auth] Initial session catch:", err); setIsLoadingAuth(false); });
+        const { data: authListener } = supabase.auth.onAuthStateChange( async (_event, newSession) => { if (!isMounted) return; const currentUser = newSession?.user ?? null; const previousUserId = user?.id; console.log(`[Auth] Event: ${_event}, Session: ${!!newSession}, User: ${currentUser?.id ?? 'null'}, AAL: ${(newSession?.user as any)?.aal ?? 'N/A'}`); setSession(newSession); setUser(currentUser); if (_event === 'SIGNED_IN' && currentUser) { queryClient.invalidateQueries({ queryKey: ['userProfile', currentUser.id] }); /* invalidate others */ } else if (_event === 'SIGNED_OUT') { if (previousUserId) { queryClient.removeQueries({ queryKey: ['userProfile', previousUserId] }); /* remove others */ } queryClient.removeQueries({ queryKey: ['userProfile', null] }); /* remove others */ } else if (_event === 'USER_UPDATED' && currentUser) { queryClient.invalidateQueries({ queryKey: ['userProfile', currentUser.id] }); } /* other events */ } );
+        return () => { isMounted = false; authListener?.subscription.unsubscribe(); };
+    }, []); // Empty deps is correct
 
 
-    const performAuthAction = useCallback(async <T extends { error: AuthError | null }>(
-        action: () => Promise<T>,
-        loadingMsg: string,
-        successMsg: string,
-        errorMsgPrefix: string
-    ): Promise<{ error: AuthError | null }> => {
-        // Don't set loading globally here for actions triggered by captcha,
-        // let the calling component manage its specific loading state.
-        // setIsLoadingGlobal(true);
-        // setLoadingMessage(loadingMsg);
-        try {
-            const { error } = await action();
-            if (error) {
-                console.error(`${errorMsgPrefix} Error:`, error);
-                // Toast is handled by the calling component/modal now
-                return { error };
-            }
-            // Only show success toast if provided (some actions might not need it)
-            if (successMsg) toast.success(successMsg);
-            return { error: null };
-        } catch (error: any) {
-            console.error(`Unexpected ${errorMsgPrefix} Error:`, error);
-            const message = error.message || `An unexpected error occurred.`;
-            // Toast handled by caller
-            return { error: { name: "UnexpectedError", message } as AuthError };
-        } finally {
-            // setIsLoadingGlobal(false);
-            // setLoadingMessage("");
-        }
-    }, [setIsLoadingGlobal, setLoadingMessage]); // Keep dependencies as needed
+    // --- Auth Action Functions ---
+    const performAuthAction = useCallback(async <T extends { error: AuthError | null }>( action: () => Promise<T>, loadingMsg: string, successMsg: string, errorMsgPrefix: string ): Promise<{ error: AuthError | null }> => { setIsLoadingGlobal(true); setLoadingMessage(loadingMsg); try { const { error } = await action(); if (error) { toast.error(`${errorMsgPrefix} Failed`, { description: error.message }); return { error }; } if (successMsg) toast.success(successMsg); return { error: null }; } catch (error: any) { toast.error(`${errorMsgPrefix} Error`, { description: error.message || `Unexpected error.` }); return { error: { name: "UnexpectedError", message: error.message } as AuthError }; } finally { setIsLoadingGlobal(false); setLoadingMessage(""); } }, [setIsLoadingGlobal, setLoadingMessage]);
+    const signIn = useCallback( async (email: string, password: string, captchaToken: string | null) => { const opts = captchaToken ? { captchaToken } : {}; const { data, error } = await supabase.auth.signInWithPassword({ email, password, options: opts }); return { data: data ?? undefined, error }; }, [] );
+    const signUp = useCallback( async (name: string, email: string, password: string, captchaToken: string | null) => { const opts: any = { data: { name } }; if (captchaToken) opts.captchaToken = captchaToken; const { data, error } = await supabase.auth.signUp({ email, password, options: opts }); return { data: data ?? undefined, error }; }, [] );
+    const signOut = useCallback(async () => { setIsLoadingGlobal(true); setLoadingMessage("Logging out..."); const { error } = await supabase.auth.signOut(); setIsLoadingGlobal(false); setLoadingMessage(""); if (error) { toast.error(error.message || "Sign out failed."); } else { toast.success("Logged out."); setUser(null); setSession(null); } return { error }; }, [setIsLoadingGlobal, setLoadingMessage]);
+    const sendPasswordReset = useCallback( (email: string, captchaToken: string | null) => { const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || `${window.location.origin}/reset-password`; const opts = { redirectTo: redirectUrl, ...(captchaToken && { captchaToken })}; return supabase.auth.resetPasswordForEmail(email, opts); }, [] );
+    const updateUserEmail = useCallback( async (newEmail: string) => { const { error } = await supabase.auth.updateUser({ email: newEmail }); return { error }; }, [] );
+    const updateUserPassword = useCallback( async (newPassword: string) => { const { error } = await supabase.auth.updateUser({ password: newPassword }); return { error }; }, [] );
+    const signInWithProvider = useCallback( (provider: Provider) => { const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin; return performAuthAction( () => supabase.auth.signInWithOAuth({ provider, options: { redirectTo: redirectUrl } }), `Redirecting...`, "", `OAuth Sign In` ); }, [performAuthAction] );
+    const refreshSession = useCallback(async () => { console.log("[Auth] Refreshing session..."); try { const { data, error } = await supabase.auth.refreshSession(); if (error) { if (error.status === 401 || error.status === 403) { await signOut(); } } else { console.log("[Auth] Session refreshed. AAL:", (data.session?.user as any)?.aal); } } catch (err) { await signOut(); } }, [signOut]);
 
-    // --- Sign In --- (Keep existing modified code)
-    const signIn = useCallback(
-        (email: string, password: string, captchaToken: string | null) => {
-            const options: { captchaToken?: string } = {};
-             if (captchaToken) {
-                 options.captchaToken = captchaToken;
-             } else {
-                console.warn("Attempting signin without captcha token. Supabase might reject this if captcha is enabled.");
-             }
-            // Don't manage global loading/toast here, handled in LoginForm
-            return supabase.auth.signInWithPassword({ email, password, options });
-        },
-        [] // Removed performAuthAction dependency
-    );
-
-    // Updated signUp function for AuthContext.tsx
-const signUp = useCallback(
-    (name: string, email: string, password: string, captchaToken: string | null) => {
-        // This is very important - keep the structure exactly as Supabase expects
-        const options: any = { 
-            data: { name }
-        };
-        
-        // Add captchaToken directly at the options level (not within data)
-        if (captchaToken) {
-            options.captchaToken = captchaToken;
-        } else {
-            console.warn("Attempting signup without captcha token");
-        }
-    
-        console.log("Registration payload structure:", {
-            email,
-            password,
-            options: {
-                ...options,
-                captchaToken: captchaToken ? `${captchaToken.substring(0, 10)}...` : null
-            }
-        });
-        
-        // Call Supabase directly with the correct structure
-        return supabase.auth.signUp({ 
-            email, 
-            password, 
-            options 
-        });
-    },
-    []
-);
-
-    // --- Sign Out --- (Keep existing code)
-    const signOut = useCallback(async () => {
-        setIsLoadingGlobal(true); setLoadingMessage("Logging out...");
-        const { error } = await supabase.auth.signOut();
-        setIsLoadingGlobal(false); setLoadingMessage("");
-        if (error) { console.error("Sign Out Error:", error); toast.error(error.message || "Sign out failed."); }
-        else { toast.success("Successfully logged out."); }
-        return { error };
-    }, [setIsLoadingGlobal, setLoadingMessage]);
-
-    // --- Send Password Reset --- **** MODIFIED ****
-    const sendPasswordReset = useCallback(
-        (email: string, captchaToken: string | null) => { // Added captchaToken
-            const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || `${window.location.origin}/reset-password`;
-            const options: { redirectTo?: string; captchaToken?: string } = {
-                redirectTo: redirectUrl,
-            };
-            if (captchaToken) {
-                options.captchaToken = captchaToken;
-            } else {
-                // If captcha is required by Supabase but no token is provided,
-                // Supabase will likely return an error.
-                 console.warn("Attempting password reset without captcha token. Supabase might reject this if captcha is enabled.");
-            }
-
-            // Call supabase directly, let LoginModal handle loading/toast/errors
-            return supabase.auth.resetPasswordForEmail(email, options);
-        },
-        [] // Removed performAuthAction dependency
-    );
-
-    // --- Update Email --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
-    const updateUserEmail = useCallback(
-        (newEmail: string) => performAuthAction(
-            () => supabase.auth.updateUser({ email: newEmail }),
-            "Requesting email change...", "Email change request sent. Check both email inboxes.", "Email Update"
-        ),
-        [performAuthAction]
-    );
-
-    // --- Update Password --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
-    const updateUserPassword = useCallback(
-        (newPassword: string) => performAuthAction(
-            () => supabase.auth.updateUser({ password: newPassword }),
-            "Updating password...", "Password updated successfully.", "Password Update"
-        ),
-        [performAuthAction]
-    );
-
-    // --- Sign In With Provider (OAuth) --- (Keep existing code, maybe remove performAuthAction if handled elsewhere)
-    const signInWithProvider = useCallback(
-        (provider: Provider) => {
-             const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin;
-             return performAuthAction(
-                () => supabase.auth.signInWithOAuth({ provider, options: { redirectTo: redirectUrl } }),
-                `Redirecting to ${provider}...`, "", `OAuth Sign In (${provider})`
-            );
-        },
-        [performAuthAction]
-    );
-
-    // --- Refresh Session --- (Keep existing code)
-    const refreshSession = useCallback(async () => {
-        try {
-            const { error } = await supabase.auth.refreshSession();
-            if (error) console.error("Error refreshing session:", error);
-        } catch (err) {
-            console.error("Unexpected error during session refresh:", err);
-        }
-    }, []);
-
-    const value: AuthContextProps = {
-        isAuthenticated: !!user,
-        user,
-        session,
-        isLoadingAuth,
-        signIn,
-        signUp,
-        signOut,
-        sendPasswordReset, // Ensure the modified sendPasswordReset is included
-        updateUserEmail,
-        updateUserPassword,
-        signInWithProvider,
-        refreshSession,
-    };
+    const value: AuthContextProps = { isAuthenticated: !!session && !!user, user, session, isLoadingAuth, isLoginModalOpen, openLoginModal, closeLoginModal, redirectPathAfterLogin, clearRedirectPath, signIn, signUp, signOut, sendPasswordReset, updateUserEmail, updateUserPassword, signInWithProvider, refreshSession };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// useAuth hook and exports... (keep existing code)
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
-};
-
-export type { User as SupabaseUser, Provider as SupabaseProvider, AuthError as SupabaseAuthError, WeakPassword as SupabaseWeakPassword } from '@supabase/supabase-js';
+export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within AuthProvider'); return context; };
+export type { User as SupabaseUser, Provider as SupabaseProvider, AuthError as SupabaseAuthError, Session as SupabaseSession } from '@supabase/supabase-js';
