@@ -9,6 +9,6 @@ directory = "./dist"
 command = "npm run build"
 upload.dir = "./dist"
 upload.format = "directory"
-pages_build_output_dir = "./dist"  # Add this line
+pages_build_output_dir = "./dist"
 
 
