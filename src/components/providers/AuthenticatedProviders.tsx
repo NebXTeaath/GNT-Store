@@ -6,7 +6,7 @@ import { WishlistProvider } from "../../context/WishlistContext"; // Adjust path
 import { AuthAwareDiscountProvider } from "../../context/AuthAwareDiscountProvider"; // Adjust path if needed
 import { CartProvider } from "../../context/CartContext"; // Adjust path if needed
 import GlobalLayout from "../global/layout"; // Adjust path if needed
-import AuthGuard from '../../context/AuthGuard'; // <-- Ensure this path is correct
+// REMOVED: import AuthGuard from '../../context/AuthGuard';
 
 // Import your page components (ensure paths are correct)
 import NotFound from "../../pages/NotFound";
@@ -27,40 +27,41 @@ import NewRequestWrapper from "@/pages/repairPage/NewRequestWrapper";
 
 const AuthenticatedProviders: React.FC = () => {
   return (
+    // Context Providers wrap everything
     <UserProfileProvider>
       <WishlistProvider>
         <AuthAwareDiscountProvider>
           <CartProvider>
             <Routes>
-              {/* --- Public Routes --- */}
+              {/* Public route handled separately */}
               <Route path="/reset-password" element={<ResetPassword />} />
-              {/* Add other public routes here */}
 
-              {/* --- Protected Routes --- */}
-              <Route element={<AuthGuard />}>
-                 <Route path="/" element={<GlobalLayout />}>
-                    <Route index element={<GNTStore />} />
-                    <Route path="repair-home/*" element={<RepairServices />} />
-                    <Route path="repair/new-request" element={<NewRequestWrapper />} />
-                    <Route path="repair/history" element={<TrackRepairHistory />} />
-                    <Route path="wishlist" element={<WishlistPage />} />
-                    <Route path="support" element={<Support />} />
-                    <Route path="product/details/:id" element={<ProductDetails />} />
-                    <Route path="product/:slug" element={<ProductDetails />} />
-                    <Route path="checkout/cart-details" element={<CartDetails />} />
-                    <Route path="checkout/order-summary" element={<OrderSummary />} />
-                    <Route path="order-history" element={<OrderHistory />} />
-                    <Route path="profile" element={<ProfileRouteHandler />} />
-                    <Route path="search" element={<SearchPage />} />
-                    <Route path=":category" element={<ProductsPage />} />
-                    <Route path=":category/:subcategory" element={<ProductsPage />} />
-                 </Route>
-               </Route>
+              {/* All other routes use GlobalLayout */}
+              <Route path="/" element={<GlobalLayout />}>
+                {/* Publicly viewable routes */}
+                <Route index element={<GNTStore />} />
+                <Route path="support" element={<Support />} />
+                <Route path="product/details/:id" element={<ProductDetails />} />
+                <Route path="product/:slug" element={<ProductDetails />} />
+                <Route path="search" element={<SearchPage />} />
+                <Route path=":category" element={<ProductsPage />} />
+                <Route path=":category/:subcategory" element={<ProductsPage />} />
 
-              {/* --- Catch-all 404 Route --- */}
-              <Route path="*" element={<NotFound />} />
+                {/* Routes requiring authentication (will check internally) */}
+                <Route path="repair-home/*" element={<RepairServices />} /> {/* Parent might be public, sub-routes check */}
+                <Route path="repair/new-request" element={<NewRequestWrapper />} />
+                <Route path="repair/history" element={<TrackRepairHistory />} />
+                <Route path="wishlist" element={<WishlistPage />} />
+                <Route path="checkout/cart-details" element={<CartDetails />} />
+                <Route path="checkout/order-summary" element={<OrderSummary />} />
+                <Route path="order-history" element={<OrderHistory />} />
+                <Route path="profile" element={<ProfileRouteHandler />} /> {/* This component handles its own logic */}
 
-             </Routes>
+                {/* Catch-all 404 - Rendered within GlobalLayout */}
+                <Route path="*" element={<NotFound />} />
+              </Route>
+
+            </Routes>
           </CartProvider>
         </AuthAwareDiscountProvider>
       </WishlistProvider>

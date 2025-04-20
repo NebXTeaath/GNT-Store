@@ -1,7 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, Session } from '@/lib/supabase';
-import { User, Provider, AuthError } from '@supabase/supabase-js'; // Removed WeakPassword import if unused
+import { User, Provider, AuthError } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useLoading } from '@/components/global/Loading/LoadingContext';
@@ -11,8 +11,16 @@ interface AuthContextProps {
     user: User | null;
     session: Session | null; // Expose the full session object
     isLoadingAuth: boolean;
-    signIn: (email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
-    signUp: (name: string, email: string, password: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
+    // --- Login Modal State & Control ---
+    isLoginModalOpen: boolean;
+    openLoginModal: (redirectPath?: string) => void;
+    closeLoginModal: () => void;
+    redirectPathAfterLogin: string | null;
+    clearRedirectPath: () => void;
+    // --- Auth Functions ---
+    // Adjusted return types to allow nulls within data for user/session, aligning better with Supabase potential returns on error/signup
+    signIn: (email: string, password: string, captchaToken: string | null) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
+    signUp: (name: string, email: string, password: string, captchaToken: string | null) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
     signOut: () => Promise<{ error: AuthError | null }>;
     sendPasswordReset: (email: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
     updateUserEmail: (newEmail: string) => Promise<{ error: AuthError | null }>;
@@ -25,11 +33,31 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [session, setSession] = useState<Session | null>(null); // State for session
+    const [session, setSession] = useState<Session | null>(null);
     const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [redirectPathAfterLogin, setRedirectPathAfterLogin] = useState<string | null>(null);
     const queryClient = useQueryClient();
     const { setIsLoading: setIsLoadingGlobal, setLoadingMessage } = useLoading();
 
+    // --- Modal Control Functions ---
+    const openLoginModal = useCallback((redirectPath: string = '/') => {
+        console.log('[AuthContext] Opening login modal, redirect path:', redirectPath);
+        setRedirectPathAfterLogin(redirectPath);
+        setIsLoginModalOpen(true);
+    }, []);
+
+    const closeLoginModal = useCallback(() => {
+        console.log('[AuthContext] Closing login modal.');
+        setIsLoginModalOpen(false);
+    }, []);
+
+    const clearRedirectPath = useCallback(() => {
+        console.log('[AuthContext] Clearing redirect path.');
+        setRedirectPathAfterLogin(null);
+    }, []);
+
+    // --- Auth State Listener Effect ---
     useEffect(() => {
         let isMounted = true;
         setIsLoadingAuth(true);
@@ -37,8 +65,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
             if (!isMounted) return;
             if (error) console.error("[Auth Provider] Error fetching initial session:", error);
-            else console.log("[Auth Provider] Initial session fetched:", initialSession ? `User: ${initialSession.user.id}, AAL: ${(initialSession.user as any)?.aal}` : "No session"); // Added type cast for AAL log
-            setSession(initialSession); // Set initial session state
+            else console.log("[Auth Provider] Initial session fetched:", initialSession ? `User: ${initialSession.user.id}, AAL: ${(initialSession.user as any)?.aal}` : "No session");
+            setSession(initialSession);
             setUser(initialSession?.user ?? null);
             setIsLoadingAuth(false);
         }).catch(err => {
@@ -50,25 +78,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("[Auth Provider] Setting up auth state listener...");
         const { data: authListener } = supabase.auth.onAuthStateChange(
             async (_event, newSession) => {
-                if (!isMounted) {
-                    console.log("[Auth Listener] Unmounted, ignoring event:", _event);
-                    return;
-                }
+                if (!isMounted) { console.log("[Auth Listener] Unmounted, ignoring event:", _event); return; }
                 const currentUser = newSession?.user ?? null;
-                const previousUserId = user?.id; // Capture previous user ID *before* state update
+                const previousUserId = user?.id;
 
-                // Log with type casting for AAL
                 console.log(`[Auth Listener] Event: ${_event}, New Session: ${!!newSession}, User: ${currentUser?.id ?? 'null'}, AAL: ${(newSession?.user as any)?.aal ?? 'N/A'}`);
 
-                setSession(newSession); // Update session state
-                setUser(currentUser);   // Update user state
-
-                // Only set loading false *after* processing the event state
-                // setIsLoadingAuth(false); // Usually rely on initial load setting this
+                setSession(newSession);
+                setUser(currentUser);
 
                  // Invalidate/remove queries based on auth events
                  if (_event === 'SIGNED_IN' && currentUser) {
-                    console.log(`[Auth] SIGNED_IN ${currentUser.id} (AAL: ${(currentUser as any)?.aal}). Invalidating caches.`); // Cast for logging
+                    console.log(`[Auth] SIGNED_IN ${currentUser.id} (AAL: ${(currentUser as any)?.aal}). Invalidating caches.`);
                     queryClient.invalidateQueries({ queryKey: ['userProfile', currentUser.id] });
                     queryClient.invalidateQueries({ queryKey: ['cart', currentUser.id] });
                     queryClient.invalidateQueries({ queryKey: ['wishlist', currentUser.id] });
@@ -83,7 +104,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                          queryClient.removeQueries({ queryKey: ['orders', previousUserId] });
                          queryClient.removeQueries({ queryKey: ['repairrequests', previousUserId] });
                      }
-                      // Clear any potential profile/cart data tied to a null user ID
                      queryClient.removeQueries({ queryKey: ['userProfile', null] });
                      queryClient.removeQueries({ queryKey: ['cart', null] });
                      queryClient.removeQueries({ queryKey: ['wishlist', null] });
@@ -93,164 +113,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                      console.log(`[Auth] USER_UPDATED ${currentUser.id}. Invalidating profile.`);
                      queryClient.invalidateQueries({ queryKey: ['userProfile', currentUser.id] });
                  } else if (_event === 'PASSWORD_RECOVERY') {
-                    console.log("[Auth] PASSWORD_RECOVERY event detected. Session AAL:", (newSession?.user as any)?.aal); // Cast for logging
+                    console.log("[Auth] PASSWORD_RECOVERY event detected. Session AAL:", (newSession?.user as any)?.aal);
                  } else if (_event === 'TOKEN_REFRESHED') {
-                     console.log("[Auth] TOKEN_REFRESHED. Session AAL:", (newSession?.user as any)?.aal); // Cast for logging
-                 } // <-- *** FIXED: Added missing closing brace ***
-            }
-        );
+                     console.log("[Auth] TOKEN_REFRESHED. Session AAL:", (newSession?.user as any)?.aal);
+                 }
+                 // Note: USER_DELETED block removed as it's not a standard event
+            } // End of onAuthStateChange callback
+        ); // End of supabase.auth.onAuthStateChange call
 
         return () => {
             isMounted = false;
             console.log("[Auth Provider] Unmounting: Unsubscribing auth listener.");
             authListener?.subscription.unsubscribe();
         };
-    }, []); // Empty dependency array is correct here
+    }, []); // Empty dependency array is correct
 
 
-    // Centralized Auth Action Wrapper (Optional - kept for OAuth)
-    const performAuthAction = useCallback(async <T extends { error: AuthError | null }>(
-        action: () => Promise<T>,
-        loadingMsg: string,
-        successMsg: string,
-        errorMsgPrefix: string
-    ): Promise<{ error: AuthError | null }> => {
-        setIsLoadingGlobal(true);
-        setLoadingMessage(loadingMsg);
-        try {
-            const { error } = await action();
-            if (error) {
-                console.error(`${errorMsgPrefix} Error:`, error);
-                toast.error(`${errorMsgPrefix} Failed`, { description: error.message });
-                return { error };
-            }
-            if (successMsg) toast.success(successMsg);
-            return { error: null };
-        } catch (error: any) {
-            console.error(`Unexpected ${errorMsgPrefix} Error:`, error);
-            const message = error.message || `An unexpected error occurred.`;
-            toast.error(`${errorMsgPrefix} Unexpected Error`, { description: message });
-            return { error: { name: "UnexpectedError", message } as AuthError }; // Ensure cast to AuthError
-        } finally {
-            setIsLoadingGlobal(false);
-            setLoadingMessage("");
-        }
+    // --- Auth Action Functions ---
+    const performAuthAction = useCallback(async <T extends { error: AuthError | null }>( action: () => Promise<T>, loadingMsg: string, successMsg: string, errorMsgPrefix: string ): Promise<{ error: AuthError | null }> => {
+         setIsLoadingGlobal(true); setLoadingMessage(loadingMsg);
+         try { const { error } = await action(); if (error) { console.error(`${errorMsgPrefix} Error:`, error); toast.error(`${errorMsgPrefix} Failed`, { description: error.message }); return { error }; } if (successMsg) toast.success(successMsg); return { error: null }; }
+         catch (error: any) { console.error(`Unexpected ${errorMsgPrefix} Error:`, error); const message = error.message || `Unexpected error.`; toast.error(`${errorMsgPrefix} Error`, { description: message }); return { error: { name: "UnexpectedError", message } as AuthError }; }
+         finally { setIsLoadingGlobal(false); setLoadingMessage(""); }
     }, [setIsLoadingGlobal, setLoadingMessage]);
 
-    // --- Sign In ---
-    const signIn = useCallback(
-        (email: string, password: string, captchaToken: string | null) => {
-            const options: { captchaToken?: string } = {};
-             if (captchaToken) { options.captchaToken = captchaToken; }
-             else { console.warn("Signin attempt without captcha token."); }
-            return supabase.auth.signInWithPassword({ email, password, options });
-        },
-        []
-    );
-
-    // --- Sign Up ---
-    const signUp = useCallback(
-        (name: string, email: string, password: string, captchaToken: string | null) => {
-            const options: any = { data: { name } };
-            if (captchaToken) { options.captchaToken = captchaToken; }
-            else { console.warn("Signup attempt without captcha token."); }
-            return supabase.auth.signUp({ email, password, options });
-        },
-        []
-    );
-
-    // --- Sign Out ---
-    const signOut = useCallback(async () => {
-        setIsLoadingGlobal(true); setLoadingMessage("Logging out...");
-        const { error } = await supabase.auth.signOut();
-        setIsLoadingGlobal(false); setLoadingMessage("");
-        if (error) { console.error("Sign Out Error:", error); toast.error(error.message || "Sign out failed."); }
-        else {
-            toast.success("Successfully logged out.");
-            // Explicitly clear local state as well, although listener should catch it
-            setUser(null);
-            setSession(null);
-        }
-        return { error };
-    }, [setIsLoadingGlobal, setLoadingMessage]); // queryClient removed as dependency
-
-    // --- Send Password Reset ---
-    const sendPasswordReset = useCallback(
-        (email: string, captchaToken: string | null) => {
-            const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || `${window.location.origin}/reset-password`;
-            const options: { redirectTo?: string; captchaToken?: string } = { redirectTo: redirectUrl };
-            if (captchaToken) { options.captchaToken = captchaToken; }
-            else { console.warn("Password reset attempt without captcha token."); }
-            console.log(`[AuthContext] Calling resetPasswordForEmail for ${email} with options:`, {redirectTo: options.redirectTo, captchaToken: options.captchaToken ? '***' : null});
-            return supabase.auth.resetPasswordForEmail(email, options);
-        },
-        []
-    );
-
-    // --- Update Email ---
-    const updateUserEmail = useCallback(
-        async (newEmail: string) => {
-            // Server-side captcha check assumed if enabled in Supabase settings
-            const { error } = await supabase.auth.updateUser({ email: newEmail });
-            if (error) console.error("Email Update Error:", error);
-            // Caller (EmailEditDialog) handles success/error toasts
-            return { error };
-        },
-        []
-    );
-
-    // --- Update Password ---
-    const updateUserPassword = useCallback(
-        async (newPassword: string) => {
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
-            if (error) console.error("Password Update Error:", error);
-            // Caller (ResetPassword) handles success/error toasts
-            return { error };
-        },
-        []
-    );
-
-    // --- Sign In With Provider (OAuth) ---
-    const signInWithProvider = useCallback(
-        (provider: Provider) => {
-             const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin;
-             // Use performAuthAction for the redirect message
-             return performAuthAction(
-                () => supabase.auth.signInWithOAuth({ provider, options: { redirectTo: redirectUrl } }),
-                `Redirecting to ${provider}...`, "", `OAuth Sign In (${provider})`
-            );
-        },
-        [performAuthAction]
-    );
-
-    // --- Refresh Session ---
-    const refreshSession = useCallback(async () => {
-        console.log("[Auth Provider] Refreshing session...");
-        try {
-            const { data, error } = await supabase.auth.refreshSession();
-            if (error) {
-                console.error("[Auth Provider] Error refreshing session:", error);
-                if (error.status === 401 || error.status === 403) {
-                    console.warn("[Auth Provider] Session refresh failed, signing out.");
-                    await signOut(); // Assuming signOut is available in scope
-                }
-            } else {
-                 // Log with type casting for AAL
-                 console.log("[Auth Provider] Session refreshed successfully. New AAL:", (data.session?.user as any)?.aal);
-            }
-        } catch (err) {
-            console.error("[Auth Provider] Unexpected error during session refresh:", err);
-             // Sign out on unexpected errors too
-             await signOut(); // Assuming signOut is available in scope
-        }
-    // Add signOut to dependency array if it wasn't already inherited
-    }, [signOut, setIsLoadingGlobal, setLoadingMessage]); // Ensure signOut is a dependency
+    const signIn = useCallback( async (email: string, password: string, captchaToken: string | null) => { const options: { captchaToken?: string } = {}; if (captchaToken) options.captchaToken = captchaToken; else console.warn("Signin no captcha."); const { data, error } = await supabase.auth.signInWithPassword({ email, password, options }); return { data: data ? { user: data.user, session: data.session } : undefined, error }; }, [] );
+    const signUp = useCallback( async (name: string, email: string, password: string, captchaToken: string | null) => { const options: any = { data: { name } }; if (captchaToken) options.captchaToken = captchaToken; else console.warn("Signup no captcha."); const { data, error } = await supabase.auth.signUp({ email, password, options }); return { data: data ? { user: data.user, session: data.session } : undefined, error }; }, [] );
+    const signOut = useCallback(async () => { setIsLoadingGlobal(true); setLoadingMessage("Logging out..."); const { error } = await supabase.auth.signOut(); setIsLoadingGlobal(false); setLoadingMessage(""); if (error) { console.error("Sign Out Error:", error); toast.error(error.message || "Sign out failed."); } else { toast.success("Successfully logged out."); setUser(null); setSession(null); } return { error }; }, [setIsLoadingGlobal, setLoadingMessage]);
+    const sendPasswordReset = useCallback( (email: string, captchaToken: string | null) => { const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || `${window.location.origin}/reset-password`; const options: { redirectTo?: string; captchaToken?: string } = { redirectTo: redirectUrl }; if (captchaToken) options.captchaToken = captchaToken; else console.warn("Password reset no captcha."); console.log(`[AuthContext] Calling resetPasswordForEmail for ${email}...`); return supabase.auth.resetPasswordForEmail(email, options); }, [] );
+    const updateUserEmail = useCallback( async (newEmail: string) => { const { error } = await supabase.auth.updateUser({ email: newEmail }); if (error) console.error("Email Update Error:", error); return { error }; }, [] );
+    const updateUserPassword = useCallback( async (newPassword: string) => { const { error } = await supabase.auth.updateUser({ password: newPassword }); if (error) console.error("Password Update Error:", error); return { error }; }, [] );
+    const signInWithProvider = useCallback( (provider: Provider) => { const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin; return performAuthAction( () => supabase.auth.signInWithOAuth({ provider, options: { redirectTo: redirectUrl } }), `Redirecting to ${provider}...`, "", `OAuth Sign In (${provider})` ); }, [performAuthAction] );
+    const refreshSession = useCallback(async () => { console.log("[Auth Provider] Refreshing session..."); try { const { data, error } = await supabase.auth.refreshSession(); if (error) { console.error("[Auth Provider] Error refreshing session:", error); if (error.status === 401 || error.status === 403) { console.warn("[Auth Provider] Session refresh failed, signing out."); await signOut(); } } else { console.log("[Auth Provider] Session refreshed. New AAL:", (data.session?.user as any)?.aal); } } catch (err) { console.error("[Auth Provider] Unexpected error during session refresh:", err); await signOut(); } }, [signOut]); // signOut dependency is correct
 
     const value: AuthContextProps = {
         isAuthenticated: !!session && !!user,
         user,
-        session, // Provide session object
+        session,
         isLoadingAuth,
+        isLoginModalOpen,
+        openLoginModal,
+        closeLoginModal,
+        redirectPathAfterLogin,
+        clearRedirectPath,
         signIn,
         signUp,
         signOut,
@@ -274,4 +179,4 @@ export const useAuth = () => {
 };
 
 // --- Type Exports ---
-export type { User as SupabaseUser, Provider as SupabaseProvider, AuthError as SupabaseAuthError, WeakPassword as SupabaseWeakPassword, Session as SupabaseSession } from '@supabase/supabase-js'; // Export Session type
+export type { User as SupabaseUser, Provider as SupabaseProvider, AuthError as SupabaseAuthError, Session as SupabaseSession } from '@supabase/supabase-js';

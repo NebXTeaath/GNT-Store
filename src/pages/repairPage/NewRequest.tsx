@@ -1,6 +1,7 @@
 // src/pages/repairPage/NewRequest.tsx
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom"; // Import useNavigate and useLocation
 import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,9 +13,12 @@ import ProfilePreviewButton from "@/pages/Profile/ProfilePreviewButton";
 import { useUserProfileQuery } from '@/components/global/hooks/useUserProfileData';
 import SuccessConfirmation from "@/pages/repairPage/SuccessConfirmation";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
+import SEO from '@/components/seo/SEO'; // Import SEO
 
-interface NewRequestProps { onSuccessfulSubmission: (requestId: string) => void; }
+interface NewRequestProps {
+    onSuccessfulSubmission: (requestId: string) => void;
+}
 interface FormErrors { deviceType: boolean; deviceModel: boolean; issueDescription: boolean; }
 interface TouchedFields { deviceType: boolean; deviceModel: boolean; issueDescription: boolean; }
 
@@ -28,9 +32,26 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [submittedRequestId, setSubmittedRequestId] = useState<string>("");
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
-    const { data: userProfileData, isLoading: isProfileLoading, isFetching: isProfileFetching } = useUserProfileQuery();
-    const { user, isAuthenticated } = useAuth();
+    const { data: userProfileData, isLoading: isProfileLoading, isFetching: isProfileFetching, refetch: refetchProfile } = useUserProfileQuery(); // Get refetch
+    const { user, isAuthenticated, isLoadingAuth, openLoginModal } = useAuth(); // Get auth state/modal opener
+    const location = useLocation(); // Get location for redirect path
+    const siteUrl = window.location.origin;
 
+    // --- Authentication Check Effect ---
+    useEffect(() => {
+        if (isLoadingAuth) return; // Wait for auth check
+
+        if (!isAuthenticated) {
+            console.log('[NewRequest] Not authenticated, opening login modal.');
+            openLoginModal(location.pathname + location.search); // Open modal
+        } else {
+            // Optionally refetch profile if needed when auth is confirmed
+            refetchProfile();
+        }
+    }, [isLoadingAuth, isAuthenticated, openLoginModal, location.pathname, location.search, refetchProfile]);
+    // --- End Authentication Check Effect ---
+
+    // --- Validation and Form Handling (Keep existing logic) ---
     const validateField = useCallback((field: keyof FormErrors): boolean => { let hasError = false; if (field === "deviceModel") hasError = !repairForm.deviceModel.trim(); else if (field === "deviceType") hasError = !repairForm.deviceType.trim(); else if (field === "issueDescription") hasError = !repairForm.issueDescription.trim(); setFormErrors((prev) => ({ ...prev, [field]: hasError })); return !hasError; }, [repairForm]);
     const handleBlur = useCallback((field: keyof TouchedFields) => { setTouched((prev) => ({ ...prev, [field]: true })); validateField(field); }, [validateField]);
     const validateForm = useCallback((): boolean => { const newErrors: FormErrors = { deviceModel: !repairForm.deviceModel.trim(), deviceType: !repairForm.deviceType.trim(), issueDescription: !repairForm.issueDescription.trim() }; setFormErrors(newErrors); setTouched({ deviceModel: true, deviceType: true, issueDescription: true }); if (newErrors.deviceModel || newErrors.deviceType || newErrors.issueDescription) { const firstErrorField = Object.keys(newErrors).find(key => newErrors[key as keyof FormErrors]); const element = document.getElementById(firstErrorField || 'deviceModel'); element?.scrollIntoView({ behavior: "smooth", block: "center" }); (element?.querySelector('input, textarea, button[role="combobox"]') as HTMLElement)?.focus(); return false; } return true; }, [repairForm]);
@@ -41,11 +62,23 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
     useEffect(() => { const saved = sessionStorage.getItem("newRepairFormState"); if (saved) setRepairForm(JSON.parse(saved)); }, []);
 
+    // --- Modified Submit Handler ---
     const submitRepairRequest = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault(); if (!isAuthenticated || !user) { toast.error("Login required."); return; }
-        const isProfileFetchComplete = !isProfileLoading && !isProfileFetching; const isProfileComplete = !!(userProfileData?.name && userProfileData?.email && userProfileData?.phone && userProfileData.address?.line1 && userProfileData.address?.city && userProfileData.address?.state && userProfileData.address?.zip);
-        if (!isProfileFetchComplete && !userProfileData) { toast.info("Loading profile..."); return; } if (isProfileFetchComplete && !isProfileComplete) { toast.error("Profile incomplete", { description: "Please complete your profile first." }); profileRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+        e.preventDefault();
+        // Re-check authentication before submission
+        if (!isAuthenticated || !user) {
+            toast.error("Login required to submit request.");
+            openLoginModal(location.pathname + location.search); // Open modal if not authenticated
+            return;
+        }
+
+        const isProfileFetchComplete = !isProfileLoading && !isProfileFetching;
+        const isProfileComplete = !!(userProfileData?.name && userProfileData?.email && userProfileData?.phone && userProfileData.address?.line1 && userProfileData.address?.city && userProfileData.address?.state && userProfileData.address?.zip);
+
+        if (!isProfileFetchComplete && !userProfileData) { toast.info("Loading profile..."); return; }
+        if (isProfileFetchComplete && !isProfileComplete) { toast.error("Profile incomplete", { description: "Please complete your profile first." }); profileRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
         if (!validateForm()) { toast.error("Please fill all required fields", { icon: <AlertCircle className="h-5 w-5 text-red-400" /> }); return; }
+
         setIsSubmitting(true);
         try {
              const shippingAddress = { name: userProfileData?.name || "", email: userProfileData?.email || user.email || "", phone: userProfileData?.phone || "", address: userProfileData?.address || {} };
@@ -59,42 +92,55 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     };
     const handleConfirmationClose = (): void => { setShowConfirmation(false); if (submittedRequestId) onSuccessfulSubmission(submittedRequestId); };
 
+    // --- SEO ---
+    const pageTitle = "New Repair Request | GNT Store";
+    const pageDescription = "Submit a new repair request for your gaming console, PC, or laptop.";
+    const canonicalUrl = `${siteUrl}${location.pathname}`;
+
+    // --- Loading State ---
+    if (isLoadingAuth || (isAuthenticated && (isProfileLoading || isProfileFetching))) {
+         return (
+            <div className="min-h-screen bg-[#0f1115] flex items-center justify-center">
+                 <SEO title="Loading..." description="Loading repair request form." noIndex={true}/>
+                 <Loader2 className="h-8 w-8 animate-spin text-[#5865f2]" />
+            </div>
+         );
+    }
+
+    // Render null if auth check determines user isn't logged in (modal will open)
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    // --- Authenticated Render ---
     return (
         <div>
+             <SEO title={pageTitle} description={pageDescription} canonicalUrl={canonicalUrl} noIndex={true} ogData={{ title: pageTitle, description: pageDescription, url: canonicalUrl }} />
             <div className="max-w-4xl mx-auto p-4">
                 {showConfirmation && ( <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"> <SuccessConfirmation requestId={submittedRequestId} onClose={handleConfirmationClose} /> </div> )}
                 <form className="space-y-6 mt-6" onSubmit={submitRepairRequest}>
+                    {/* Device Information Section */}
                     <div className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-4 sm:p-6">
                         <h2 className="text-lg sm:text-xl font-semibold mb-4 text-white">Device Information</h2>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="md:col-span-3 space-y-2">
-                                <Label htmlFor="deviceModel" className="flex items-center text-gray-300">Model/Specs <span className="text-red-400 ml-1">*</span></Label>
-                                <Input id="deviceModel" name="deviceModel" placeholder="e.g., PS5 Digital, Alienware m15 R4" value={repairForm.deviceModel} onChange={handleInputChange} onBlur={() => handleBlur("deviceModel")} ref={deviceModelInputRef} className={`bg-[#2a2d36] w-full border ${formErrors.deviceModel && touched.deviceModel ? "border-red-400 focus:ring-red-400" : "border-[#3f4354]"}`} required />
-                                {formErrors.deviceModel && touched.deviceModel && (<p className="text-red-400 text-sm flex items-center mt-1"><AlertCircle className="h-3 w-3 mr-1" /> Model/Specs required</p>)}
-                            </div>
-                            <div className="md:col-span-1 space-y-2">
-                                <Label htmlFor="deviceType" className="flex items-center text-gray-300">Type <span className="text-red-400 ml-1">*</span></Label>
-                                <Select value={repairForm.deviceType} onValueChange={handleDeviceTypeChange} >
-                                    <SelectTrigger id="deviceType" className={`bg-[#2a2d36] w-full border ${formErrors.deviceType && touched.deviceType ? "border-red-400" : "border-[#3f4354]"}`} onBlur={()=>handleBlur("deviceType")}><SelectValue placeholder="Select" /></SelectTrigger>
-                                    <SelectContent className="bg-[#2a2d36] border-[#3f4354] text-white">
-                                         <SelectItem value="ps5">PS5</SelectItem> <SelectItem value="ps4">PS4</SelectItem> <SelectItem value="ps3">PS3</SelectItem> <SelectItem value="xbox-series-x">Xbox Series X</SelectItem> <SelectItem value="xbox-series-s">Xbox Series S</SelectItem>
-                                         <SelectItem value="nintendo-switch">Nintendo Switch</SelectItem> <SelectItem value="gaming-pc">Gaming PC</SelectItem> <SelectItem value="gaming-laptop">Gaming Laptop</SelectItem> <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {formErrors.deviceType && touched.deviceType && (<p className="text-red-400 text-sm flex items-center mt-1"><AlertCircle className="h-3 w-3 mr-1" /> Type required</p>)}
-                            </div>
+                            <div className="md:col-span-3 space-y-2"> <Label htmlFor="deviceModel" className="flex items-center text-gray-300">Model/Specs <span className="text-red-400 ml-1">*</span></Label> <Input id="deviceModel" name="deviceModel" placeholder="e.g., PS5 Digital, Alienware m15 R4" value={repairForm.deviceModel} onChange={handleInputChange} onBlur={() => handleBlur("deviceModel")} ref={deviceModelInputRef} className={`bg-[#2a2d36] w-full border ${formErrors.deviceModel && touched.deviceModel ? "border-red-400 focus:ring-red-400" : "border-[#3f4354]"}`} required /> {formErrors.deviceModel && touched.deviceModel && (<p className="text-red-400 text-sm flex items-center mt-1"><AlertCircle className="h-3 w-3 mr-1" /> Model/Specs required</p>)} </div>
+                            <div className="md:col-span-1 space-y-2"> <Label htmlFor="deviceType" className="flex items-center text-gray-300">Type <span className="text-red-400 ml-1">*</span></Label> <Select value={repairForm.deviceType} onValueChange={handleDeviceTypeChange} > <SelectTrigger id="deviceType" className={`bg-[#2a2d36] w-full border ${formErrors.deviceType && touched.deviceType ? "border-red-400" : "border-[#3f4354]"}`} onBlur={()=>handleBlur("deviceType")}><SelectValue placeholder="Select" /></SelectTrigger> <SelectContent className="bg-[#2a2d36] border-[#3f4354] text-white"> <SelectItem value="ps5">PS5</SelectItem> <SelectItem value="ps4">PS4</SelectItem> <SelectItem value="ps3">PS3</SelectItem> <SelectItem value="xbox-series-x">Xbox Series X</SelectItem> <SelectItem value="xbox-series-s">Xbox Series S</SelectItem> <SelectItem value="nintendo-switch">Nintendo Switch</SelectItem> <SelectItem value="gaming-pc">Gaming PC</SelectItem> <SelectItem value="gaming-laptop">Gaming Laptop</SelectItem> <SelectItem value="other">Other</SelectItem> </SelectContent> </Select> {formErrors.deviceType && touched.deviceType && (<p className="text-red-400 text-sm flex items-center mt-1"><AlertCircle className="h-3 w-3 mr-1" /> Type required</p>)} </div>
                         </div>
                     </div>
+                    {/* Issue Description Section */}
                     <div className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-4 sm:p-6">
                         <Label htmlFor="issueDescription" className="flex items-center text-gray-300 text-lg sm:text-xl font-semibold mb-3">Issue Description <span className="text-red-400 ml-1">*</span></Label>
                         <Textarea id="issueDescription" name="issueDescription" placeholder="Details about the problem..." value={repairForm.issueDescription} onChange={handleInputChange} onBlur={() => handleBlur("issueDescription")} ref={issueDescriptionRef} className={`bg-[#2a2d36] min-h-[100px] border ${formErrors.issueDescription && touched.issueDescription ? "border-red-400 focus:ring-red-400" : "border-[#3f4354]"}`} rows={4} required />
                         {formErrors.issueDescription && touched.issueDescription && (<p className="text-red-400 text-sm flex items-center mt-1"><AlertCircle className="h-3 w-3 mr-1" /> Description required</p>)}
                     </div>
+                    {/* Contact Information Section */}
                     <div className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-4 sm:p-6" ref={profileRef}>
                         <h2 className="text-lg sm:text-xl font-semibold mb-4 text-white">Contact Information <span className="text-red-400 ml-1">*</span></h2>
-                        <p className="text-sm text-gray-400 mb-4">Ensure your profile is up-to-date.</p>
+                        <p className="text-sm text-gray-400 mb-4">Ensure your profile is up-to-date for pickup/delivery.</p>
+                        {/* ProfilePreviewButton handles its own loading/error states */}
                         <ProfilePreviewButton />
                     </div>
+                    {/* Submit Button */}
                     <div className="text-xs text-gray-400"><span className="text-red-400 mr-1">*</span>Required fields</div>
                     <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4] py-3 text-base" disabled={isSubmitting || isProfileLoading || isProfileFetching}> {isSubmitting ? (<><Loader2 className="animate-spin h-5 w-5 mr-2" /> Submitting...</>) : ("Submit Repair Request")} </Button>
                 </form>
