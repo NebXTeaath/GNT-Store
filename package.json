@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build --mode production",
     "preview": "vite preview",
-    "sitemap": "node --experimental-specifier-resolution=node --loader ts-node/esm ./scripts/generate-sitemap.js"
+    "sitemap": "node --experimental-specifier-resolution=node --loader ts-node/esm ./scripts/generate-sitemap.js",
+    "deploy": "wrangler pages deploy ./dist --project-name=gnt-dev"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^1.12.0",
