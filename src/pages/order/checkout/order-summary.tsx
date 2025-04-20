@@ -90,7 +90,7 @@ export default function OrderSummary() {
 
     // Loading State
      if (isLoadingAuth || (isAuthenticated && (isProfileLoading || isProfileFetching))) {
-        return ( <div className="min-h-screen bg-[#0f1115]"> <SEO title="Loading..." noIndex={true}/> <LoadingScreen message="Loading order summary..." /> </div> );
+        return ( <div className="min-h-screen bg-[#0f1115]"> <SEO title="Loading..." noIndex={true} description={""}/> <LoadingScreen message="Loading order summary..." /> </div> );
     }
     // Render null if modal/redirect is happening
     if (!isAuthenticated) { return null; }

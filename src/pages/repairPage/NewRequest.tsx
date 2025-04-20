@@ -1,8 +1,8 @@
 // src/pages/repairPage/NewRequest.tsx
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom"; // Import useNavigate and useLocation
-import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { CheckCircle, Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,10 @@ import ProfilePreviewButton from "@/pages/Profile/ProfilePreviewButton";
 import { useUserProfileQuery } from '@/components/global/hooks/useUserProfileData';
 import SuccessConfirmation from "@/pages/repairPage/SuccessConfirmation";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/context/AuthContext"; // Import useAuth
-import SEO from '@/components/seo/SEO'; // Import SEO
+import { useAuth } from "@/context/AuthContext";
+import { usePincodeValidator } from "@/pages/Profile/pincodeValidator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import SEO from '@/components/seo/SEO';
 
 interface NewRequestProps {
     onSuccessfulSubmission: (requestId: string) => void;
@@ -32,10 +34,17 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [submittedRequestId, setSubmittedRequestId] = useState<string>("");
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
-    const { data: userProfileData, isLoading: isProfileLoading, isFetching: isProfileFetching, refetch: refetchProfile } = useUserProfileQuery(); // Get refetch
-    const { user, isAuthenticated, isLoadingAuth, openLoginModal } = useAuth(); // Get auth state/modal opener
-    const location = useLocation(); // Get location for redirect path
+    const { data: userProfileData, isLoading: isProfileLoading, isFetching: isProfileFetching, refetch: refetchProfile } = useUserProfileQuery();
+    const { user, isAuthenticated, isLoadingAuth, openLoginModal } = useAuth();
+    const location = useLocation();
     const siteUrl = window.location.origin;
+    
+    // PIN validation states and hook
+    const { isValidating: isPincodeValidatingHook, validatePincode } = usePincodeValidator();
+    const [isPinUnserviceable, setIsPinUnserviceable] = useState<boolean>(false);
+    const [pinValidationMessage, setPinValidationMessage] = useState<string | null>(null);
+    const [isCheckingProfilePin, setIsCheckingProfilePin] = useState<boolean>(false);
+    const [isCheckingSubmitPin, setIsCheckingSubmitPin] = useState<boolean>(false);
 
     // --- Authentication Check Effect ---
     useEffect(() => {
@@ -51,26 +60,148 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     }, [isLoadingAuth, isAuthenticated, openLoginModal, location.pathname, location.search, refetchProfile]);
     // --- End Authentication Check Effect ---
 
-    // --- Validation and Form Handling (Keep existing logic) ---
-    const validateField = useCallback((field: keyof FormErrors): boolean => { let hasError = false; if (field === "deviceModel") hasError = !repairForm.deviceModel.trim(); else if (field === "deviceType") hasError = !repairForm.deviceType.trim(); else if (field === "issueDescription") hasError = !repairForm.issueDescription.trim(); setFormErrors((prev) => ({ ...prev, [field]: hasError })); return !hasError; }, [repairForm]);
-    const handleBlur = useCallback((field: keyof TouchedFields) => { setTouched((prev) => ({ ...prev, [field]: true })); validateField(field); }, [validateField]);
-    const validateForm = useCallback((): boolean => { const newErrors: FormErrors = { deviceModel: !repairForm.deviceModel.trim(), deviceType: !repairForm.deviceType.trim(), issueDescription: !repairForm.issueDescription.trim() }; setFormErrors(newErrors); setTouched({ deviceModel: true, deviceType: true, issueDescription: true }); if (newErrors.deviceModel || newErrors.deviceType || newErrors.issueDescription) { const firstErrorField = Object.keys(newErrors).find(key => newErrors[key as keyof FormErrors]); const element = document.getElementById(firstErrorField || 'deviceModel'); element?.scrollIntoView({ behavior: "smooth", block: "center" }); (element?.querySelector('input, textarea, button[role="combobox"]') as HTMLElement)?.focus(); return false; } return true; }, [repairForm]);
-    const persistFormState = (state: typeof repairForm) => { sessionStorage.setItem("newRepairFormState", JSON.stringify(state)); };
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; const newState = { ...repairForm, [name]: value }; setRepairForm(newState); persistFormState(newState); if (touched[name as keyof TouchedFields]) { validateField(name as keyof FormErrors); } };
-    const handleDeviceTypeChange = (value: string): void => { const newState = { ...repairForm, deviceType: value }; setRepairForm(newState); persistFormState(newState); if (touched.deviceType) { validateField("deviceType"); } };
+    // --- Validation and Form Handling ---
+    const validateField = useCallback((field: keyof FormErrors): boolean => { 
+        let hasError = false; 
+        if (field === "deviceModel") hasError = !repairForm.deviceModel.trim(); 
+        else if (field === "deviceType") hasError = !repairForm.deviceType.trim(); 
+        else if (field === "issueDescription") hasError = !repairForm.issueDescription.trim(); 
+        setFormErrors((prev) => ({ ...prev, [field]: hasError })); 
+        return !hasError; 
+    }, [repairForm]);
+    
+    const handleBlur = useCallback((field: keyof TouchedFields) => { 
+        setTouched((prev) => ({ ...prev, [field]: true })); 
+        validateField(field); 
+    }, [validateField]);
+    
+    const validateForm = useCallback((): boolean => { 
+        const newErrors: FormErrors = { 
+            deviceModel: !repairForm.deviceModel.trim(), 
+            deviceType: !repairForm.deviceType.trim(), 
+            issueDescription: !repairForm.issueDescription.trim() 
+        }; 
+        setFormErrors(newErrors); 
+        setTouched({ deviceModel: true, deviceType: true, issueDescription: true }); 
+        
+        if (newErrors.deviceModel || newErrors.deviceType || newErrors.issueDescription) { 
+            const firstErrorField = Object.keys(newErrors).find(key => newErrors[key as keyof FormErrors]); 
+            const element = document.getElementById(firstErrorField || 'deviceModel'); 
+            element?.scrollIntoView({ behavior: "smooth", block: "center" }); 
+            (element?.querySelector('input, textarea, button[role="combobox"]') as HTMLElement)?.focus(); 
+            return false; 
+        } 
+        return true; 
+    }, [repairForm]);
+    
+    const persistFormState = (state: typeof repairForm) => { 
+        sessionStorage.setItem("newRepairFormState", JSON.stringify(state)); 
+    };
+    
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { 
+        const { name, value } = e.target; 
+        const newState = { ...repairForm, [name]: value }; 
+        setRepairForm(newState); 
+        persistFormState(newState); 
+        if (touched[name as keyof TouchedFields]) { 
+            validateField(name as keyof FormErrors); 
+        } 
+    };
+    
+    const handleDeviceTypeChange = (value: string): void => { 
+        const newState = { ...repairForm, deviceType: value }; 
+        setRepairForm(newState); 
+        persistFormState(newState); 
+        if (touched.deviceType) { 
+            validateField("deviceType"); 
+        } 
+    };
 
     useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
     useEffect(() => { const saved = sessionStorage.getItem("newRepairFormState"); if (saved) setRepairForm(JSON.parse(saved)); }, []);
 
-    // --- Modified Submit Handler ---
+    // --- Effect to Validate Profile PIN on Load ---
+    useEffect(() => {
+        const checkProfilePin = async () => {
+          if (isAuthenticated && userProfileData?.address?.zip && userProfileData.address.zip.length === 6) {
+             setIsCheckingProfilePin(true);
+             console.log(`Validating profile PIN on load: ${userProfileData.address.zip}`);
+             try {
+                 const result = await validatePincode(userProfileData.address.zip);
+                 if (result.valid && !result.isServiceAvailable) {
+                   setIsPinUnserviceable(true);
+                   setPinValidationMessage(result.message || "Service unavailable for the PIN code in your profile.");
+                 } else if (!result.valid) {
+                   setIsPinUnserviceable(true);
+                   setPinValidationMessage(result.message || "The PIN code in your profile is invalid.");
+                 } else {
+                    setIsPinUnserviceable(false);
+                    setPinValidationMessage(null);
+                 }
+             } catch (error) {
+                 console.error("Error validating profile PIN on load:", error);
+             } finally {
+                 setIsCheckingProfilePin(false);
+             }
+          } else {
+              setIsPinUnserviceable(false);
+              setPinValidationMessage(null);
+              setIsCheckingProfilePin(false);
+          }
+        };
+
+        if (!isProfileLoading && !isProfileFetching && !isCheckingProfilePin && !isPincodeValidatingHook) {
+            checkProfilePin();
+        }
+    }, [userProfileData, isProfileLoading, isProfileFetching, isAuthenticated, validatePincode, isPincodeValidatingHook, isCheckingProfilePin]);
+
+    // --- Submit Handler with PIN Validation ---
     const submitRepairRequest = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        
         // Re-check authentication before submission
         if (!isAuthenticated || !user) {
             toast.error("Login required to submit request.");
             openLoginModal(location.pathname + location.search); // Open modal if not authenticated
             return;
         }
+
+        // PIN code validation
+        const profilePin = userProfileData?.address?.zip;
+        let isPinCheckPassed = true;
+
+        if (profilePin && profilePin.length === 6) {
+            setIsCheckingSubmitPin(true);
+            console.log(`Validating profile PIN on submit: ${profilePin}`);
+            try {
+                const pinResult = await validatePincode(profilePin);
+                if (!pinResult.isServiceAvailable) {
+                    isPinCheckPassed = false;
+                    // Use the detailed message from the validator
+                    const errorMsg = "Service is unavailable for the PIN code in your profile.";
+                    toast.error("Service Unavailable", { description: errorMsg });
+                    setIsPinUnserviceable(true);
+                    setPinValidationMessage(errorMsg);
+                    document.getElementById('pin-warning-alert')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        || profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    setIsPinUnserviceable(false);
+                    setPinValidationMessage(null);
+                }
+            } catch (error) {
+                 console.error("Error validating PIN on submit:", error);
+                 toast.error("Validation Error", { description: "Could not verify PIN code serviceability. Please try again." });
+                 isPinCheckPassed = false;
+            } finally {
+                setIsCheckingSubmitPin(false);
+            }
+        } else if (profilePin) {
+            toast.error("Invalid PIN in Profile", { description: "The PIN code in your profile is invalid. Please update it." });
+            profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            isPinCheckPassed = false;
+        }
+
+        if (!isPinCheckPassed) return;
 
         const isProfileFetchComplete = !isProfileLoading && !isProfileFetching;
         const isProfileComplete = !!(userProfileData?.name && userProfileData?.email && userProfileData?.phone && userProfileData.address?.line1 && userProfileData.address?.city && userProfileData.address?.state && userProfileData.address?.zip);
@@ -90,12 +221,16 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
         } catch (error: any) { console.error("Error submitting repair request:", error); toast.error("Failed to submit request", { description: error.message || "Please try again.", icon: <AlertCircle className="h-5 w-5 text-red-400" /> }); }
         finally { setIsSubmitting(false); }
     };
+    
     const handleConfirmationClose = (): void => { setShowConfirmation(false); if (submittedRequestId) onSuccessfulSubmission(submittedRequestId); };
 
     // --- SEO ---
     const pageTitle = "New Repair Request | GNT Store";
     const pageDescription = "Submit a new repair request for your gaming console, PC, or laptop.";
     const canonicalUrl = `${siteUrl}${location.pathname}`;
+
+    // --- Display PIN Warning Flag ---
+    const showPinWarning = isAuthenticated && isPinUnserviceable;
 
     // --- Loading State ---
     if (isLoadingAuth || (isAuthenticated && (isProfileLoading || isProfileFetching))) {
@@ -118,6 +253,34 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
              <SEO title={pageTitle} description={pageDescription} canonicalUrl={canonicalUrl} noIndex={true} ogData={{ title: pageTitle, description: pageDescription, url: canonicalUrl }} />
             <div className="max-w-4xl mx-auto p-4">
                 {showConfirmation && ( <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"> <SuccessConfirmation requestId={submittedRequestId} onClose={handleConfirmationClose} /> </div> )}
+                
+                {/* PIN Code Serviceability Warning */}
+                {showPinWarning && (
+                  <Alert 
+                    variant="destructive" 
+                    className="mb-6 border-yellow-500/50 bg-yellow-900/20 text-yellow-300 animate-fadeIn flex items-center"
+                    id="pin-warning-alert"
+                  >
+                    <AlertTriangle className="h-5 w-5 !text-yellow-400 flex-shrink-0" />
+                    <div className="ml-2 flex-1">
+                      <AlertTitle className="text-yellow-200 text-base">Service Area Warning</AlertTitle>
+                      <AlertDescription className="text-sm flex flex-wrap items-center">
+                        Service not available for PIN code<span className="font-medium mr-1">{userProfileData?.address?.zip}.</span>
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-yellow-300 hover:text-yellow-100 underline font-medium"
+                          onClick={() => {
+                            profileRef.current?.scrollIntoView({behavior: 'smooth'});
+                          }}
+                        >
+                          Please update your profile.
+                        </Button>
+                      </AlertDescription>
+                    </div>
+                  </Alert>
+                )}
+                {/* End Warning */}
+                
                 <form className="space-y-6 mt-6" onSubmit={submitRepairRequest}>
                     {/* Device Information Section */}
                     <div className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-4 sm:p-6">
@@ -142,7 +305,25 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
                     </div>
                     {/* Submit Button */}
                     <div className="text-xs text-gray-400"><span className="text-red-400 mr-1">*</span>Required fields</div>
-                    <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4] py-3 text-base" disabled={isSubmitting || isProfileLoading || isProfileFetching}> {isSubmitting ? (<><Loader2 className="animate-spin h-5 w-5 mr-2" /> Submitting...</>) : ("Submit Repair Request")} </Button>
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-[#5865f2] hover:bg-[#4752c4] py-3 text-base" 
+                      disabled={
+                        isSubmitting || 
+                        isCheckingSubmitPin || 
+                        isProfileLoading || 
+                        isProfileFetching ||
+                        isCheckingProfilePin
+                      }
+                    > 
+                      {isCheckingSubmitPin ? (
+                        <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Checking Area...</>
+                      ) : isSubmitting ? (
+                        <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Submitting...</>
+                      ) : (
+                        "Submit Repair Request"
+                      )}
+                    </Button>
                 </form>
             </div>
         </div>

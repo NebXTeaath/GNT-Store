@@ -1,4 +1,3 @@
-//src\pages\Profile\pincodeValidator.ts
 import { useState } from "react";
 
 interface PincodeValidatorHook {
@@ -8,6 +7,7 @@ interface PincodeValidatorHook {
     city?: string;
     state?: string;
     message?: string;
+    isServiceAvailable: boolean; // Added this property
   }>;
 }
 
@@ -21,6 +21,20 @@ interface PincodeResponse {
   }>;
 }
 
+// List of serviceable PIN code prefixes
+const SERVICEABLE_PIN_PREFIXES = [
+  // Major cities - examples only, adjust as needed
+  "110", // Delhi
+  "400", // Mumbai
+  "560", // Bangalore
+  "600", // Chennai
+  "700", // Kolkata
+  "500", // Hyderabad
+  "411", // Pune
+  "380", // Ahmedabad
+  // Add more serviceable PIN prefixes as needed
+];
+
 export function usePincodeValidator(): PincodeValidatorHook {
   const [isValidating, setIsValidating] = useState(false);
 
@@ -29,11 +43,13 @@ export function usePincodeValidator(): PincodeValidatorHook {
     city?: string;
     state?: string;
     message?: string;
+    isServiceAvailable: boolean;
   }> => {
     // Check if pincode is 6 digits
     if (!/^\d{6}$/.test(pincode)) {
       return {
         valid: false,
+        isServiceAvailable: false,
         message: "Pincode must be exactly 6 digits"
       };
     }
@@ -50,15 +66,24 @@ export function usePincodeValidator(): PincodeValidatorHook {
 
       if (data[0].Status === "Success" && data[0].PostOffice && data[0].PostOffice.length > 0) {
         const postOffice = data[0].PostOffice[0];
+        
+        // Check if PIN is in serviceable area by checking the prefix
+        const pinPrefix = pincode.substring(0, 3);
+        const isServiceable = SERVICEABLE_PIN_PREFIXES.includes(pinPrefix);
+        
         return {
           valid: true,
+          isServiceAvailable: isServiceable,
           city: postOffice.District,
           state: postOffice.State,
-          message: "Pincode validated successfully"
+          message: isServiceable 
+            ? "Pincode validated successfully" 
+            : "We don't currently service this area. Please contact support for more information."
         };
       } else {
         return {
           valid: false,
+          isServiceAvailable: false,
           message: data[0].Message || "Invalid pincode"
         };
       }
@@ -66,6 +91,7 @@ export function usePincodeValidator(): PincodeValidatorHook {
       console.error("Error validating pincode:", error);
       return {
         valid: false,
+        isServiceAvailable: false,
         message: "Error validating pincode. Please try again."
       };
     } finally {
