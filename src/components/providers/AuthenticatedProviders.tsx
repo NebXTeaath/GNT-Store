@@ -1,14 +1,14 @@
-// src/components/providers/AuthenticatedProviders.tsx
+// --- File: /src/components/providers/AuthenticatedProviders.tsx ---
 import React from 'react';
-import { Routes, Route, Navigate } from "react-router-dom";
-import { UserProfileProvider } from "../../context/UserProfileContext"; // Adjust path if needed
-import { WishlistProvider } from "../../context/WishlistContext"; // Adjust path if needed
-import { AuthAwareDiscountProvider } from "../../context/AuthAwareDiscountProvider"; // Adjust path if needed
-import { CartProvider } from "../../context/CartContext"; // Adjust path if needed
-import GlobalLayout from "../global/layout"; // Adjust path if needed
-// REMOVED: import AuthGuard from '../../context/AuthGuard';
+import { Routes, Route } from "react-router-dom"; // Removed Navigate
+import { UserProfileProvider } from "../../context/UserProfileContext"; // Ensure path is correct
+import { WishlistProvider } from "../../context/WishlistContext";
+import { AuthAwareDiscountProvider } from "../../context/AuthAwareDiscountProvider";
+import { CartProvider } from "../../context/CartContext";
+import GlobalLayout from "../global/layout";
+import AuthGuard from '../../context/AuthGuard'; // Import the guard
 
-// Import your page components (ensure paths are correct)
+// Import page components
 import NotFound from "../../pages/NotFound";
 import GNTStore from "../../pages/HomePage/GNTStore";
 import RepairServices from "../../pages/repairPage/index";
@@ -33,33 +33,44 @@ const AuthenticatedProviders: React.FC = () => {
         <AuthAwareDiscountProvider>
           <CartProvider>
             <Routes>
-              {/* Public route handled separately */}
-              <Route path="/reset-password" element={<ResetPassword />} />
-
-              {/* All other routes use GlobalLayout */}
+              {/* --- Main Layout Routes --- */}
               <Route path="/" element={<GlobalLayout />}>
-                {/* Publicly viewable routes */}
+
+                {/* --- Publicly Viewable Routes --- */}
                 <Route index element={<GNTStore />} />
                 <Route path="support" element={<Support />} />
-                <Route path="product/details/:id" element={<ProductDetails />} />
-                <Route path="product/:slug" element={<ProductDetails />} />
+                <Route path="product/details/:id" element={<ProductDetails />} /> {/* Legacy ID route */}
+                <Route path="product/:slug" element={<ProductDetails />} /> {/* Preferred Slug route */}
                 <Route path="search" element={<SearchPage />} />
+                {/* Category/Subcategory listing pages */}
                 <Route path=":category" element={<ProductsPage />} />
                 <Route path=":category/:subcategory" element={<ProductsPage />} />
 
-                {/* Routes requiring authentication (will check internally) */}
-                <Route path="repair-home/*" element={<RepairServices />} /> {/* Parent might be public, sub-routes check */}
-                <Route path="repair/new-request" element={<NewRequestWrapper />} />
-                <Route path="repair/history" element={<TrackRepairHistory />} />
-                <Route path="wishlist" element={<WishlistPage />} />
-                <Route path="checkout/cart-details" element={<CartDetails />} />
-                <Route path="checkout/order-summary" element={<OrderSummary />} />
-                <Route path="order-history" element={<OrderHistory />} />
-                <Route path="profile" element={<ProfileRouteHandler />} /> {/* This component handles its own logic */}
+                {/* --- Authentication Related Routes --- */}
+                {/* Reset Password - Can be accessed publicly OR during recovery flow.
+                    AuthGuard will redirect *away* if fully authenticated */}
+                <Route path="reset-password" element={<ResetPassword />} />
 
-                {/* Catch-all 404 - Rendered within GlobalLayout */}
+                {/* --- Protected Routes (Require Full Authentication) --- */}
+                {/* Wrap these routes with the AuthGuard */}
+                <Route element={<AuthGuard />}>
+                   <Route path="repair-home" element={<RepairServices />} /> {/* Entry point for repair */}
+                   <Route path="repair/new-request" element={<NewRequestWrapper />} />
+                   <Route path="repair/history" element={<TrackRepairHistory />} />
+                   <Route path="wishlist" element={<WishlistPage />} />
+                   <Route path="checkout/cart-details" element={<CartDetails />} />
+                   <Route path="checkout/order-summary" element={<OrderSummary />} />
+                   <Route path="order-history" element={<OrderHistory />} />
+                   {/* ProfileRouteHandler opens the profile modal/drawer */}
+                   {/* It needs full auth to be reached, ensured by AuthGuard */}
+                   <Route path="profile" element={<ProfileRouteHandler />} />
+                </Route>
+
+                {/* --- Catch-all 404 --- */}
+                {/* Rendered within GlobalLayout */}
                 <Route path="*" element={<NotFound />} />
-              </Route>
+
+              </Route> {/* End of GlobalLayout routes */}
 
             </Routes>
           </CartProvider>

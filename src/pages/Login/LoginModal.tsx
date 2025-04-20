@@ -1,149 +1,314 @@
-// src/pages/Login/LoginModal.tsx
-"use client";
-
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MailCheck, Loader2, AlertCircle, KeyRound, X } from "lucide-react"; // Added X
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import LoginForm from "@/pages/Login/login";
-import { toast } from "sonner";
+// --- File: /src/components/global/desktop/header.tsx ---
+// src/components/global/desktop/New_header.tsx
+import { Link, useNavigate } from "react-router-dom";
+import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut, AlertTriangle } from "lucide-react"; // Added AlertTriangle
 import { Button } from "@/components/ui/button";
-import { useIsMobile } from "@/components/global/Mobile/use-mobile";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useAuth } from "@/context/AuthContext";
+import Logo from "@/assets/logo.svg"; // Ensure path is correct
+import { useAuth } from "@/context/AuthContext"; // Keep Session type import if needed
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import { SearchBar } from "@/components/global/desktop/search-bar";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { useQuery } from '@tanstack/react-query';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { useWindowSize } from "@/components/global/hooks/useWindowSize";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/components/global/Mobile/use-mobile";
+import LoginModal from "@/pages/Login/LoginModal"; // Keep this for the login button
+import { useLoading } from "@/components/global/Loading/LoadingContext";
+import { ProfileIndex } from "@/pages/Profile/components/ProfileIndex";
+import { OffersPopover } from "@/components/global/OffersPopover";
 
-interface LoginModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onLoginSuccess: () => void;
+// Define the nested product categories structure
+type ProductCategoriesStructure = { /* ... type definition ... */
+  [category: string]: {
+    [subcategory: string]: string[];
+  };
+};
+
+// --- Function to fetch categories (can be moved to a service/api file) ---
+async function fetchCategoriesStructure(): Promise<ProductCategoriesStructure | null> { /* ... fetch logic ... */
+  console.log("[Header] Fetching category structure...");
+  const { data, error } = await supabase.rpc("get_product_categories_structure");
+  if (error) {
+    console.error("Error fetching product categories structure:", error);
+    toast.error("Failed to load shop categories");
+    return null;
+  }
+  return data as ProductCategoriesStructure;
 }
 
-// --- CheckEmailView Component ---
-const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void }) => {
-    const [countdown, setCountdown] = useState(60);
-    const [canResend, setCanResend] = useState(false);
-    const [isResending, setIsResending] = useState(false);
-    const [resendError, setResendError] = useState<string | null>(null);
-    const verifyCaptchaRef = useRef<TurnstileInstance>(null);
-    const [verifyCaptchaKey, setVerifyCaptchaKey] = useState<string>(`verify-${Math.random().toString(36).substring(2, 15)}`);
-    const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
-    const isVerificationAttemptCompleteRef = useRef<boolean>(true);
-
-    useEffect(() => { if (canResend || countdown <= 0) return; const interval = setInterval(() => { setCountdown((prev) => { if (prev <= 1) { clearInterval(interval); setCanResend(true); return 0; } return prev - 1; }); }, 1000); return () => clearInterval(interval); }, [canResend, countdown]);
-    const resetVerifyCaptchaState = useCallback(() => { isVerificationAttemptCompleteRef.current = true; try { verifyCaptchaRef.current?.reset(); } catch (err) { console.warn(`[CheckEmailView] Captcha reset error:`, err); } setVerifyCaptchaKey(`verify-${Math.random().toString(36).substring(2, 10)}`); }, []);
-    const handleResendEmail = () => { if (!email?.includes('@')) { setResendError("Invalid email."); toast.error("Error"); return; } if (isResending) return; setResendError(null); setIsResending(true); isVerificationAttemptCompleteRef.current = false; if (!TurnstileSiteKey || !verifyCaptchaRef.current) { setResendError(!TurnstileSiteKey ? "Captcha config error." : "Captcha not ready."); toast.error(!TurnstileSiteKey ? "Config Error" : "Captcha Error"); setIsResending(false); isVerificationAttemptCompleteRef.current = true; return; } try { verifyCaptchaRef.current.execute(); } catch (err) { setResendError("Captcha start failed."); toast.error("Captcha Error"); setIsResending(false); resetVerifyCaptchaState(); } };
-    const onSuccessVerifyCaptcha = async (token: string) => { if (isVerificationAttemptCompleteRef.current) return; isVerificationAttemptCompleteRef.current = true; if (!email?.includes('@')) { setResendError("Internal Error: Email missing."); toast.error("Error"); setIsResending(false); resetVerifyCaptchaState(); return; } try { const { error } = await supabase.auth.resend({ type: 'signup', email: email, options: { captchaToken: token } }); if (error) throw error; toast.success("Verification email resent!"); setCanResend(false); setCountdown(60); setResendError(null); resetVerifyCaptchaState(); } catch (error: any) { const msg = error.message?.includes("For security purposes") ? "Too many requests." : error.message || "Unknown error."; setResendError(msg); toast.error("Resend Failed", { description: msg }); resetVerifyCaptchaState(); } finally { setIsResending(false); } };
-    const onErrorVerifyCaptcha = (errorCode: string) => { setResendError(`Captcha failed (${errorCode}).`); toast.error("Captcha Error"); setIsResending(false); resetVerifyCaptchaState(); };
-    const onExpireVerifyCaptcha = () => { if (isResending) { setResendError("Captcha expired."); toast.warning("Captcha Expired"); } setIsResending(false); resetVerifyCaptchaState(); };
-
-    return (
-        <div className="p-6 text-center space-y-4">
-             {/* Close button for CheckEmailView */}
-             <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white hover:bg-gray-700/50"> <X className="h-4 w-4" /> <span className="sr-only">Close</span> </Button>
-            <MailCheck className="mx-auto h-12 w-12 text-green-500" /> <h3 className="text-xl font-semibold text-white">Check Your Email</h3> <p className="text-gray-400">Verification link sent to <strong className="text-white">{email}</strong>.</p> <p className="text-gray-400">Click the link to activate account, then log in.</p>
-            {resendError && ( <p className="text-red-500 text-sm flex items-center justify-center"><AlertCircle className="h-4 w-4 mr-1 shrink-0" />{resendError}</p> )}
-            <Button onClick={onClose} className="w-full mt-4 bg-[#5865f2] hover:bg-[#4752c4]" disabled={isResending}>OK</Button>
-            <Button onClick={handleResendEmail} variant="outline" className="w-full mt-2 border-[#5865f2] text-[#5865f2] hover:bg-[#5865f2]/10 disabled:opacity-50" disabled={!canResend || isResending}> {isResending ? ( <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</> ) : canResend ? ( "Resend Verification Email" ) : ( `Resend in ${countdown}s` )} </Button>
-            <p className="text-xs text-gray-500 mt-1">Check spam or wait for the timer.</p>
-            {TurnstileSiteKey ? ( <div style={{ height: 0, overflow: 'hidden' }}><Turnstile ref={verifyCaptchaRef} siteKey={TurnstileSiteKey} onSuccess={onSuccessVerifyCaptcha} onError={onErrorVerifyCaptcha} onExpire={onExpireVerifyCaptcha} key={verifyCaptchaKey} options={{ theme: 'dark', size: 'invisible', execution: 'execute', responseField: false }} /></div> ) : null }
-        </div>
-    );
-};
-// --- End CheckEmailView ---
-
-// --- LoginModal ---
-export default function LoginModal({ open, onOpenChange, onLoginSuccess }: LoginModalProps) {
+export default function Header() {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot-password">("login");
-  const [email, setEmail] = useState("");
-  const [resetSent, setResetSent] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // ONLY for Forgot Password action
-  const [error, setError] = useState(""); // Error ONLY for Forgot Password action
-  const { sendPasswordReset } = useAuth();
-  const [showVerifyEmailView, setShowVerifyEmailView] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState("");
+  const navigate = useNavigate();
+  // Get session from useAuth
+  const { isAuthenticated, user, signOut, isLoadingAuth, session, openLoginModal } = useAuth();
+  const { cartItems, cartCount, isLoading: isCartLoading } = useCart(); // Get cartItems and loading state
+  const { wishlistItems, isLoading: isWishlistLoading } = useWishlist(); // Get wishlist loading state
+  const windowSize = useWindowSize();
+  const { setIsLoading, setIsLoadingProfile, setIsLoadingProducts, setIsLoadingAuth: setGlobalIsLoadingAuth, setLoadingMessage } = useLoading();
 
-  const resetCaptchaRef = useRef<TurnstileInstance>(null);
-  const [resetCaptchaKey, setResetCaptchaKey] = useState<string>(`reset-${Math.random().toString(36).substring(2, 15)}`);
-  const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
-  const resetEmailCaptureRef = useRef<string>("");
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+  const [catalogSheetOpen, setCatalogSheetOpen] = useState(false);
+  const [ProfileIndexOpen, setProfileIndexOpen] = useState(false);
+  // Removed loginOpen state, use context's openLoginModal
 
-  // Callback from LoginForm when registration is successful
-  const handleRegisterSuccess = (registeredEmailValue: string) => {
-    setRegisteredEmail(registeredEmailValue);
-    setShowVerifyEmailView(true); // Show the CheckEmailView
-  };
+  // --- AAL Constants (MUST MATCH AuthGuard/ResetPassword) ---
+  const REQUIRED_AAL_FOR_FULL_ACCESS = 'aal1';
+  const RECOVERY_AAL_LEVEL = 'aal1'; // Example level during reset
 
-  // Reset internal states when the modal is closed from outside
-  useEffect(() => {
-    if (!open) {
-      const timer = setTimeout(() => {
-        setShowVerifyEmailView(false); setRegisteredEmail(""); setActiveTab("login"); setResetSent(false); setEmail(""); setError(""); setIsLoading(false); resetEmailCaptureRef.current = "";
-        try { resetCaptchaRef.current?.reset(); } catch (e) { console.warn("Captcha reset error on close:", e); }
-        setResetCaptchaKey(`reset-close-${Math.random().toString(36).substring(2, 15)}`);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [open]);
+  // --- Calculate Access Level ---
+  const currentAal = session?.user ? (session.user as any).aal : null;
+  // User has full access if authenticated, session exists, and AAL matches the required level
+  // Handle the ambiguous case: if recovery == required, assume full unless proven otherwise (AuthGuard does this)
+  const hasFullAccess = isAuthenticated && session && currentAal === REQUIRED_AAL_FOR_FULL_ACCESS;
+  // User is potentially in recovery if auth'd, has session, and AAL matches recovery level
+  // This is more complex if AAL levels are the same. We rely on hasFullAccess being false in that case.
+  const isInRecoveryState = isAuthenticated && session && currentAal === RECOVERY_AAL_LEVEL && REQUIRED_AAL_FOR_FULL_ACCESS !== RECOVERY_AAL_LEVEL;
+  const isRestrictedSession = isAuthenticated && !hasFullAccess; // True if logged in but AAL is not sufficient
 
-  // Reset state when tabs change
-  const handleTabChange = (tab: "login" | "register" | "forgot-password") => {
-    setActiveTab(tab); setShowVerifyEmailView(false); setError(""); setIsLoading(false); setResetSent(false); resetEmailCaptureRef.current = "";
-    try { resetCaptchaRef.current?.reset(); } catch (e) { console.warn("Captcha reset error on tab change:", e); }
-    setResetCaptchaKey(`reset-tab-${tab}-${Math.random().toString(36).substring(2, 15)}`);
-  };
 
-  // --- Password Reset Handlers ---
-  const handleResetPasswordRequest = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); setIsLoading(true); setError(""); resetEmailCaptureRef.current = email;
-    if (!resetEmailCaptureRef.current?.includes('@')) { setError("Invalid email."); toast.error("Invalid Email"); setIsLoading(false); return; }
-    if (!TurnstileSiteKey || !resetCaptchaRef.current) { setError(!TurnstileSiteKey ? "Captcha config error." : "Captcha not ready."); toast.error(!TurnstileSiteKey ? "Config Error" : "Captcha Error"); setIsLoading(false); return; }
-    try { await resetCaptchaRef.current.execute(); }
-    catch (err) { setError("Failed to start captcha."); toast.error("Captcha Error"); setIsLoading(false); resetCaptchaRef.current?.reset(); setResetCaptchaKey(`reset-exec-fail-${Math.random().toString(36).substring(2, 15)}`); }
-  };
-  const onSuccessResetCaptcha = async (token: string) => {
-    const capturedEmail = resetEmailCaptureRef.current;
-    if (!capturedEmail) { setError("Internal error: Email missing."); toast.error("Error"); setIsLoading(false); resetCaptchaRef.current?.reset(); setResetCaptchaKey(`reset-verify-fail-noemail-${Math.random().toString(36).substring(2, 15)}`); return; }
+  // --- Fetch categories using useQuery ---
+  const { data: productCategories, isLoading: categoriesLoading, } = useQuery<ProductCategoriesStructure | null, Error>({ /* ... query config ... */
+    queryKey: ['productCategoriesStructure'],
+    queryFn: fetchCategoriesStructure,
+    staleTime: 1000 * 60 * 60, gcTime: 1000 * 60 * 120, refetchOnWindowFocus: false,
+   });
+
+  // --- State and Refs for Vertical Tab Animation ---
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeStyle, setActiveStyle] = useState({ top: "0px", height: "0px" });
+  const tabRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const formattedCartCount = cartCount > 9 ? "9+" : cartCount.toString();
+  const wishlistCount = wishlistItems.length; // Get wishlist count
+
+  // --- Event Handlers ---
+  const handleLogout = async () => { /* ... logout logic ... */
     try {
-      const { error: resetError } = await sendPasswordReset(capturedEmail, token);
-      if (resetError) { let errMsg = resetError.message || "Failed."; if (resetError.message?.includes("security")) errMsg = "Too many requests."; else if (resetError.message?.toLowerCase().includes("captcha") || resetError.message?.toLowerCase().includes("invalid token")) errMsg = "Captcha failed."; setError(errMsg); toast.error("Reset Failed", { description: errMsg }); resetCaptchaRef.current?.reset(); setResetCaptchaKey(`reset-verify-fail-${Math.random().toString(36).substring(2, 15)}`); }
-      else { setResetSent(true); setError(""); toast.success("Password reset email sent!"); }
-    } catch (err: any) { setError(err.message || "Unexpected error."); toast.error("Error"); resetCaptchaRef.current?.reset(); setResetCaptchaKey(`reset-catch-fail-${Math.random().toString(36).substring(2, 15)}`); }
-    finally { setIsLoading(false); resetEmailCaptureRef.current = ""; }
-  };
-  const onErrorResetCaptcha = (errorCode: string) => { setError(`Captcha failed (${errorCode}).`); toast.error("Captcha Error"); setIsLoading(false); setResetCaptchaKey(`reset-error-${errorCode}-${Math.random().toString(36).substring(2, 15)}`); };
-  const onExpireResetCaptcha = () => { if (isLoading) { setError("Captcha expired."); toast.warning("Captcha Expired"); } setIsLoading(false); setResetCaptchaKey(`reset-expire-${Math.random().toString(36).substring(2, 15)}`); };
+      await signOut();
+      setAccountSheetOpen(false);
+    } catch (error) {
+      console.error("Logout initiation failed in header:", error);
+    }
+   };
 
-  // Render Forgot Password Content
-  const renderForgotPasswordContent = () => (
-    <div className="space-y-4">
-      {resetSent ? ( <div className="text-center space-y-4"> <MailCheck className="mx-auto h-12 w-12 text-green-500" /> <p className="text-white font-semibold">Reset email sent!</p> <p className="text-gray-400 text-sm">Check your inbox/spam.</p> <Button className="w-full bg-[#5865f2] hover:bg-[#4752c4]" onClick={() => handleTabChange("login")}> Back to Login </Button> </div> ) : (
-        <form onSubmit={handleResetPasswordRequest} className="space-y-4">
-          <div className="space-y-2"> <Label htmlFor="reset-email" className="text-white">Email</Label> <Input id="reset-email" type="email" placeholder="your.email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-[#0f1115] border-[#2a2d36] text-white" disabled={isLoading} /> </div>
-          {error && ( <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{error}</p> )}
-          {TurnstileSiteKey ? ( <Turnstile siteKey={TurnstileSiteKey} onSuccess={onSuccessResetCaptcha} onError={onErrorResetCaptcha} onExpire={onExpireResetCaptcha} ref={resetCaptchaRef} key={resetCaptchaKey} options={{ theme: 'dark', size: 'invisible', execution: 'execute', responseField: false }} /> ) : ( <p className="text-xs text-yellow-500 text-center mt-2">Captcha not configured.</p> ) }
-          <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4]" disabled={isLoading} > {isLoading ? ( <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</> ) : ( <> <KeyRound className="mr-2 h-4 w-4" /> Send Reset Link</> )} </Button>
-          <div className="text-center text-sm text-gray-400"> Remember password?{" "} <button type="button" className="text-[#5865f2] hover:text-[#4752c4]" onClick={() => handleTabChange("login")} disabled={isLoading}> Back to Login </button> </div>
-        </form>
-      )}
-    </div>
+  // Wrapper for navigation - NO CHANGE NEEDED HERE
+  const navigateWithLoading = (path: string, message: string, loadingSetter: (loading: boolean) => void) => { /* ... */
+    setLoadingMessage(message);
+    loadingSetter(true);
+    setAccountSheetOpen(false);
+    setCatalogSheetOpen(false);
+    // setLoginOpen(false); // Remove direct login modal control
+
+    setTimeout(() => {
+      navigate(path);
+      // Loading state is often cleared by LoadingRouteListener, but ensure it happens
+      loadingSetter(false);
+      setLoadingMessage("");
+    }, 300);
+   };
+
+   // MODIFIED: Handlers for protected routes
+   const handleProtectedNavigation = (path: string, loadingMsg: string, loadingSetter: (loading: boolean) => void = setIsLoading) => {
+       if (!hasFullAccess) {
+           toast.warning("Action Restricted", { description: "Please complete password reset first." });
+           // Optionally navigate to reset page if they are in recovery state
+           if (isInRecoveryState) navigate('/reset-password');
+           return;
+       }
+       navigateWithLoading(path, loadingMsg, loadingSetter);
+   };
+
+  const handleCartNavigation = () => handleProtectedNavigation('/checkout/cart-details', 'Loading your cart...');
+  const handleWishlistNavigation = () => handleProtectedNavigation('/wishlist', 'Loading your wishlist...');
+  const handleOrderHistoryNavigation = () => handleProtectedNavigation('/order-history', 'Loading your orders...');
+  const handleRepairsNavigation = () => handleProtectedNavigation('/repair/history', 'Loading your repairs...'); // Assuming repairs need full access
+  const handleProfileIndexNavigation = () => handleProtectedNavigation('#', 'Loading your profile...', setIsLoadingProfile);
+
+
+   const handleOpenProfile = () => {
+       if (!hasFullAccess) {
+            toast.warning("Action Restricted", { description: "Please complete password reset first." });
+            // Optionally navigate to reset page if they are in recovery state
+            if (isInRecoveryState) navigate('/reset-password');
+           return;
+       }
+        // ProfileIndex itself should handle loading its data via hooks
+       // navigateWithLoading('#', 'Loading your profile...', setIsLoadingProfile); // Can remove this specific loading trigger
+       setAccountSheetOpen(false); // Close account sheet if open
+       // Open the ProfileIndex component/modal/drawer
+       // This assumes ProfileIndex is controlled by `ProfileIndexOpen` state
+       setTimeout(() => {
+            setProfileIndexOpen(true);
+       }, 50); // Small delay to allow sheet to close visually
+   };
+
+   // Handler to open Login Modal using context
+   const handleLoginOpen = () => {
+       // setLoadingMessage("Preparing login..."); // Optional message
+       // setGlobalIsLoadingAuth(true); // Optional global loading
+       // setTimeout(() => {
+       //     setGlobalIsLoadingAuth(false);
+            openLoginModal('/'); // Open login modal via context, redirect home on success
+       // }, 300);
+   };
+
+
+  const displayName = user?.user_metadata?.name || user?.email || "";
+  const truncateUserName = (name: string, maxLength: number = 12) => { /* ... */
+    if (name && name.length > maxLength) {
+      return `${name.substring(0, maxLength)}...`;
+    }
+    return name;
+   };
+
+  // useEffect hooks for Vertical Tab Animation - NO CHANGE NEEDED
+  useEffect(() => { /* ... */ }, [activeIndex, accountSheetOpen]);
+  useEffect(() => { /* ... */ }, [accountSheetOpen, activeIndex]);
+
+  // Define Sheet Tabs and Actions - Use updated handlers
+   const sheetTabs = [
+       { label: "Profile", action: handleOpenProfile, icon: User },
+       { label: "Wishlist", action: handleWishlistNavigation, icon: Heart },
+       { label: "Orders", action: handleOrderHistoryNavigation, icon: History },
+       { label: "Repairs", action: handleRepairsNavigation, icon: Wrench }, // Needs updated handler
+   ];
+
+  // --- Dynamic UI Logic - NO CHANGE NEEDED ---
+  const getSearchBarSize = () => { /* ... */
+    if (!windowSize.width) return "medium";
+    if (windowSize.width < 1280) return "x-small";
+    if (windowSize.width < 1300) return "small";
+    if (windowSize.width < 1540) return "medium";
+    return "large";
+   };
+  const getUsernameMaxLength = () => { /* ... */
+    if (!windowSize.width) return 12;
+    if (windowSize.width < 1024) return 8;
+    if (windowSize.width < 1500) return 10;
+    return 12;
+   };
+  const shouldShowUsername = () => windowSize.width && windowSize.width >= 1200;
+  const searchBarSize = getSearchBarSize();
+  const usernameMaxLength = getUsernameMaxLength();
+  const showUsername = shouldShowUsername();
+
+  // --- Render ---
+  return (
+    <header className="sticky top-0 z-50 w-full bg-[#0f1115]/95 backdrop-blur py-4 border-b border-[#2a2d36]">
+      <div className="container mx-auto flex items-center justify-between px-4 md:px-6 lg:px-8 xl:px-11">
+
+        {/* Left side for mobile - Offer and Support Icons */}
+        <div className="md:hidden flex items-center justify-start w-1/4 gap-2">
+             {/* ... Offer/Support buttons ... */}
+             <TooltipProvider> <Tooltip> <TooltipTrigger asChild> <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white hover:bg-[#4752c4]" onClick={() => navigateWithLoading('/support', 'Loading support...', setIsLoading)}> <MessageSquareDot className="h-5 w-5" /> <span className="sr-only">Support</span> </Button> </TooltipTrigger> <TooltipContent side="bottom"><p>Get Support</p></TooltipContent> </Tooltip> </TooltipProvider>
+             <OffersPopover />
+        </div>
+
+        {/* Logo Section */}
+        <div className={cn("flex items-center", isMobile ? "justify-center flex-1" : "justify-start md:flex-none md:mr-4")} >
+           {/* ... Logo Link ... */}
+           <Link to="/" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); navigateWithLoading("/", "Loading home page...", setIsLoading); }}> <div className={cn("relative", isMobile ? "w-12 h-12" : "w-14 h-14")}> <img src={Logo || "/placeholder.svg"} alt="GNT Logo" className={cn("absolute inset-0 w-full h-full object-contain transition-transform duration-300 ease-in-out", isMobile ? "transform scale-[2.5] origin-center" : windowSize.width >= 1540 ? "transform scale-[3] origin-left" : "transform scale-[1.8] origin-left")} width={40} height={40} loading="eager" /> </div> <span className="sr-only">GNT - Games & Tech</span> </Link>
+        </div>
+
+        {/* Desktop Navigation & Search */}
+        <div className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 flex-1 justify-center">
+             {/* Shop Catalog Sheet Trigger */}
+              <Sheet open={catalogSheetOpen} onOpenChange={setCatalogSheetOpen}> <SheetTrigger asChild> <Button variant="outline" size="sm" className="min-w-[60px] flex items-center gap-1 bg-[#1a1c23] text-gray-300 hover:text-white border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out" > Shop <ChevronDown className="h-4 w-4 ml-1" /> </Button> </SheetTrigger> <SheetContent side="left" className="w-full sm:max-w-md bg-[#1a1c23] border-[#2a2d36] text-white overflow-y-auto"> <SheetHeader> <SheetTitle className="text-white">Shop Catalog</SheetTitle> <SheetDescription className="text-gray-400">Browse our product categories</SheetDescription> </SheetHeader> <Separator className="my-4 bg-[#2a2d36]" /> {categoriesLoading ? ( <div className="space-y-4 px-6 py-4"> {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full bg-[#2a2d36]" />)} </div> ) : ( <div className="px-6 py-4"> {productCategories ? ( Object.entries(productCategories).map(([category, subcategories], index, arr) => ( <div key={category} className="mb-6"> {/* ... Category/Subcategory links ... */} <div onClick={() => navigateWithLoading(`/${category}`, `Loading ${category}...`, setIsLoadingProducts)} className="flex items-center gap-2 mb-3 text-lg font-semibold text-white hover:text-[#5865f2] cursor-pointer p-1"> {category === "Consoles" ? <Gamepad2 className="h-5 w-5" /> : category === "Computers" ? <Cpu className="h-5 w-5" /> : null} {category} </div> <div className="ml-6 space-y-3"> {Object.entries(subcategories).map(([subcategory, labels]) => ( <div key={subcategory} className="mb-3"> <div onClick={() => navigateWithLoading(`/${category}/${subcategory}`, `Loading ${subcategory}...`, setIsLoadingProducts)} className="block text-base font-medium text-gray-300 hover:text-[#5865f2] cursor-pointer p-1"> {subcategory} </div> {labels.length > 0 && ( <div className="ml-4 mt-2 grid grid-cols-2 gap-2"> {labels.map((label) => ( <div key={label} onClick={() => navigateWithLoading(`/${category}/${subcategory}?label=${encodeURIComponent(label)}`, `Loading ${label}...`, setIsLoadingProducts)} className="text-sm text-gray-400 hover:text-[#5865f2] cursor-pointer p-1"> {label} </div> ))} </div> )} </div> ))} </div> {index < arr.length - 1 && <Separator className="my-4 bg-[#2a2d36]" />} </div> )) ) : ( <div className="px-3 py-2 text-sm text-gray-300">No categories available</div> )} </div> )} </SheetContent> </Sheet>
+
+              {/* Search Bar */}
+              <SearchBar className="w-full" size={searchBarSize} />
+
+              {/* Repair Services Button - MODIFIED */}
+              <Button variant="outline" size="sm" className={cn("flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed", windowSize.width && windowSize.width < 960 ? "min-w-[75px]" : "min-w-[120px]")} onClick={() => handleProtectedNavigation("/repair-home", "Loading repair services...", setIsLoading)} disabled={!hasFullAccess && isAuthenticated} // Disable if logged in but restricted
+              > {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"} </Button>
+        </div>
+
+        {/* Right-side Links & Actions */}
+        <div className="flex items-center gap-2 lg:gap-4 justify-end md:w-auto w-1/4">
+          {/* Offer Button - Desktop */}
+          <div className="hidden md:block"> <OffersPopover /> </div>
+
+          {/* Support Button - Desktop */}
+          <div className="hidden md:block"> <TooltipProvider> <Tooltip> <TooltipTrigger asChild> <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white hover:bg-[#4752c4] p-2" onClick={() => navigateWithLoading('/support', 'Loading support...', setIsLoading)}> <MessageSquareDot className="h-4 w-4" /> <span className="sr-only">Support</span> </Button> </TooltipTrigger> <TooltipContent side="bottom"><p>Get Support</p></TooltipContent> </Tooltip> </TooltipProvider> </div>
+
+          {/* Wishlist Button - MODIFIED */}
+           {isAuthenticated && ( // Keep showing if authenticated
+                <div className="relative"> <TooltipProvider> <Tooltip> <TooltipTrigger asChild> <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white hover:bg-[#4752c4] p-2 disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleWishlistNavigation} disabled={!hasFullAccess || isWishlistLoading} // Disable if restricted or loading
+                          > <Heart className="h-4 w-4" /> <span className="sr-only">Wishlist</span> {wishlistCount > 0 && hasFullAccess && ( <span className="absolute -top-1 -right-1 flex items-center justify-center bg-[#5865f2] text-white text-xs font-bold rounded-full h-4 w-4 min-w-4"> {wishlistCount > 9 ? '9+' : wishlistCount} </span> )} </Button> </TooltipTrigger> <TooltipContent side="bottom"><p>View Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}</p></TooltipContent> </Tooltip> </TooltipProvider> </div>
+           )}
+
+           {/* Cart Button - MODIFIED */}
+           {isAuthenticated && (!isMobile && ( // Keep showing if authenticated & desktop
+                <div className="relative"> <TooltipProvider> <Tooltip> <TooltipTrigger asChild> <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white hover:bg-[#4752c4] p-2 disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleCartNavigation} disabled={!hasFullAccess || isCartLoading} // Disable if restricted or loading
+                          > <ShoppingBag className="h-4 w-4" /> <span className="sr-only">Cart</span> {cartCount > 0 && hasFullAccess && ( <span className="absolute -top-1 -right-1 flex items-center justify-center bg-[#5865f2] text-white text-xs font-bold rounded-full h-4 w-4 min-w-4"> {formattedCartCount} </span> )} </Button> </TooltipTrigger> <TooltipContent side="bottom"> <p> View Cart {cartCount > 0 ? `(${cartCount} item${cartCount !== 1 ? "s" : ""})` : ""} </p> </TooltipContent> </Tooltip> </TooltipProvider> </div>
+            ))}
+
+
+          {/* Auth State: Loading / Logged In (Full/Restricted) / Logged Out */}
+          {isLoadingAuth ? (
+            <Skeleton className={cn("rounded-md", isMobile || !showUsername ? "w-10 h-10" : "w-28 h-8")} />
+          ) : isAuthenticated && user ? (
+            // Logged In: Show Account Sheet Trigger
+            <Sheet open={accountSheetOpen} onOpenChange={setAccountSheetOpen}>
+              <SheetTrigger asChild>
+                {/* Badge/Menu Trigger Logic */}
+                 {!isMobile && showUsername ? ( <Badge variant="outline" className="px-2 py-1 border-[#2a2d36] hover:border-[#5865f2] cursor-pointer bg-transparent flex items-center"> {isRestrictedSession && <AlertTriangle className="h-3 w-3 text-yellow-400 mr-1" />} {/* Add warning icon if restricted */} <User className="h-4 w-4 text-white" /> <span className="ml-2 text-white max-w-24 overflow-hidden text-ellipsis whitespace-nowrap"> {truncateUserName(displayName, usernameMaxLength)} </span> </Badge> ) : ( <Button variant="ghost" size="icon" className="text-gray-300 hover:bg-[#4752c4] p-3 relative"> <Menu className="h-5 w-5" /> {isRestrictedSession && <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-yellow-400 ring-2 ring-[#1a1c23]"></span>} {/* Add warning dot if restricted */} <span className="sr-only">Account</span> </Button> )}
+              </SheetTrigger>
+              <SheetContent side="right" className="bg-[#1a1c23] border-l border-[#2a2d36] text-white flex flex-col h-full p-0">
+                <SheetHeader className="px-6 pt-6 pb-4 mb-2">
+                    <SheetTitle className="text-white flex items-center gap-2"> Welcome {truncateUserName(displayName, usernameMaxLength + 4)} {isRestrictedSession && <TooltipProvider><Tooltip><TooltipTrigger><AlertTriangle className="h-4 w-4 text-yellow-400"/></TooltipTrigger><TooltipContent><p>Password reset pending</p></TooltipContent></Tooltip></TooltipProvider>} </SheetTitle>
+                    <SheetDescription className="text-gray-400">{isRestrictedSession ? "Update password for full access." : "Manage your account and preferences"}</SheetDescription>
+                </SheetHeader>
+                {/* Conditionally render sheet content based on access */}
+                 {hasFullAccess ? (
+                      <>
+                          <div className="relative flex-grow px-4 py-2 overflow-y-auto">
+                              <div className="absolute left-0 w-[3px] bg-white rounded-r-md transition-all duration-300 ease-out pointer-events-none" style={activeStyle} />
+                              <div className="flex flex-col space-y-1">
+                                {sheetTabs.map((tab, index) => {
+                                  const TabIcon = tab.icon;
+                                  return ( <div key={tab.label} ref={(el) => (tabRefs.current[index] = el)} className={cn("flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md", "hover:bg-[#ffffff1a]", index === activeIndex ? "text-white bg-[#ffffff14]" : "text-gray-400 hover:text-gray-100" )} onClick={() => { setActiveIndex(index); tab.action(); }} > <TabIcon className="mr-3 h-4 w-4" /> <span className="text-sm font-medium whitespace-nowrap">{tab.label}</span> </div> );
+                                })}
+                              </div>
+                          </div>
+                           <div className="mt-auto p-6 border-t border-[#2a2d36]">
+                               <Button variant="destructive" className="w-full flex items-center justify-center gap-2 py-6" onClick={handleLogout}> <LogOut className="h-4 w-4" /> Logout </Button>
+                           </div>
+                      </>
+                 ) : (
+                     // Show restricted view if logged in but not full access
+                      <div className="p-6 text-center text-yellow-400 flex-grow flex flex-col justify-center items-center">
+                         <AlertTriangle className="h-10 w-10 mb-4"/>
+                          <p className="mb-4 text-lg font-medium">Account Access Restricted</p>
+                          <p className="text-sm mb-6">Please complete the password reset process to use features like Wishlist, Cart, Orders, and Repairs.</p>
+                           <Button variant="outline" className="w-full border-yellow-500 text-yellow-300 hover:bg-yellow-600/20" onClick={() => { setAccountSheetOpen(false); navigate('/reset-password'); }}>Go to Reset Password</Button>
+                           <div className="mt-auto p-6 border-t border-[#2a2d36] w-full">
+                                <Button variant="destructive" className="w-full flex items-center justify-center gap-2 py-6" onClick={handleLogout}> <LogOut className="h-4 w-4" /> Logout </Button>
+                           </div>
+                      </div>
+                 )}
+              </SheetContent>
+            </Sheet>
+          ) : (
+            // Logged Out: Show Login Button
+             <TooltipProvider> <Tooltip> <TooltipTrigger asChild> <Button variant="ghost" size={isMobile ? "icon" : "sm"} className="text-gray-300 hover:text-white hover:bg-[#4752c4] p-3" onClick={handleLoginOpen} > <LogIn className="h-4 w-4" /> {!isMobile && <span className="ml-2 text-sm">Login</span>} <span className="sr-only">Login</span> </Button> </TooltipTrigger> <TooltipContent side="bottom"><p>Login or Sign Up</p></TooltipContent> </Tooltip> </TooltipProvider>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+       {/* ProfileIndex modal/drawer is opened via state */}
+      <ProfileIndex open={ProfileIndexOpen} onOpenChange={setProfileIndexOpen} />
+       {/* LoginModal is now controlled by AuthContext */}
+       {/* <LoginModal open={loginOpen} onOpenChange={setLoginOpen} ... /> */}
+    </header>
   );
-
-  // Title/Description Logic
-  const getTitle = (): string => { if (showVerifyEmailView) return "Verify Your Email"; switch (activeTab) { case "login": return "Login"; case "register": return "Register"; case "forgot-password": return "Reset Password"; default: return "Welcome"; } };
-  const getDescription = (): string => { if (showVerifyEmailView) return "Click the link sent to activate your account."; switch (activeTab) { case "login": return "Access your account"; case "register": return "Create a new account"; case "forgot-password": return "Enter email for reset link"; default: return ""; } };
-
-  // Main Content Switch
-  const mainContent = showVerifyEmailView ? ( <CheckEmailView email={registeredEmail} onClose={() => onOpenChange(false)} /> ) :
-                      activeTab === "forgot-password" ? ( renderForgotPasswordContent() ) :
-                      ( <LoginForm onSuccess={onLoginSuccess} onRegisterSuccess={handleRegisterSuccess} initialTab={activeTab as "login" | "register"} onTabChange={handleTabChange} onForgotPassword={() => handleTabChange("forgot-password")} /> );
-
-  // Render Modal or Drawer
-  if (isMobile) {
-    return ( <Drawer open={open} onOpenChange={onOpenChange}> <DrawerContent className="bg-[#1a1c23] border-t border-[#2a2d36] text-white max-h-[90vh]"> <DrawerHeader className="px-4 text-center pt-4"> <DrawerTitle className="text-white">{getTitle()}</DrawerTitle> <DrawerDescription className="text-gray-400">{getDescription()}</DrawerDescription> </DrawerHeader> <div className="px-4 pb-6 overflow-y-auto">{mainContent}</div> </DrawerContent> </Drawer> );
-  }
-  return ( <Dialog open={open} onOpenChange={onOpenChange}> <DialogContent className="sm:max-w-md bg-[#1a1c23] border-[#2a2d36] text-white"> <DialogHeader className="text-center"> <DialogTitle className="text-white">{getTitle()}</DialogTitle> <DialogDescription className="text-gray-400">{getDescription()}</DialogDescription> </DialogHeader> {mainContent} </DialogContent> </Dialog> );
 }
