@@ -7,6 +7,8 @@ directory = "./dist"
 # 👇 Build output from Vite
 [build]
 command = "npm run build"
-upload.dir = "./dist"  # where Vite builds to
+upload.dir = "./dist"
 upload.format = "directory"
+pages_build_output_dir = "./dist"  # Add this line
+
 
