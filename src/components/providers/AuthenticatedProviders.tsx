@@ -1,16 +1,18 @@
 // src/components/providers/AuthenticatedProviders.tsx
 import React from 'react';
 import { Routes, Route, Navigate } from "react-router-dom";
-import { UserProfileProvider } from "../../context/UserProfileContext";
-import { WishlistProvider } from "../../context/WishlistContext";
-import { AuthAwareDiscountProvider } from "../../context/AuthAwareDiscountProvider";
-import { CartProvider } from "../../context/CartContext";
-import GlobalLayout from "../global/layout";
-// Import your pages
+import { UserProfileProvider } from "../../context/UserProfileContext"; // Adjust path if needed
+import { WishlistProvider } from "../../context/WishlistContext"; // Adjust path if needed
+import { AuthAwareDiscountProvider } from "../../context/AuthAwareDiscountProvider"; // Adjust path if needed
+import { CartProvider } from "../../context/CartContext"; // Adjust path if needed
+import GlobalLayout from "../global/layout"; // Adjust path if needed
+import AuthGuard from '../../context/AuthGuard'; // <-- Ensure this path is correct
+
+// Import your page components (ensure paths are correct)
 import NotFound from "../../pages/NotFound";
 import GNTStore from "../../pages/HomePage/GNTStore";
 import RepairServices from "../../pages/repairPage/index";
-import TrackRepairHistory from "@/pages/repairPage/history/TrackRepairHistory.tsx";
+import TrackRepairHistory from "@/pages/repairPage/history/TrackRepairHistory";
 import Support from "../../pages/support";
 import ProductDetails from "../../pages/ProductDetails/ProductDetails";
 import CartDetails from "../../pages/order/checkout/cart-details";
@@ -30,30 +32,35 @@ const AuthenticatedProviders: React.FC = () => {
         <AuthAwareDiscountProvider>
           <CartProvider>
             <Routes>
-            
+              {/* --- Public Routes --- */}
+              <Route path="/reset-password" element={<ResetPassword />} />
+              {/* Add other public routes here */}
+
+              {/* --- Protected Routes --- */}
+              <Route element={<AuthGuard />}>
+                 <Route path="/" element={<GlobalLayout />}>
+                    <Route index element={<GNTStore />} />
+                    <Route path="repair-home/*" element={<RepairServices />} />
+                    <Route path="repair/new-request" element={<NewRequestWrapper />} />
+                    <Route path="repair/history" element={<TrackRepairHistory />} />
+                    <Route path="wishlist" element={<WishlistPage />} />
+                    <Route path="support" element={<Support />} />
+                    <Route path="product/details/:id" element={<ProductDetails />} />
+                    <Route path="product/:slug" element={<ProductDetails />} />
+                    <Route path="checkout/cart-details" element={<CartDetails />} />
+                    <Route path="checkout/order-summary" element={<OrderSummary />} />
+                    <Route path="order-history" element={<OrderHistory />} />
+                    <Route path="profile" element={<ProfileRouteHandler />} />
+                    <Route path="search" element={<SearchPage />} />
+                    <Route path=":category" element={<ProductsPage />} />
+                    <Route path=":category/:subcategory" element={<ProductsPage />} />
+                 </Route>
+               </Route>
+
+              {/* --- Catch-all 404 Route --- */}
               <Route path="*" element={<NotFound />} />
-              <Route path="/" element={<GlobalLayout />}>
-                <Route path="repair-home/*" element={<RepairServices />} />
-                <Route path="repair/new-request" element={<NewRequestWrapper />} />
-                <Route path="/repair/history" element={<TrackRepairHistory />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/wishlist" element={<WishlistPage />} />
-                <Route path="/:category" element={<ProductsPage />} />
-                <Route path="/:category/:subcategory" element={<ProductsPage />} />
-                <Route index element={<GNTStore />} />
-                <Route path="support" element={<Support />} />
-                {/* Keep the original product/details/:id route for backward compatibility */}
-                <Route path="product/details/:id" element={<ProductDetails />} />
-                {/* Add the new SEO-friendly slug-based route */}
-                <Route path="product/:slug" element={<ProductDetails />} />
-                <Route path="checkout/cart-details" element={<CartDetails />} />
-                <Route path="checkout/order-summary" element={<OrderSummary />} />
-                <Route path="order-history" element={<OrderHistory />} />
-                <Route path="/profile" element={<ProfileRouteHandler />} />
-                <Route path="search" element={<SearchPage />} />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Route>
-            </Routes>
+
+             </Routes>
           </CartProvider>
         </AuthAwareDiscountProvider>
       </WishlistProvider>
