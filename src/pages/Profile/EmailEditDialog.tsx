@@ -1,9 +1,9 @@
 // src/pages/Profile/EmailEditDialog.tsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, AlertCircle } from "lucide-react";
+import { Loader2, Mail } from "lucide-react"; // Removed Shield icon
 import {
   Dialog,
   DialogContent,
@@ -14,13 +14,12 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface EmailEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentEmail: string;
-  onEmailUpdated: (newEmail: string) => void; // Callback after request *sent*
+  onEmailUpdated: (newEmail: string) => void;
 }
 
 export function EmailEditDialog({
@@ -29,128 +28,60 @@ export function EmailEditDialog({
   currentEmail,
   onEmailUpdated,
 }: EmailEditDialogProps) {
+  // FIX: Use the correct function from context
   const { updateUserEmail } = useAuth();
   const [newEmail, setNewEmail] = useState("");
+  // const [password, setPassword] = useState(""); // Removed password state
   const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Turnstile state and refs
-  const emailCaptchaRef = useRef<TurnstileInstance>(null);
-  const [emailCaptchaKey, setEmailCaptchaKey] = useState<string>(`email-${Math.random().toString(36).substring(2, 15)}`);
-  const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
-  const newEmailCaptureRef = useRef<string>(""); // To hold email during captcha
-
-  // Reset state when dialog opens/closes
-  useEffect(() => {
+  React.useEffect(() => {
     if (open) {
       setNewEmail("");
-      setError(null);
-      setIsUpdating(false);
-      newEmailCaptureRef.current = "";
-      // Attempt to reset captcha widget if it exists
-      try { emailCaptchaRef.current?.reset(); } catch (e) { console.warn("Error resetting email captcha on open:", e); }
-      setEmailCaptchaKey(`email-open-${Math.random().toString(36).substring(2, 10)}`);
+      // setPassword(""); // Removed password reset
     }
   }, [open]);
 
-  // Submit Handler (Triggers Captcha)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
-    // Basic Validation
-    if (!newEmail || !newEmail.includes('@')) { setError("Please enter a valid new email address"); toast.error("Invalid Email"); return; }
-    if (newEmail === currentEmail) { setError("New email is the same as current email"); toast.info("Email is unchanged"); return; }
-
-    // Captcha Checks
-    if (!TurnstileSiteKey) { setError("Captcha configuration error."); toast.error("Configuration Error"); return; }
-    if (!emailCaptchaRef.current) { setError("Captcha component not ready. Please wait or refresh."); toast.error("Captcha Error"); return; }
-
-    // Execute Captcha
-    setIsUpdating(true);
-    newEmailCaptureRef.current = newEmail; // Capture email before captcha
-    console.log("Executing Turnstile for EMAIL CHANGE...");
-    try {
-      await emailCaptchaRef.current.execute();
-      console.log("Turnstile execution requested for email change.");
-    } catch (err) {
-      console.error("Error executing Turnstile for email change:", err);
-      setError("Failed to start captcha verification. Please try again.");
-      toast.error("Captcha Error", { description: "Could not start challenge." });
-      setIsUpdating(false);
-      emailCaptchaRef.current?.reset();
-      setEmailCaptchaKey(`email-exec-fail-${Math.random().toString(36).substring(2, 15)}`);
-    }
-  };
-
-  // Turnstile Verification Callback (Calls Supabase)
-  const onSuccessEmailCaptcha = async (token: string) => {
-    console.log("[Email Verify] Captcha verified, token:", token ? token.substring(0,5)+'...' : 'null');
-    const capturedNewEmail = newEmailCaptureRef.current;
-
-    if (!capturedNewEmail) {
-      console.error("[Email Verify] Captured new email ref is empty!");
-      setError("Internal error: New email missing during captcha verification.");
-      toast.error("Error");
-      setIsUpdating(false);
-      emailCaptchaRef.current?.reset();
-      setEmailCaptchaKey(`email-verify-fail-noemail-${Math.random().toString(36).substring(2, 15)}`);
+    if (!newEmail || !newEmail.includes('@')) { // Basic email format check
+      toast.error("Please enter a valid new email address");
       return;
     }
 
-    console.log(`[Email Verify] Calling updateUserEmail for ${capturedNewEmail}.`);
-    try {
-      // Call context function (Supabase handles server-side captcha check if needed)
-      const { error: updateError } = await updateUserEmail(capturedNewEmail);
+    if (newEmail === currentEmail) {
+      toast.error("New email is the same as current email");
+      return;
+    }
 
-      if (updateError) {
-        console.error("[Email Verify] Update email error from Supabase:", updateError);
-        let errorMessage = updateError.message || "Failed to request email update.";
-        if (updateError.message?.toLowerCase().includes("captcha verification process failed")) { errorMessage = "Server-side captcha verification failed. Please try again."; }
-        else if (updateError.message?.includes("User already registered")) { errorMessage = "This email address is already in use."; }
-        else if (updateError.message?.includes("For security purposes")) { errorMessage = "Too many requests. Please wait a minute and try again."; }
-        setError(errorMessage);
-        toast.error("Failed to Request Email Change", { description: errorMessage });
-        emailCaptchaRef.current?.reset(); // Reset captcha on API error
-        setEmailCaptchaKey(`email-verify-fail-${Math.random().toString(36).substring(2, 15)}`);
-      } else {
-        // SUCCESS: Email change request initiated
-        onEmailUpdated(capturedNewEmail); // Notify parent that request was *sent*
-        onOpenChange(false); // Close dialog
-        toast.success("Email change request sent", {
+    // if (!password) { // Removed password check
+    //   toast.error("Please enter your password to confirm");
+    //   return;
+    // }
+
+    setIsUpdating(true);
+    try {
+      // FIX: Call updateUserEmail with only the new email
+      await updateUserEmail(newEmail);
+
+      // Callback can still be called, but the actual update is pending email confirmation
+      onEmailUpdated(newEmail);
+      onOpenChange(false); // Close dialog
+
+      // FIX: Update success message to reflect confirmation process
+      toast.success("Email change request sent", {
           description: "Please check both your old and new email inboxes to confirm the change.",
-          duration: 7000,
-        });
-      }
-    } catch (err: any) {
-      console.error("[Email Verify] Unexpected error:", err);
-      setError(err.message || "An unexpected error occurred.");
-      toast.error("Email Update Error");
-      emailCaptchaRef.current?.reset();
-      setEmailCaptchaKey(`email-catch-fail-${Math.random().toString(36).substring(2, 15)}`);
+          duration: 7000, // Longer duration for this message
+      });
+
+    } catch (error: any) { // Catch specific error type if possible
+      console.error("Failed to request email update:", error);
+      // FIX: Use the error message from the AuthError if available
+      toast.error("Failed to request email update", { description: error?.message || "Please try again." });
     } finally {
-      setIsUpdating(false); // Stop loading indicator
-      newEmailCaptureRef.current = ""; // Clear captured email
+      setIsUpdating(false);
     }
   };
-
-  // Captcha Error/Expire Handlers
-  const onErrorEmailCaptcha = (errorCode: string) => {
-      console.error("Turnstile Error (Email Change):", errorCode);
-      setError(`Captcha challenge failed (${errorCode}). Please try again.`);
-      toast.error("Captcha Error", { description: `Could not verify captcha. Error: ${errorCode}` });
-      setIsUpdating(false);
-      setEmailCaptchaKey(`email-error-${errorCode}-${Math.random().toString(36).substring(2, 15)}`);
-   };
-  const onExpireEmailCaptcha = () => {
-      console.warn("Turnstile token expired (Email Change).");
-      if (isUpdating) {
-          setError("Captcha challenge expired before completion. Please try again.");
-          toast.warning("Captcha Expired", { description: "Please try submitting again." });
-      }
-      setIsUpdating(false);
-      setEmailCaptchaKey(`email-expire-${Math.random().toString(36).substring(2, 15)}`);
-   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -165,19 +96,17 @@ export function EmailEditDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          {/* Current Email (Readonly) */}
           <div className="space-y-2">
             <Label htmlFor="current-email">Current Email</Label>
             <Input
               id="current-email"
               value={currentEmail}
               disabled
-              readOnly
+              readOnly // Add readOnly for clarity
               className="bg-[#2a2d36]/70 border-[#3f4354] text-gray-400 cursor-not-allowed"
             />
           </div>
 
-          {/* New Email Input */}
           <div className="space-y-2">
             <Label htmlFor="new-email">New Email Address</Label>
             <Input
@@ -188,34 +117,11 @@ export function EmailEditDialog({
               placeholder="Enter your new email address"
               className="bg-[#2a2d36] border-[#3f4354]"
               required
-              disabled={isUpdating}
+              disabled={isUpdating} // Disable while updating
             />
           </div>
 
-          {/* Error Display */}
-          {error && (
-             <p className="text-sm text-red-500 flex items-center">
-                <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0"/>{error}
-             </p>
-          )}
-
-          {/* Invisible Turnstile Widget */}
-          {TurnstileSiteKey ? (
-            <Turnstile
-              siteKey={TurnstileSiteKey}
-              onSuccess={onSuccessEmailCaptcha} // Corrected prop name
-              onError={onErrorEmailCaptcha}
-              onExpire={onExpireEmailCaptcha}
-              ref={emailCaptchaRef}
-              key={emailCaptchaKey}
-              options={{
-                theme: 'dark',
-                size: 'invisible',
-                execution: 'execute',
-                responseField: false
-              }}
-            />
-           ) : ( <p className="text-xs text-yellow-500 text-center mt-2">Captcha is not configured.</p> ) }
+          {/* Removed Password Input Section */}
 
           <DialogFooter className="mt-6">
             <Button
@@ -230,7 +136,7 @@ export function EmailEditDialog({
             <Button
               type="submit"
               className="bg-[#5865f2] hover:bg-[#4752c4]"
-              disabled={isUpdating || !newEmail || newEmail === currentEmail} // Basic validation
+              disabled={isUpdating || !newEmail || newEmail === currentEmail} // Add basic validation disabling
             >
               {isUpdating ? (
                 <>
