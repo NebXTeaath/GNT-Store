@@ -1,4 +1,4 @@
-// --- File: /src/App.tsx ---
+// src/App.tsx
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,7 +6,6 @@ import { Toaster } from 'sonner';
 import { toast } from 'sonner';
 import { HelmetProvider } from 'react-helmet-async';
 import SEO from '@/components/seo/SEO';
-// Import useAuth correctly
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { LoadingProvider } from "@/components/global/Loading/LoadingContext";
 import LoadingRouteListener from "@/components/global/Loading/LoadingRouteListener";
@@ -23,19 +22,8 @@ function MiddleClickNavigationProvider({ children }: { children: React.ReactNode
 
 // Component to manage the globally controlled LoginModal
 const AppWithAuthModal: React.FC = () => {
-    // Ensure useAuth is called within AuthProvider context
-    const authContext = useAuth(); // Get the whole context
+    const { isLoginModalOpen, closeLoginModal, redirectPathAfterLogin, clearRedirectPath } = useAuth();
     const navigate = useNavigate();
-
-    // Check if context exists before destructuring
-    if (!authContext) {
-        // This should technically not happen if structure is correct, but good practice
-        console.error("useAuth() called outside of AuthProvider!");
-        return <p>Error: Auth context not found.</p>;
-    }
-
-    const { isLoginModalOpen, closeLoginModal, redirectPathAfterLogin, clearRedirectPath } = authContext;
-
 
     const handleLoginSuccess = () => {
         const pathToGo = redirectPathAfterLogin || "/";
@@ -45,17 +33,19 @@ const AppWithAuthModal: React.FC = () => {
         toast.success("Login successful!");
 
         navigate(pathToGo, { replace: true }); // Navigate
+
+        // Optional: Force reload if necessary for state updates across components
+        // Consider if this is truly needed or if component state/queries can update reactively
+        // setTimeout(() => window.location.reload(), 50); // Delay slightly
     };
 
     return (
         <>
             <AuthenticatedProviders />
-            {/* Pass context values to LoginModal */}
             <LoginModal
                 open={isLoginModalOpen}
                 onOpenChange={(open) => { if (!open) closeLoginModal(); }}
                 onLoginSuccess={handleLoginSuccess}
-                // Removed onForgotPassword prop if not needed here globally
             />
         </>
     );
@@ -68,10 +58,9 @@ const AppContent = () => {
             <MiddleClickNavigationProvider>
                 <LoadingRouteListener />
                 <Toaster position="top-center" toastOptions={{ className: "bg-[#5865f2] text-white" }} />
-                 {/* AuthProvider wraps the component that uses useAuth */}
-                 <AuthProvider>
+                <AuthProvider> {/* AuthProvider now wraps AppWithAuthModal */}
                     <AppWithAuthModal />
-                 </AuthProvider>
+                </AuthProvider>
             </MiddleClickNavigationProvider>
         </Router>
     );
