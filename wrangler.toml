@@ -1,0 +1,27 @@
+# 👇 Build output from Vite
+[build]
+command = "npm run build"
+upload.dir = "./dist"  # where Vite builds to
+upload.format = "directory"
+
+# Optional: environment variables
+[vars]
+VITE_ENVIRONMENT = "production"
+VITE_ADMIN_WHATSAPP = "918329398749"
+VITE_SERVICEABLE_AREAS = "MUMBAI, PALGHAR, THANE, NAVI MUMBAI, KALYAN, DOMBIVLI, ULHASNAGAR, AMBERNATH, BADLAPUR, VASAI, VIRAR, BHIWANDI, MIRA-BHAYANDER, KALYAN-DOMBIVLI, THANE CITY, PALGHAR DISTRICT"
+
+VITE_APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1"
+VITE_APPWRITE_PROJECT_ID = "gnt-ecom"
+VITE_APPWRITE_DATABASE_ID = "data"
+VITE_APPWRITE_REPAIR_COLLECTION_ID = "repairRequests"
+VITE_APPWRITE_DISCOUNT_AND_ORDER_FUNCTION = "discountAndOrder"
+VITE_APPWRITE_ACCESS_CONTROL_FUNCTION_ID = "middlewareUsersCollection"
+
+VITE_SUPABASE_URL = "https://mnzxxcjskuzjkdjuiohm.supabase.co"
+VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uenh4Y2pza3V6amtkanVpb2htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MDAyNTMsImV4cCI6MjA2MDQ3NjI1M30.IyI9RUrrNWQkX1Z886PultT4arUyi2Cgbqt_zxYvwW8"
+
+VITE_SITE_URL = "https://gnt-store.shop"
+
+VITE_HCAPTCHA_SITEKEY = "3cfa16b0-1d2e-49a8-bbf6-8b107d7471c2"
+VITE_TURNSTILE_SITEKEY = "0x4AAAAAABPa1rEeMnIooaRh"
+
