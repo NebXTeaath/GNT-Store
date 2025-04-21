@@ -9,7 +9,7 @@ import { useOnClickOutside } from "@/components/global/hooks/use-on-click-outsid
 import { cn } from "@/lib/utils"
 import type { ProductSearchResult } from "@/lib/types/product"
 import type { SearchSuggestion } from "@/lib/types/search"
-import { getAutocompleteResults } from "@/pages/searchPage/search/search-service"
+import { getAutocompleteResults } from "@/lib/pages/searchPage/search/search-service";
 import { useNavigate } from "react-router-dom"
 
 interface SearchBarProps {

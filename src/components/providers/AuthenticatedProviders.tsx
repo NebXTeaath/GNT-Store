@@ -9,21 +9,21 @@ import GlobalLayout from "../global/layout"; // Adjust path if needed
 // REMOVED: import AuthGuard from '../../context/AuthGuard';
 
 // Import your page components (ensure paths are correct)
-import NotFound from "../../pages/NotFound";
-import GNTStore from "../../pages/HomePage/GNTStore";
+import NotFound from "../../pages/not-found";
+import GNTStore from "../../pages/HomePage/HomePage";
 import RepairServices from "../../pages/repairPage/index";
-import TrackRepairHistory from "@/pages/repairPage/history/TrackRepairHistory";
+import TrackRepairHistory from "@/pages/repairPage/history/repairHistory";
 import Support from "../../pages/support";
 import ProductDetails from "../../pages/ProductDetails/ProductDetails";
-import CartDetails from "../../pages/order/checkout/cart-details";
-import OrderSummary from "../../pages/order/checkout/order-summary";
-import OrderHistory from "../../pages/order/orderHistory/order-history";
-import SearchPage from "../../pages/searchPage/searchPage";
-import ProductsPage from "../../pages/productsPage/productsListPage";
+import CartDetails from "../../pages/order/checkout/cartDetails";
+import OrderSummary from "../../pages/order/checkout/orderSummary";
+import OrderHistory from "../../pages/order/orderHistory/orderHistory";
+import SearchPage from "@/components/pages/searchPage/searchPage";
+import ProductsPage from "@/components/global/productsPage/productsListPage";
 import WishlistPage from "../../pages/Wishlist/WishlistPage";
 import ResetPassword from "../../context/ResetPassword";
-import ProfileRouteHandler from "@/pages/Profile/ProfileRouteHandler";
-import NewRequestWrapper from "@/pages/repairPage/NewRequestWrapper";
+import ProfileRouteHandler from "@/components/global/Profile/ProfileRouteHandler";
+import NewRequestWrapper from "@/components/pages/repairPage/NewRequestWrapper";
 
 const AuthenticatedProviders: React.FC = () => {
   return (

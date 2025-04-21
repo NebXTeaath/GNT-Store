@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import ProfilePreviewButton from "@/pages/Profile/ProfilePreviewButton";
+import ProfilePreviewButton from "@/components/global/Profile/ProfilePreviewButton";
 import { useUserProfileQuery } from '@/components/global/hooks/useUserProfileData';
-import SuccessConfirmation from "@/pages/repairPage/SuccessConfirmation";
+import SuccessConfirmation from "@/components/pages/repairPage/SuccessConfirmation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { usePincodeValidator } from "@/pages/Profile/pincodeValidator";
+import { usePincodeValidator } from "@/components/global/Profile/pincodeValidator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface NewRequestProps { onSuccessfulSubmission: (requestId: string) => void; }

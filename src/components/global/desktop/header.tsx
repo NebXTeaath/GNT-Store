@@ -19,9 +19,9 @@ import { toast } from "sonner";
 import { useWindowSize } from "@/components/global/hooks/useWindowSize";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile";
-import LoginModal from "@/pages/Login/LoginModal";
+import LoginModal from "@/components/pages/Login/LoginModal";
 import { useLoading } from "@/components/global/Loading/LoadingContext";
-import { ProfileIndex } from "@/pages/Profile/components/ProfileIndex";
+import { ProfileIndex } from "@/components/global/Profile/components/ProfileIndex";
 import { OffersPopover } from "@/components/global/OffersPopover";
 
 // Define the nested product categories structure

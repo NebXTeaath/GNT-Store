@@ -7,7 +7,7 @@ import { useCart } from "@/context/CartContext";
 import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { SearchDrawer } from "@/components/global/Mobile/search-drawer";
 import { ShopDrawer } from "@/components/global/Mobile/shop-drawer";
-import LoginModal from "@/pages/Login/LoginModal";
+import LoginModal from "@/components/pages/Login/LoginModal";
 import { MobileAccountSheet } from "@/components/global/Mobile/mobile-account-sheet";
 
 interface NavItemProps {
@@ -198,7 +198,9 @@ export function MobileNavigation() {
 
       <SearchDrawer open={searchOpen} onOpenChange={setSearchOpen} />
       <ShopDrawer open={shopOpen} onOpenChange={setShopOpen} />
-      <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+      <LoginModal open={loginOpen} onOpenChange={setLoginOpen} onLoginSuccess={function (): void {
+        throw new Error("Function not implemented.");
+      } } />
       {isAuthenticated && (
         <MobileAccountSheet open={accountOpen} onOpenChange={setAccountOpen} />
       )}

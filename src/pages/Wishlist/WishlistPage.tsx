@@ -7,7 +7,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useAuth } from "@/context/AuthContext"; // Import useAuth
 import { Separator } from "@/components/ui/separator";
 import { motion, Variants } from "framer-motion";
-import { Pagination } from "@/pages/searchPage/search/Pagination";
+import { Pagination } from "@/components/pages/searchPage/search/Pagination";
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
 import { toast } from "sonner";
 import SEO from '@/components/seo/SEO';

@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { FormattedUserProfile, ProfileAddress } from '@/pages/Profile/types';
+import { FormattedUserProfile, ProfileAddress } from '@/components/global/Profile/types';
 
 const USER_PROFILE_QUERY_KEY = 'userProfile';
 

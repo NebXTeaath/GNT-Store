@@ -11,7 +11,7 @@ import { LoadingProvider } from "@/components/global/Loading/LoadingContext";
 import LoadingRouteListener from "@/components/global/Loading/LoadingRouteListener";
 import useMiddleClickNavigation from "@/components/global/hooks/useMiddleClickNavigation.ts";
 import AuthenticatedProviders from "@/components/providers/AuthenticatedProviders";
-import LoginModal from "@/pages/Login/LoginModal"; // Import LoginModal
+import LoginModal from "@/components/pages/Login/LoginModal.tsx"; // Import LoginModal
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 300000, refetchOnWindowFocus: false, retry: 1 } } });
 

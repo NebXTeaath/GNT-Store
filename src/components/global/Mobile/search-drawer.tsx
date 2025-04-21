@@ -14,7 +14,7 @@ import {
   DrawerDescription 
 } from "@/components/ui/drawer"
 import { useIsMobile } from "@/components/global/Mobile/use-mobile"
-import { getAutocompleteResults } from "@/pages/searchPage/search/search-service"
+import { getAutocompleteResults } from "@/lib/pages/searchPage/search/search-service";
 import type { ProductSearchResult } from "@/lib/types/product"
 import type { SearchSuggestion } from "@/lib/types/search"
 import { useDebounce } from "@/components/global/hooks/use-debounce"

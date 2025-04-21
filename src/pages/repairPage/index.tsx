@@ -6,8 +6,8 @@ import { PlusCircle, History, MapPin } from "lucide-react"; // Added MapPin back
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 // Removed unused imports for modal
-import RepairProcessVisual from "./repairProcessVisual";
-import CheckServiceAvailability from "./CheckServiceAvailability"; // Import the component
+import RepairProcessVisual from "../../components/pages/repairPage/repairProcessVisual";
+import CheckServiceAvailability from "../../components/pages/repairPage/CheckServiceAvailability"; // Import the component
 import { useAuth } from "@/context/AuthContext"; // Import useAuth
 // Removed unused imports
 

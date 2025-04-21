@@ -2,7 +2,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 // Ensure the type import reflects the CORRECTED single array structure
-import type { ProductDetailsData } from '@/pages/ProductDetails/useProductDetails';
+import type { ProductDetailsData } from '@/lib/pages/ProductDetails/useProductDetails';
 
 interface StructuredDataProps {
   productData: ProductDetailsData | null;

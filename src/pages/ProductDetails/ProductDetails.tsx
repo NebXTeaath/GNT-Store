@@ -9,17 +9,17 @@ import ReactMarkdown from "react-markdown";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { toast } from "sonner";
-import { ProductImageSkeleton } from "./skeletons/ProductImageSkeleton";
-import { ProductDetailsSkeleton } from "./skeletons/ProductDetailsSkeleton";
-import { SimilarProductsSkeleton } from "./skeletons/SimilarProductsSkeleton";
+import { ProductImageSkeleton } from "../../components/pages/ProductDetails/skeletons/ProductImageSkeleton";
+import { ProductDetailsSkeleton } from "../../components/pages/ProductDetails/skeletons/ProductDetailsSkeleton";
+import { SimilarProductsSkeleton } from "../../components/pages/ProductDetails/skeletons/SimilarProductsSkeleton";
 import { motion, Variants } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import LoginModal from "@/pages/Login/LoginModal";
-import DescriptionModal from "./DescriptionModal";
+import LoginModal from "@/components/pages/Login/LoginModal";
+import DescriptionModal from "../../components/pages/ProductDetails/DescriptionModal";
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
 // Ensure correct types are imported
-import { useProductDetails, useProductDetailsBySlug, ProductDetailsData, SimilarProduct } from "@/pages/ProductDetails/useProductDetails";
-import { OptimizedImage } from "@/pages/ProductCard/optimized-image";
+import { useProductDetails, useProductDetailsBySlug, ProductDetailsData, SimilarProduct } from "@/lib/pages/ProductDetails/useProductDetails";
+import { OptimizedImage } from "@/components/global/productsPage/ProductCard/optimized-image";
 import SEO from '@/components/seo/SEO';
 import StructuredData from '@/components/seo/StructuredData';
 
@@ -419,7 +419,9 @@ export default function ProductDetailsPage() {
       )}
 
       {/* Modals */}
-      <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} />
+      <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} onLoginSuccess={function (): void {
+        throw new Error("Function not implemented.");
+      } } />
       {productData && ( <DescriptionModal title={productData.o_product_name} content={description} open={descriptionModalOpen} onOpenChange={setDescriptionModalOpen} /> )}
     </div>
   );

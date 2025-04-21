@@ -5,7 +5,7 @@ import {
     getSearchResults,
     type SearchResultsParams,
     type SearchResultsData,
-} from "@/pages/searchPage/search/search-service.ts"; // Adjust path if needed
+} from "@/lib/pages/searchPage/search/search-service"; // Adjust path if needed
 import type { ProductSearchResult } from "@/lib/types/product"; // Adjust path if needed
 import type { SearchSuggestion } from "@/lib/types/search"; // Adjust path if needed
 
