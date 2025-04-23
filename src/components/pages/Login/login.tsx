@@ -113,7 +113,7 @@ export default function LoginForm(props: LoginFormProps) {
                          {error && <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1"/>{error}</p>}
                          {showResendEmailButton && ( <Button type="button" variant="link" className="text-sm text-[#5865f2] p-0 h-auto" onClick={handleResendVerificationEmail} disabled={isLoading||isResending}> {isResending?(<><Loader2 className="mr-1 h-3 w-3 spin"/>Sending...</>):(<><Send className="mr-1 h-3 w-3"/>Resend verification</>)} </Button> )}
                          <div className="flex justify-end"> <button type="button" onClick={handleForgotPasswordClick} className="text-sm text-[#5865f2]" disabled={isLoading||isResending}> Forgot password? </button> </div>
-                         <Button type="submit" className="w-full bg-[#5865f2]" disabled={isLoading||isResending}> {isLoading?(<><Loader2 className="spin mr-2 h-4 w-4"/>Logging In...</>):(<><LogIn className="mr-2 h-4 w-4"/>Login</>)} </Button>
+                         <Button type="submit" className="w-full bg-[#5865f2]" disabled={isLoading||isResending}> {isLoading?(<><Loader2 className="spin mr-2 h-4 w-4 animate-spin"/>Logging In...</>):(<><LogIn className="mr-2 h-4 w-4"/>Login</>)} </Button>
                          <div className="text-center text-sm"> Don't have account?{" "} <button type="button" className="text-[#5865f2]" onClick={()=>handleTabChangeInternal("register")} disabled={isLoading||isResending}> Sign up </button> </div>
                     </form>
                 </TabsContent>
