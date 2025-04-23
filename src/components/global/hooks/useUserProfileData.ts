@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { FormattedUserProfile, ProfileAddress } from '@/components/global/Profile/types';
+import { toast } from 'sonner';
 
 const USER_PROFILE_QUERY_KEY = 'userProfile';
 
@@ -35,15 +36,72 @@ export const useUpdateProfileMutation = () => {
     return useMutation<FormattedUserProfile, Error, UpdateProfilePayload>({
         mutationFn: async (profileUpdates) => {
             if (!userId) throw new Error("User not authenticated.");
-            const updateData: { [key: string]: any } = {};
-            if (profileUpdates.name !== undefined) updateData.name = profileUpdates.name; if (profileUpdates.mobile !== undefined) updateData.mobile = profileUpdates.mobile; if (profileUpdates.address !== undefined) updateData.address = profileUpdates.address; updateData.updated_at = new Date().toISOString();
-            const { data: updatedData, error } = await supabase.from('user_profiles').update(updateData).eq('user_id', userId).select().single();
-            if (error) throw error; if (!updatedData) throw new Error("Update failed: No data returned.");
-            const addressData = (updatedData.address || {}) as ProfileAddress;
-            const formattedProfile: FormattedUserProfile = { userId: updatedData.user_id, name: updatedData.name || "", email: user?.email || "", phone: updatedData.mobile || "", address: { line1: addressData.line1 || "", line2: addressData.line2 || "", city: addressData.city || "", state: addressData.state || "", zip: addressData.zip || "", country: addressData.country || "" }, profileDocId: updatedData.user_id };
+
+            // Prepare data for upsert - MUST include the primary key (user_id)
+            const upsertData: { [key: string]: any } = {
+                user_id: userId, // Include the user_id for upsert
+                updated_at: new Date().toISOString() // Always update timestamp
+            };
+
+            // Add fields from payload if they exist
+            if (profileUpdates.name !== undefined) upsertData.name = profileUpdates.name;
+            if (profileUpdates.mobile !== undefined) upsertData.mobile = profileUpdates.mobile;
+            if (profileUpdates.address !== undefined) upsertData.address = profileUpdates.address;
+
+            console.log('[useUpdateProfileMutation] Upserting profile data:', upsertData); // Log payload
+
+            // Use upsert() instead of update()
+            const { data: upsertedData, error } = await supabase
+                .from('user_profiles')
+                .upsert(upsertData) // Pass the object with user_id
+                .select() // Select the created/updated row
+                .single(); // Expect exactly one row back after upsert
+
+            // Check for errors after the upsert attempt
+            if (error) {
+                console.error('[useUpdateProfileMutation] Supabase upsert error:', error);
+                throw error; // Throw the error to be caught by onError
+            }
+
+            // Check if data was actually returned (should always happen with upsert + single unless severe error)
+            if (!upsertedData) {
+                console.error('[useUpdateProfileMutation] Upsert failed: No data returned.');
+                throw new Error("Upsert failed: No data returned.");
+            }
+
+            console.log('[useUpdateProfileMutation] Upsert successful, raw data:', upsertedData);
+
+            // Format the returned data (same as before)
+            const addressData = (upsertedData.address || {}) as ProfileAddress;
+            const formattedProfile: FormattedUserProfile = {
+                userId: upsertedData.user_id,
+                name: upsertedData.name || "",
+                email: user?.email || "", // Get email from auth context user
+                phone: upsertedData.mobile || "",
+                address: {
+                    line1: addressData.line1 || "",
+                    line2: addressData.line2 || "",
+                    city: addressData.city || "",
+                    state: addressData.state || "",
+                    zip: addressData.zip || "",
+                    country: addressData.country || ""
+                },
+                profileDocId: upsertedData.user_id // or relevant ID if different
+            };
+
+            console.log('[useUpdateProfileMutation] Formatted profile:', formattedProfile);
             return formattedProfile;
         },
-        onSuccess: (data) => { queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data); console.log("[useUserProfileData] Profile updated in DB & cache:", data); },
-        onError: (error) => { console.error("[useUserProfileData] Mutation error updating profile:", error); },
+        onSuccess: (data) => {
+            // Update the cache with the new profile data
+            queryClient.setQueryData([USER_PROFILE_QUERY_KEY, userId], data);
+            console.log("[useUserProfileData] Profile upserted in DB & cache:", data);
+            toast.success("Profile saved!"); // Add success feedback
+        },
+        onError: (error) => {
+            // Log the error and potentially show a user-facing message
+            console.error("[useUserProfileData] Mutation error updating/creating profile:", error);
+            toast.error(`Failed to save profile: ${error.message}`); // Show error toast
+        },
     });
 };
