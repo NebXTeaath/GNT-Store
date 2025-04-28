@@ -1,4 +1,4 @@
-// src/context/LoadingContext.tsx
+
 import React, { createContext, useContext, useState } from "react";
 import ReactDOM from "react-dom";
 import LoadingScreen from "@/components/global/Loading/LoadingScreen";
@@ -52,7 +52,10 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       {/* Display loading screen when any loading state is true */}
       {(isLoading || isLoadingProfile || isLoadingAuth || isLoadingProducts) &&
         ReactDOM.createPortal(
-          <LoadingScreen message={loadingMessage} />,
+          <LoadingScreen 
+            message={loadingMessage} 
+            isAuth={isLoadingAuth} // Pass isAuth prop based on auth loading state
+          />,
           document.body
         )}
     </LoadingContext.Provider>

@@ -1,4 +1,4 @@
-
+// src\pages\HomePage\HomePage.tsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 import { Button } from "@/components/ui/button";
