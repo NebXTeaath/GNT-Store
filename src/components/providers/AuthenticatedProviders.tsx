@@ -20,7 +20,7 @@ import OrderSummary from "../../pages/order/checkout/orderSummary";
 import OrderHistory from "../../pages/order/orderHistory/orderHistory";
 import SearchPage from "@/components/pages/searchPage/searchPage";
 import ProductsPage from "@/components/global/productsPage/productsListPage";
-import WishlistPage from "@/pages/Wishlist/wishlistPage";
+import WishlistPage from "@/pages/Wishlist/WishlistPage";
 import ResetPassword from "../../context/ResetPassword";
 import ProfileRouteHandler from "@/components/global/Profile/ProfileRouteHandler";
 import NewRequestWrapper from "@/components/pages/repairPage/NewRequestWrapper";
