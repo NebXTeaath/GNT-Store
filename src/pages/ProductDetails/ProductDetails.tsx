@@ -1,4 +1,4 @@
-// src/pages/ProductDetails/ProductDetails.tsx
+
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import { useProductDetails, useProductDetailsBySlug, ProductDetailsData, Similar
 import { OptimizedImage } from "@/components/global/productsPage/ProductCard/optimized-image";
 import SEO from '@/components/seo/SEO';
 import StructuredData from '@/components/seo/StructuredData';
+import WhyBuyFromUs from "./whyTrustUs/WhyBuyFromUs";
+import ProductTrustBadges from "./whyTrustUs/WhyBuyFromUs";
 
 // --- Animation variants ---
 const fadeIn: Variants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
@@ -327,6 +329,7 @@ export default function ProductDetailsPage() {
                   <div className="bg-[#1a1c23] text-white text-xs px-2 py-1 rounded border border-[#2a2d36]">{capitalize(productData.o_condition)}</div>
                 </div>
               </div>
+
               {/* Price */}
               <div>
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="flex items-baseline gap-3">
@@ -335,6 +338,10 @@ export default function ProductDetailsPage() {
                 </motion.div>
                 {isFetching && <p className="text-sm text-gray-500 mt-1">Updating price...</p>}
               </div>
+
+              {/* Product Trust Badges */}
+              <ProductTrustBadges />
+
               {/* Quantity Selector */}
               <div>
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }}>
@@ -367,6 +374,8 @@ export default function ProductDetailsPage() {
             </div>
           </motion.div>
         </div>
+
+        
 
         {/* Similar Products Section */}
         <div className="overflow-hidden">

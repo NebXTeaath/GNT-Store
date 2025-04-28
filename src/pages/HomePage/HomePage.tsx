@@ -1,4 +1,4 @@
-// src/pages/HomePage/GNTStore.tsx
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { useProducts } from "@/components/global/productsPage/useProducts";
 import { ProductCarousel, ProductCarouselSkeleton } from "../../components/pages/HomePage/ProductCarousel";
 import { HeroCarousel } from "../../components/pages/HomePage/Youtube/heroCarousel";
 import SEO from '@/components/seo/SEO'; // Import SEO component
+import HomeTestimonialSection from "@/components/global/Testimonials/TestimonialSection";
 
 // Create a shared Product interface
 export interface Product {
@@ -173,7 +174,31 @@ const GNTStore: React.FC = () => {
   const siteUrl = window.location.origin; // Get base URL
   const canonicalUrl = `${siteUrl}${location.pathname}`; // Homepage canonical
 
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
+   // Effect to scroll to top on initial load or path change (without hash)
+   useEffect(() => {
+    // Only scroll to top if there's no hash in the URL
+    if (!location.hash) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [location.pathname]); // Run only when the pathname changes (not just the hash)
+
+  // **** ADD THIS useEffect TO HANDLE HASH SCROLLING ****
+  useEffect(() => {
+    if (location.hash === '#testimonials') {
+      // Use setTimeout to ensure the element exists in the DOM after navigation/rendering
+      const timer = setTimeout(() => {
+        const element = document.getElementById('testimonials');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          console.log("Scrolling to #testimonials");
+        } else {
+          console.warn("#testimonials element not found for scrolling.");
+        }
+      }, 150); // Adjust delay if necessary (100-300ms is usually sufficient)
+
+      return () => clearTimeout(timer); // Cleanup the timer
+    }
+  }, [location.hash]); // Rerun this effect specifically when the hash changes
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0f1115]">
@@ -194,6 +219,7 @@ const GNTStore: React.FC = () => {
         <section className="py-12 bg-[#0f1115]">
           <div className="container mx-auto px-4 md:px-6"> <FeaturedProductsCarousel /> </div>
         </section>
+        <HomeTestimonialSection />
         <RepairServiceSection />
         <FeaturedProductsSection />
       </main>

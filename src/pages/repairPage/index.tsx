@@ -1,4 +1,4 @@
-// src/pages/repairPage/index.tsx
+
 import React, { useEffect } from "react"; // Removed useState
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from 'react-helmet-async';
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 // Removed unused imports for modal
 import RepairProcessVisual from "../../components/pages/repairPage/repairProcessVisual";
 import CheckServiceAvailability from "../../components/pages/repairPage/CheckServiceAvailability"; // Import the component
+import RepairTestimonials from "@/components/global/Testimonials/RepairTestimonials"; // Import the new component
 import { useAuth } from "@/context/AuthContext"; // Import useAuth
 // Removed unused imports
 
@@ -98,6 +99,10 @@ export default function RepairServices() {
                 </Button>
             </Link>
         </div>
+        
+        {/* Add the new testimonials component */}
+        <RepairTestimonials />
+        
         <Toaster position="top-center" />
       </main>
       {/* Removed the custom Dialog for PIN check */}
