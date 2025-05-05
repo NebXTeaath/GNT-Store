@@ -152,7 +152,12 @@ export function MobileDrawerProfileView({ open, onOpenChange }: MobileDrawerProf
                 <DrawerContent className="bg-[#0f1115] text-white border-[#2a2d36] p-4 pb-6 max-h-[90vh] flex flex-col">
                     {!isKeyboardOpen && ( <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-[#2a2d36] mb-4" /> )}
                     {isKeyboardOpen ? ( <div className="sticky top-0 z-10 bg-[#0f1115] py-1 mb-1 border-b border-[#2a2d36]"> <h3 className="text-base font-medium text-white flex items-center justify-between"> <span className="flex items-center"> <User className="mr-1 h-4 w-4" /> Profile </span> </h3> </div> ) : ( <DrawerHeader className="text-left px-0 pt-0 mb-4 flex-shrink-0"> {headerContent} </DrawerHeader> )}
-                    <ScrollArea className={`flex-grow overflow-y-auto ${isKeyboardOpen ? 'mb-1' : 'mb-2'}`}> {MobileProfileContent} </ScrollArea>
+                    <ScrollArea
+                        className={`flex-grow overflow-y-auto ${isKeyboardOpen ? 'mb-1' : 'mb-2'}`}
+                        style={{ overscrollBehavior: 'contain' }}
+                        >
+                        {MobileProfileContent}
+                        </ScrollArea>
                     {isKeyboardOpen ? ( <div className="fixed bottom-0 left-0 right-0 z-10 bg-[#0f1115] border-t border-[#2a2d36] py-1 px-4 h-10 flex justify-end items-center"> <div className="flex gap-2"> <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="h-7 px-2 text-sm" disabled={isSaving}> Cancel </Button> <Button type="submit" onClick={handleSubmit} className="h-7 px-2 text-sm bg-[#5865f2] hover:bg-[#4752c4]" disabled={isSaving || isDataLoading || localProfile === null || emailChangePending /* Disable save if pending */}> {isSaving ? "Saving..." : emailChangePending ? "Confirm Email" : "Save"} </Button> </div> </div> ) : ( <DrawerFooter className="mt-auto p-0 pt-4 bg-[#0f1115] border-t border-[#2a2d36] flex-shrink-0"> {footerContent} </DrawerFooter> )}
                 </DrawerContent>
             </Drawer>

@@ -201,6 +201,10 @@ html, body {
 @layer utilities; /* Use utilities layer for Tailwind utility classes */
 
 @layer utilities {
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+
   .text-balance {
     text-wrap: balance;
   }

@@ -485,12 +485,14 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="bg-[#1a1c23] border-t border-[#2a2d36] text-white max-h-[90vh]">
+        <DrawerContent className="bg-[#1a1c23] border-t border-[#2a2d36] text-white max-h-[90vh] flex flex-col">
           <DrawerHeader className="px-4 text-center pt-4">
             <DrawerTitle className="text-white">{getTitle()}</DrawerTitle>
             <DrawerDescription className="text-gray-400">{getDescription()}</DrawerDescription>
           </DrawerHeader>
-          <div className="px-4 pb-6 overflow-y-auto">{mainContent}</div>
+          <div className="px-4 pb-6 overflow-y-auto flex-1 min-h-0" style={{ overscrollBehavior: 'contain' }}>
+    {mainContent}
+</div>
         </DrawerContent>
       </Drawer>
     );
