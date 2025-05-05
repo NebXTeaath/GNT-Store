@@ -1,3 +1,4 @@
+/* src/index.css */
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 
@@ -207,94 +208,6 @@ html, body {
 
 /* Combined base layer */
 @layer base {
-  /* Strengthened selector for form elements to prevent auto-zoom */
-  @media (max-width: 767px) {
-    input, 
-    textarea, 
-    select, 
-    button,
-    .custom-input,
-    [type="text"],
-    [type="email"],
-    [type="password"],
-    [type="number"],
-    [type="search"],
-    [type="tel"],
-    [type="url"],
-    [type="date"],
-    [type="datetime-local"],
-    [type="month"],
-    [type="week"],
-    [type="time"],
-    [type="color"],
-    [contenteditable="true"] {
-      font-size: 16px !important; /* Force 16px with !important for mobile only */
-      max-height: none; /* Prevent height constraints from affecting font display */
-    }
-    
-    /* Fix for iOS input height rendering issues */
-    input[type="text"],
-    input[type="email"],
-    input[type="password"],
-    input[type="search"],
-    input[type="tel"],
-    input[type="url"] {
-      line-height: normal;
-      text-size-adjust: 100%;
-    }
-  }
-  
-  /* Improve Mobile Form Experience */
-  form {
-    -webkit-tap-highlight-color: transparent;
-  }
-  
-  /* Mobile-first approach for preventing double-tap zoom */
-  html {
-    touch-action: manipulation;
-  }
-}
-
-/* Override any component-specific styles that might be causing problems */
-@media (max-width: 767px) {
-  /* This targets common class patterns that might set font sizes */
-  .text-xs,
-  .text-sm,
-  .text-base,
-  .text-lg,
-  .text-xl {
-    font-size: 16px !important;
-  }
-  
-  /* Target any Tailwind form elements or custom components */
-  .form-input,
-  .form-textarea,
-  .form-select,
-  .form-multiselect {
-    font-size: 16px !important;
-  }
-}
-
-/* Optional - Add this if you're still having issues */
-@media (max-width: 767px) {
-  /* Force hardware acceleration for smoother interactions */
-  input, select, textarea, button {
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-  }
-}
-  /* Prevents iOS zoom on form elements - Ensures base >= 16px */
-  input,
-  select,
-  textarea,
-  button {
-    font-size: 16px; /* Apply base 16px */
-  }
-
-  /* Improve touch responsiveness and prevent double-tap zoom delays */
-  button, a, input, select, textarea {
-    touch-action: manipulation;
-  }
   /* Default border for all elements */
   * {
     @apply border-border;
@@ -370,11 +283,34 @@ html, body {
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  
+  /* --- TARGETED IPHONE AUTO-ZOOM FIX (More Specific) --- */
+  /* Apply this rule specifically on smaller screens */
+  @media (max-width: 767px) {
+    /* Target only input, textarea, and select elements */
+    input,
+    textarea,
+    select {
+      /* Force font-size to 16px to prevent iOS auto-zoom */
+      font-size: 16px !important;
+      /* Prevent potential height constraints from hiding text */
+      max-height: none;
+      /* Additional iOS rendering fixes */
+      line-height: normal;
+      text-size-adjust: 100%;
+    }
+  }
+  /* --- END TARGETED IPHONE AUTO-ZOOM FIX --- */
+
+  /* Improve touch responsiveness and prevent double-tap zoom delays */
+  /* This is good practice and should remain */
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
 
   /* Add responsive font sizing - Defines base for REM units */
+  /* This is also good practice and should remain */
   html {
-    font-size: 16px; /* Mobile base font size */
+    font-size: 14px; /* Mobile base font size */
   }
   @media (min-width: 640px) {
     html {
@@ -385,20 +321,26 @@ html, body {
     html {
       font-size: 16px; /* Desktop base font size */
     }
-  } /* End of @layer base */
+  }
+} /* End of @layer base */
 
 /* Other global styles or component overrides */
-/* Add responsive container padding */
+/* These are fine and should remain */
 .container {
   @apply px-4 sm:px-6 lg:px-8;
 }
-
-/* Improve image display on small screens */
 .carousel img {
   @apply object-contain;
 }
-
-/* Ensure buttons have touch manipulation (redundant with base layer, but safe) */
 button {
   @apply touch-manipulation;
+}
+
+/* Add this CSS to style the toast container for WhatsAppNotification */
+/* This is also fine and should remain */
+.my-toast-container > li {
+  padding: 0 !important; /* Remove default padding */
+  border: none !important; /* Remove default border */
+  background: transparent !important; /* Make container transparent */
+  box-shadow: none !important; /* Remove default shadow */
 }
