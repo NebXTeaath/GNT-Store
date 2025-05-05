@@ -484,7 +484,7 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
   // Render Modal or Drawer
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
+      <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
         <DrawerContent className="bg-[#1a1c23] border-t border-[#2a2d36] text-white max-h-[90vh] flex flex-col">
           <DrawerHeader className="px-4 text-center pt-4">
             <DrawerTitle className="text-white">{getTitle()}</DrawerTitle>
