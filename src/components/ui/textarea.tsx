@@ -10,8 +10,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
       className={cn(
         "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2",
         // --- CHANGE HERE ---
-        // Change base size from text-sm to text-base (>= 16px)
-        "text-base", // Default to 16px
+        // Change base size from text-sm to text-base (>= 16px) for mobile devices
+        "text-base", // Default to 16px to prevent auto-zoom on iOS
         // Add md:text-sm if you need smaller text on larger screens
         "md:text-sm",
         // --- END CHANGE ---
