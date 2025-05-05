@@ -500,7 +500,7 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-[#1a1c23] border-[#2a2d36] text-white">
+      <DialogContent className="sm:max-w-md bg-[#1a1c23] border-[#2a2d36] text-white overflow-y-scroll max-h-screen">
         <DialogHeader className="text-center">
           <DialogTitle className="text-white">{getTitle()}</DialogTitle>
           <DialogDescription className="text-gray-400">{getDescription()}</DialogDescription>
