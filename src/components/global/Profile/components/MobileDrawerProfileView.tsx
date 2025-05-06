@@ -149,7 +149,7 @@ export function MobileDrawerProfileView({ open, onOpenChange }: MobileDrawerProf
     return (
         <>
             <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
-                <DrawerContent className="bg-[#0f1115] text-white border-[#2a2d36] max-h-[90vh] flex flex-col">
+                <DrawerContent className="bg-[#0f1115] text-white border-[#2a2d36] p-4 pb-6 max-h-[90vh] flex flex-col">
                     {!isKeyboardOpen && ( <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-[#2a2d36] mb-4" /> )}
                     {isKeyboardOpen ? ( <div className="sticky top-0 z-10 bg-[#0f1115] py-1 mb-1 border-b border-[#2a2d36]"> <h3 className="text-base font-medium text-white flex items-center justify-between"> <span className="flex items-center"> <User className="mr-1 h-4 w-4" /> Profile </span> </h3> </div> ) : ( <DrawerHeader className="text-left px-0 pt-0 mb-4 flex-shrink-0"> {headerContent} </DrawerHeader> )}
                     <ScrollArea
