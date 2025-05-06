@@ -5,7 +5,7 @@ import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileIndex } from "@/components/global/Profile/components/ProfileIndex";
-import LoginModal from "@/pages/Login/LoginModal"; // Import LoginModal
+import LoginModal from "@/components/pages/Login/LoginModal"; // Import LoginModal
 import { toast } from "sonner"; // Import toast for feedback
 
 interface ProfileButtonHeaderProps {

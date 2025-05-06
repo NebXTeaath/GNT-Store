@@ -1,4 +1,4 @@
-
+// src/components/pages/Login/LoginModal.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { MailCheck, Loader2, AlertCircle, KeyRound, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
