@@ -1,14 +1,14 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
-import { useLoading } from "@/components/global/Loading/LoadingContext"; // Import useLoading
+import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, LogIn, UserPlus, AlertCircle, Loader2, Send } from "lucide-react";
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface LoginFormProps {
   onSuccess: () => void;
@@ -18,32 +18,16 @@ interface LoginFormProps {
   onForgotPassword: () => void;
 }
 
-type CapturedSubmitData = {
-  email: string;
-  password?: string;
-  name?: string;
-} | null;
-
-type ActionType = 'login' | 'register' | 'resend';
-
 export default function LoginForm(props: LoginFormProps) {
   const { onSuccess, onRegisterSuccess, initialTab = "login", onTabChange, onForgotPassword } = props;
   const { signIn: login, signUp: register } = useAuth();
-  const { setIsLoadingAuth, setLoadingMessage } = useLoading(); // Use loading context
+  const { setIsLoadingAuth, setLoadingMessage } = useLoading();
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showResendEmailButton, setShowResendEmailButton] = useState(false);
-
-  // Turnstile
-  const captchaRef = useRef<TurnstileInstance>(null);
-  const [captchaKey, setCaptchaKey] = useState<string>(() => `form-${Math.random().toString(36).substring(2, 15)}`);
-  const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
-  const actionRef = useRef<ActionType | null>(null);
-  const capturedSubmitDataRef = useRef<CapturedSubmitData>(null);
-  const isVerificationAttemptCompleteRef = useRef<boolean>(true);
 
   // Form State
   const [loginForm, setLoginForm] = useState({
@@ -66,8 +50,6 @@ export default function LoginForm(props: LoginFormProps) {
     setActiveTab(tab);
     setError("");
     setShowResendEmailButton(false);
-    isVerificationAttemptCompleteRef.current = true;
-    resetCaptchaState(`tab_change_${tab}`);
     onTabChange(tab);
   };
 
@@ -85,221 +67,150 @@ export default function LoginForm(props: LoginFormProps) {
     setRegisterForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const onCaptchaLoad = () => {
-    console.log(`[LoginForm] Turnstile loaded.`);
-  };
-
-  const resetCaptchaState = useCallback((reason: string = "unknown") => {
-    console.log(`[LF] Reset Captcha (${reason})`);
-    actionRef.current = null;
-    capturedSubmitDataRef.current = null;
-    isVerificationAttemptCompleteRef.current = true;
-    try {
-      captchaRef.current?.reset();
-    } catch (err) {
-      console.warn(`[LF] Captcha reset error:`, err);
-    }
-    setCaptchaKey(prev => `k-${Math.random().toString(36).substring(2, 10)}-${prev.slice(-2)}`);
-  }, []);
-
-  const initiateActionWithCaptcha = async (actionType: ActionType) => {
-    if (isLoading || isResending) return;
-    setError("");
-    setShowResendEmailButton(false);
-    
-    let data: CapturedSubmitData = null;
-    
-    if (actionType === 'login') {
-      if (!loginForm.email || !loginForm.password) {
-        setError("Fill all fields.");
-        return;
-      }
-      data = { ...loginForm };
-      // Set loading message for login
-      setLoadingMessage("Verifying your credentials...");
-    } else if (actionType === 'register') {
-      if (!registerForm.name || !registerForm.email || !registerForm.password || !registerForm.confirmPassword) {
-        setError("Fill all fields.");
-        return;
-      }
-      if (registerForm.password !== registerForm.confirmPassword) {
-        setError("Passwords don't match.");
-        return;
-      }
-      data = { ...registerForm };
-      // Set loading message for registration
-      setLoadingMessage("Creating your account...");
-    } else {
-      if (!loginForm.email) {
-        toast.error("Enter email.");
-        return;
-      }
-      data = { email: loginForm.email };
-      // Set loading message for resend
-      setLoadingMessage("Resending verification email...");
-    }
-
-    if (!TurnstileSiteKey || !captchaRef.current) {
-      setError(!TurnstileSiteKey ? "Captcha config error." : "Captcha not ready.");
-      return;
-    }
-
-    actionRef.current = actionType;
-    capturedSubmitDataRef.current = data;
-    isVerificationAttemptCompleteRef.current = false;
-    
-    // Show global loading state for auth
-    setIsLoadingAuth(true);
-    
-    if (actionType === 'resend') setIsResending(true);
-    else setIsLoading(true);
-    
-    try {
-      await captchaRef.current.execute();
-    } catch (err) {
-      setError(`Captcha start failed.`);
-      if (actionType === 'resend') setIsResending(false);
-      else setIsLoading(false);
-      setIsLoadingAuth(false); // Hide global loading
-      resetCaptchaState(`exec_err_${actionType}`);
-    }
-  };
-
-  const handleLoginSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
-    if (e) e.preventDefault();
-    initiateActionWithCaptcha('login');
-  };
-
-  const handleRegisterSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
-    if (e) e.preventDefault();
-    initiateActionWithCaptcha('register');
-  };
-
-  const handleResendVerificationEmail = () => {
-    resetCaptchaState('resend_click');
-    setTimeout(() => initiateActionWithCaptcha('resend'), 50);
-  };
-
-  const handleForgotPasswordClick = (e: React.MouseEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setShowResendEmailButton(false);
-    isVerificationAttemptCompleteRef.current = true;
-    resetCaptchaState('forgot_pw_click');
-    onForgotPassword();
-  };
-
-  const onSuccessCaptcha = async (token: string) => {
-    const action = actionRef.current;
-    const capturedData = capturedSubmitDataRef.current;
     
-    if (isVerificationAttemptCompleteRef.current) return;
-    isVerificationAttemptCompleteRef.current = true;
-    
-    if (!action || !capturedData?.email) {
-      setError("Internal error.");
-      setIsLoading(false);
-      setIsResending(false);
-      setIsLoadingAuth(false); // Hide global loading
-      resetCaptchaState('missing_data');
+    if (!loginForm.email || !loginForm.password) {
+      setError("Please fill all fields");
       return;
     }
 
-    const email = capturedData.email;
-    let success = false;
-    let showResend = false;
-    
+    setIsLoading(true);
+    setIsLoadingAuth(true);
+    setLoadingMessage("Verifying your credentials...");
+
     try {
-      if (action === 'login') {
-        if (!capturedData.password) throw new Error("Pwd missing.");
-        const r = await login(email, capturedData.password, token);
-        if (r.error) throw r.error;
-        success = true;
-      } else if (action === 'register') {
-        if (!capturedData.name || !capturedData.password) throw new Error("Data missing.");
-        const r = await register(capturedData.name, email, capturedData.password, token);
-        if (r.error) throw r.error;
-        success = true;
-      } else if (action === 'resend') {
-        const { error: e } = await supabase.auth.resend({
-          type: 'signup',
-          email: email,
-          options: { captchaToken: token }
-        });
-        if (e) throw e;
-        success = true;
-      }
+      const result = await login(loginForm.email, loginForm.password);
       
-      setError("");
-      setShowResendEmailButton(false);
-      
-      if (action === 'login') onSuccess();
-      else if (action === 'register') {
-        toast.success("Registered!", { description: "Check email to verify.", duration: 7000 });
-        onRegisterSuccess(email);
+      if (result.error) {
+        let msg = result.error.message || "Login failed";
+        
+        if (result.error.message?.includes("Invalid login")) {
+          msg = "Invalid email or password";
+        }
+        else if (result.error.message?.includes("Email not confirmed")) {
+          msg = "Email not confirmed";
+          setShowResendEmailButton(true);
+        }
+        else if (result.error.status === 422) {
+          msg = "Invalid data provided";
+        }
+        else if (result.error.message?.toLowerCase().includes("security")) {
+          msg = "Too many requests. Please try again later";
+        }
+        
+        setError(msg);
+        toast.error("Login Failed", { description: msg });
       } else {
-        toast.success("Verification resent!", { description: `Check: ${email}`, duration: 7000 });
+        onSuccess();
       }
     } catch (err: any) {
-      let msg = err.message || `Error during ${action}.`;
-      
-      if (err.message?.includes("Captcha") || err.message?.includes("verification") || 
-          err.message?.includes("seen") || err.message?.includes("timeout"))
-        msg = "Captcha failed/expired.";
-      else if (err.message?.includes("Invalid login"))
-        msg = "Invalid email or password.";
-      else if (err.message?.includes("already registered"))
-        msg = "Account exists.";
-      else if (err.message?.includes("Email not confirmed")) {
-        msg = "Email not confirmed.";
-        showResend = (action === 'login');
-      }
-      else if (err.status === 422 || err.message?.includes("Anonymous"))
-        msg = "Invalid data.";
-      else if (err.message?.toLowerCase().includes("security")) {
-        msg = "Too many requests.";
-        showResend = true;
-      }
-      
-      setError(msg);
-      toast.error(`${action} Failed`, { description: msg });
-      setShowResendEmailButton(showResend);
+      setError(err.message || "Unexpected error");
+      toast.error("Login Error");
     } finally {
-      if (action === 'resend') setIsResending(false);
-      else setIsLoading(false);
-      
-      // Hide global loading state
+      setIsLoading(false);
       setIsLoadingAuth(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    
+    if (!registerForm.name || !registerForm.email || !registerForm.password || !registerForm.confirmPassword) {
+      setError("Please fill all fields");
+      return;
+    }
+    
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+
+    setIsLoading(true);
+    setIsLoadingAuth(true);
+    setLoadingMessage("Creating your account...");
+
+    try {
+      const result = await register(
+        registerForm.name,
+        registerForm.email,
+        registerForm.password
+      );
       
-      if (!showResend) resetCaptchaState(`finally_${action}_${success ? 'ok' : 'err'}`);
-      else {
-        actionRef.current = null;
-        capturedSubmitDataRef.current = null;
+      if (result.error) {
+        let msg = result.error.message || "Registration failed";
+        
+        if (result.error.message?.includes("already registered")) {
+          msg = "An account with this email already exists";
+        }
+        else if (result.error.status === 422) {
+          msg = "Invalid data provided";
+        }
+        else if (result.error.message?.toLowerCase().includes("security")) {
+          msg = "Too many requests. Please try again later";
+        }
+        
+        setError(msg);
+        toast.error("Registration Failed", { description: msg });
+      } else {
+        toast.success("Registration Successful", { 
+          description: "Please check your email to confirm your account", 
+          duration: 7000 
+        });
+        onRegisterSuccess(registerForm.email);
       }
+    } catch (err: any) {
+      setError(err.message || "Unexpected error");
+      toast.error("Registration Error");
+    } finally {
+      setIsLoading(false);
+      setIsLoadingAuth(false);
     }
   };
 
-  const onErrorCaptcha = (code: string) => {
-    setError(`Captcha failed (${code}).`);
-    toast.error("Captcha Error");
-    setIsLoading(false);
-    setIsResending(false);
-    setIsLoadingAuth(false); // Hide global loading
-    resetCaptchaState('onError');
-  };
-
-  const onExpireCaptcha = () => {
-    if (isLoading || isResending) {
-      setError("Captcha expired.");
-      toast.warning("Captcha Expired");
+  const handleResendVerificationEmail = async () => {
+    if (!loginForm.email) {
+      toast.error("Please enter your email address");
+      return;
     }
-    setIsLoading(false);
-    setIsResending(false);
-    setIsLoadingAuth(false); // Hide global loading
-    resetCaptchaState('onExpire');
+
+    setIsResending(true);
+    setIsLoadingAuth(true);
+    setLoadingMessage("Resending verification email...");
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: loginForm.email
+      });
+
+      if (error) {
+        let msg = error.message || "Failed to resend verification email";
+        
+        if (error.message?.toLowerCase().includes("security")) {
+          msg = "Too many requests. Please try again later";
+        }
+        
+        setError(msg);
+        toast.error("Resend Failed", { description: msg });
+      } else {
+        toast.success("Verification Email Resent", { 
+          description: `Check your inbox: ${loginForm.email}`, 
+          duration: 7000 
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || "Unexpected error");
+      toast.error("Resend Error");
+    } finally {
+      setIsResending(false);
+      setIsLoadingAuth(false);
+    }
   };
 
-  // ... rest of the component remains the same
   return (
     <>
       <Tabs value={activeTab} onValueChange={handleTabChangeInternal} className="w-full">
@@ -325,16 +236,16 @@ export default function LoginForm(props: LoginFormProps) {
             {error && <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1"/>{error}</p>}
             {showResendEmailButton && (
               <Button type="button" variant="link" className="text-sm text-[#5865f2] p-0 h-auto" onClick={handleResendVerificationEmail} disabled={isLoading||isResending}>
-                {isResending?(<><Loader2 className="mr-1 h-3 w-3 spin"/>Sending...</>):(<><Send className="mr-1 h-3 w-3"/>Resend verification</>)}
+                {isResending?(<><Loader2 className="mr-1 h-3 w-3 animate-spin"/>Sending...</>):(<><Send className="mr-1 h-3 w-3"/>Resend verification</>)}
               </Button>
             )}
             <div className="flex justify-end">
-              <button type="button" onClick={handleForgotPasswordClick} className="text-sm text-[#5865f2]" disabled={isLoading||isResending}>
+              <button type="button" onClick={onForgotPassword} className="text-sm text-[#5865f2]" disabled={isLoading||isResending}>
                 Forgot password?
               </button>
             </div>
             <Button type="submit" className="w-full bg-[#5865f2]" disabled={isLoading||isResending}>
-              {isLoading?(<><Loader2 className="spin mr-2 h-4 w-4 animate-spin"/>Logging In...</>):(<><LogIn className="mr-2 h-4 w-4"/>Login</>)}
+              {isLoading?(<><Loader2 className="animate-spin mr-2 h-4 w-4"/>Logging In...</>):(<><LogIn className="mr-2 h-4 w-4"/>Login</>)}
             </Button>
             <div className="text-center text-sm">
               Don't have account?{" "}
@@ -369,7 +280,7 @@ export default function LoginForm(props: LoginFormProps) {
             </div>
             {error && <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1"/>{error}</p>}
             <Button type="submit" className="w-full bg-[#5865f2]" disabled={isLoading||isResending}>
-              {isLoading?(<><Loader2 className="spin mr-2 h-4 w-4 animate-spin"/>Registering...</>):(<><UserPlus className="mr-2 h-4 w-4"/>Register</>)}
+              {isLoading?(<><Loader2 className="animate-spin mr-2 h-4 w-4"/>Registering...</>):(<><UserPlus className="mr-2 h-4 w-4"/>Register</>)}
             </Button>
             <div className="text-center text-sm">
               Already have account?{" "}
@@ -380,25 +291,6 @@ export default function LoginForm(props: LoginFormProps) {
           </form>
         </TabsContent>
       </Tabs>
-      {TurnstileSiteKey ? (
-        <Turnstile
-          ref={captchaRef}
-          siteKey={TurnstileSiteKey}
-          onLoad={onCaptchaLoad}
-          onSuccess={onSuccessCaptcha}
-          onError={onErrorCaptcha}
-          onExpire={onExpireCaptcha}
-          key={captchaKey}
-          options={{
-            theme: 'dark',
-            size: 'invisible',
-            execution: 'execute',
-            responseField: false
-          }}
-        />
-      ) : (
-        <p className="text-xs text-yellow-500 text-center mt-2">Captcha not configured.</p>
-      )}
     </>
   );
 }

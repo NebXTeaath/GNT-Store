@@ -1,5 +1,6 @@
+
 // src/components/pages/Login/LoginModal.tsx
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { MailCheck, Loader2, AlertCircle, KeyRound, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -10,9 +11,8 @@ import { useIsMobile } from "@/components/global/Mobile/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
-import { useLoading } from "@/components/global/Loading/LoadingContext"; // Import useLoading
+import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { supabase } from "@/lib/supabase";
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface LoginModalProps {
   open: boolean;
@@ -26,11 +26,7 @@ const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void
   const [canResend, setCanResend] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
-  const verifyCaptchaRef = useRef<TurnstileInstance>(null);
-  const [verifyCaptchaKey, setVerifyCaptchaKey] = useState<string>(`verify-${Math.random().toString(36).substring(2, 15)}`);
-  const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
-  const isVerificationAttemptCompleteRef = useRef<boolean>(true);
-  const { setIsLoadingAuth, setLoadingMessage } = useLoading(); // Use loading context
+  const { setIsLoadingAuth, setLoadingMessage } = useLoading();
 
   useEffect(() => {
     if (canResend || countdown <= 0) return;
@@ -47,17 +43,7 @@ const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void
     return () => clearInterval(interval);
   }, [canResend, countdown]);
 
-  const resetVerifyCaptchaState = useCallback(() => {
-    isVerificationAttemptCompleteRef.current = true;
-    try {
-      verifyCaptchaRef.current?.reset();
-    } catch (err) {
-      console.warn(`[CheckEmailView] Captcha reset error:`, err);
-    }
-    setVerifyCaptchaKey(`verify-${Math.random().toString(36).substring(2, 10)}`);
-  }, []);
-
-  const handleResendEmail = () => {
+  const handleResendEmail = async () => {
     if (!email?.includes('@')) {
       setResendError("Invalid email.");
       toast.error("Error");
@@ -67,50 +53,15 @@ const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void
     
     setResendError(null);
     setIsResending(true);
-    isVerificationAttemptCompleteRef.current = false;
     
     // Set loading message and show global loading
     setLoadingMessage("Preparing verification email...");
     setIsLoadingAuth(true);
     
-    if (!TurnstileSiteKey || !verifyCaptchaRef.current) {
-      setResendError(!TurnstileSiteKey ? "Captcha config error." : "Captcha not ready.");
-      toast.error(!TurnstileSiteKey ? "Config Error" : "Captcha Error");
-      setIsResending(false);
-      setIsLoadingAuth(false); // Hide loading
-      isVerificationAttemptCompleteRef.current = true;
-      return;
-    }
-
-    try {
-      verifyCaptchaRef.current.execute();
-    } catch (err) {
-      setResendError("Captcha start failed.");
-      toast.error("Captcha Error");
-      setIsResending(false);
-      setIsLoadingAuth(false); // Hide loading
-      resetVerifyCaptchaState();
-    }
-  };
-
-  const onSuccessVerifyCaptcha = async (token: string) => {
-    if (isVerificationAttemptCompleteRef.current) return;
-    isVerificationAttemptCompleteRef.current = true;
-    
-    if (!email?.includes('@')) {
-      setResendError("Internal Error: Email missing.");
-      toast.error("Error");
-      setIsResending(false);
-      setIsLoadingAuth(false); // Hide loading
-      resetVerifyCaptchaState();
-      return;
-    }
-
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email: email,
-        options: { captchaToken: token }
+        email: email
       });
       
       if (error) throw error;
@@ -119,7 +70,6 @@ const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void
       setCanResend(false);
       setCountdown(60);
       setResendError(null);
-      resetVerifyCaptchaState();
     } catch (error: any) {
       const msg = error.message?.includes("For security purposes") 
         ? "Too many requests." 
@@ -127,29 +77,10 @@ const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void
         
       setResendError(msg);
       toast.error("Resend Failed", { description: msg });
-      resetVerifyCaptchaState();
     } finally {
       setIsResending(false);
       setIsLoadingAuth(false); // Hide loading regardless of outcome
     }
-  };
-
-  const onErrorVerifyCaptcha = (errorCode: string) => {
-    setResendError(`Captcha failed (${errorCode}).`);
-    toast.error("Captcha Error");
-    setIsResending(false);
-    setIsLoadingAuth(false); // Hide loading
-    resetVerifyCaptchaState();
-  };
-
-  const onExpireVerifyCaptcha = () => {
-    if (isResending) {
-      setResendError("Captcha expired.");
-      toast.warning("Captcha Expired");
-    }
-    setIsResending(false);
-    setIsLoadingAuth(false); // Hide loading
-    resetVerifyCaptchaState();
   };
 
   return (
@@ -182,24 +113,6 @@ const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void
         )}
       </Button>
       <p className="text-xs text-gray-500 mt-1">Check spam or wait for the timer.</p>
-      {TurnstileSiteKey ? (
-        <div style={{ height: 0, overflow: 'hidden' }}>
-          <Turnstile 
-            ref={verifyCaptchaRef}
-            siteKey={TurnstileSiteKey}
-            onSuccess={onSuccessVerifyCaptcha}
-            onError={onErrorVerifyCaptcha}
-            onExpire={onExpireVerifyCaptcha}
-            key={verifyCaptchaKey}
-            options={{ 
-              theme: 'dark', 
-              size: 'invisible', 
-              execution: 'execute', 
-              responseField: false 
-            }}
-          />
-        </div>
-      ) : null}
     </div>
   );
 };
@@ -214,13 +127,9 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const { sendPasswordReset } = useAuth();
-  const { setIsLoadingAuth, setLoadingMessage } = useLoading(); // Use loading context
+  const { setIsLoadingAuth, setLoadingMessage } = useLoading();
   const [showVerifyEmailView, setShowVerifyEmailView] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
-  const resetCaptchaRef = useRef<TurnstileInstance>(null);
-  const [resetCaptchaKey, setResetCaptchaKey] = useState<string>(`reset-${Math.random().toString(36).substring(2, 15)}`);
-  const TurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITEKEY;
-  const resetEmailCaptureRef = useRef<string>("");
 
   // Callback from LoginForm when registration is successful
   const handleRegisterSuccess = (registeredEmailValue: string) => {
@@ -239,13 +148,6 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
         setEmail("");
         setError("");
         setIsLoading(false);
-        resetEmailCaptureRef.current = "";
-        try {
-          resetCaptchaRef.current?.reset();
-        } catch (e) {
-          console.warn("Captcha reset error on close:", e);
-        }
-        setResetCaptchaKey(`reset-close-${Math.random().toString(36).substring(2, 15)}`);
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -258,13 +160,6 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
     setError("");
     setIsLoading(false);
     setResetSent(false);
-    resetEmailCaptureRef.current = "";
-    try {
-      resetCaptchaRef.current?.reset();
-    } catch (e) {
-      console.warn("Captcha reset error on tab change:", e);
-    }
-    setResetCaptchaKey(`reset-tab-${tab}-${Math.random().toString(36).substring(2, 15)}`);
   };
 
   // --- Password Reset Handlers ---
@@ -272,69 +167,30 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    resetEmailCaptureRef.current = email;
     
     // Set loading message and show global loading
     setLoadingMessage("Preparing password reset...");
     setIsLoadingAuth(true);
     
-    if (!resetEmailCaptureRef.current?.includes('@')) {
+    if (!email?.includes('@')) {
       setError("Invalid email.");
       toast.error("Invalid Email");
       setIsLoading(false);
-      setIsLoadingAuth(false); // Hide loading
-      return;
-    }
-    
-    if (!TurnstileSiteKey || !resetCaptchaRef.current) {
-      setError(!TurnstileSiteKey ? "Captcha config error." : "Captcha not ready.");
-      toast.error(!TurnstileSiteKey ? "Config Error" : "Captcha Error");
-      setIsLoading(false);
-      setIsLoadingAuth(false); // Hide loading
+      setIsLoadingAuth(false);
       return;
     }
     
     try {
-      await resetCaptchaRef.current.execute();
-    } catch (err) {
-      setError("Failed to start captcha.");
-      toast.error("Captcha Error");
-      setIsLoading(false);
-      setIsLoadingAuth(false); // Hide loading
-      resetCaptchaRef.current?.reset();
-      setResetCaptchaKey(`reset-exec-fail-${Math.random().toString(36).substring(2, 15)}`);
-    }
-  };
-
-  const onSuccessResetCaptcha = async (token: string) => {
-    const capturedEmail = resetEmailCaptureRef.current;
-    
-    if (!capturedEmail) {
-      setError("Internal error: Email missing.");
-      toast.error("Error");
-      setIsLoading(false);
-      setIsLoadingAuth(false); // Hide loading
-      resetCaptchaRef.current?.reset();
-      setResetCaptchaKey(`reset-verify-fail-noemail-${Math.random().toString(36).substring(2, 15)}`);
-      return;
-    }
-    
-    try {
-      const { error: resetError } = await sendPasswordReset(capturedEmail, token);
+      const { error: resetError } = await sendPasswordReset(email);
       
       if (resetError) {
         let errMsg = resetError.message || "Failed.";
         
         if (resetError.message?.includes("security"))
           errMsg = "Too many requests.";
-        else if (resetError.message?.toLowerCase().includes("captcha") || 
-                resetError.message?.toLowerCase().includes("invalid token"))
-          errMsg = "Captcha failed.";
           
         setError(errMsg);
         toast.error("Reset Failed", { description: errMsg });
-        resetCaptchaRef.current?.reset();
-        setResetCaptchaKey(`reset-verify-fail-${Math.random().toString(36).substring(2, 15)}`);
       } else {
         setResetSent(true);
         setError("");
@@ -343,31 +199,10 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
     } catch (err: any) {
       setError(err.message || "Unexpected error.");
       toast.error("Error");
-      resetCaptchaRef.current?.reset();
-      setResetCaptchaKey(`reset-catch-fail-${Math.random().toString(36).substring(2, 15)}`);
     } finally {
       setIsLoading(false);
-      setIsLoadingAuth(false); // Hide loading regardless of outcome
-      resetEmailCaptureRef.current = "";
+      setIsLoadingAuth(false);
     }
-  };
-
-  const onErrorResetCaptcha = (errorCode: string) => {
-    setError(`Captcha failed (${errorCode}).`);
-    toast.error("Captcha Error");
-    setIsLoading(false);
-    setIsLoadingAuth(false); // Hide loading
-    setResetCaptchaKey(`reset-error-${errorCode}-${Math.random().toString(36).substring(2, 15)}`);
-  };
-
-  const onExpireResetCaptcha = () => {
-    if (isLoading) {
-      setError("Captcha expired.");
-      toast.warning("Captcha Expired");
-    }
-    setIsLoading(false);
-    setIsLoadingAuth(false); // Hide loading
-    setResetCaptchaKey(`reset-expire-${Math.random().toString(36).substring(2, 15)}`);
   };
 
   // Render Forgot Password Content
@@ -400,25 +235,6 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
           
           {error && (
             <p className="text-red-500 text-sm flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{error}</p>
-          )}
-          
-          {TurnstileSiteKey ? (
-            <Turnstile 
-              siteKey={TurnstileSiteKey}
-              onSuccess={onSuccessResetCaptcha}
-              onError={onErrorResetCaptcha}
-              onExpire={onExpireResetCaptcha}
-              ref={resetCaptchaRef}
-              key={resetCaptchaKey}
-              options={{ 
-                theme: 'dark', 
-                size: 'invisible', 
-                execution: 'execute', 
-                responseField: false 
-              }}
-            />
-          ) : (
-            <p className="text-xs text-yellow-500 text-center mt-2">Captcha not configured.</p>
           )}
           
           <Button type="submit" className="w-full bg-[#5865f2] hover:bg-[#4752c4]" disabled={isLoading}>
@@ -491,8 +307,8 @@ export default function LoginModal({ open, onOpenChange, onLoginSuccess }: Login
             <DrawerDescription className="text-gray-400">{getDescription()}</DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-6 overflow-y-auto flex-1 min-h-0" style={{ overscrollBehavior: 'contain' }}>
-    {mainContent}
-</div>
+            {mainContent}
+          </div>
         </DrawerContent>
       </Drawer>
     );

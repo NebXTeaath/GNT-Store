@@ -1,3 +1,4 @@
+
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, Session } from '@/lib/supabase';
@@ -18,10 +19,10 @@ interface AuthContextProps {
     redirectPathAfterLogin: string | null;
     clearRedirectPath: () => void;
     // --- Auth Functions ---
-    signIn: (email: string, password: string, captchaToken: string | null) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
-    signUp: (name: string, email: string, password: string, captchaToken: string | null) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
+    signIn: (email: string, password: string) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
+    signUp: (name: string, email: string, password: string) => Promise<{ data?: { user: User | null; session: Session | null; } | undefined; error: AuthError | null }>;
     signOut: () => Promise<{ error: AuthError | null }>;
-    sendPasswordReset: (email: string, captchaToken: string | null) => Promise<{ error: AuthError | null }>;
+    sendPasswordReset: (email: string) => Promise<{ error: AuthError | null }>;
     updateUserEmail: (newEmail: string) => Promise<{ error: AuthError | null }>;
     updateUserPassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
     signInWithProvider: (provider: Provider) => Promise<{ error: AuthError | null }>;
@@ -56,14 +57,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // --- Auth Action Functions ---
     const performAuthAction = useCallback(async <T extends { error: AuthError | null }>( action: () => Promise<T>, loadingMsg: string, successMsg: string, errorMsgPrefix: string ): Promise<{ error: AuthError | null }> => { setIsLoadingGlobal(true); setLoadingMessage(loadingMsg); try { const { error } = await action(); if (error) { toast.error(`${errorMsgPrefix} Failed`, { description: error.message }); return { error }; } if (successMsg) toast.success(successMsg); return { error: null }; } catch (error: any) { toast.error(`${errorMsgPrefix} Error`, { description: error.message || `Unexpected error.` }); return { error: { name: "UnexpectedError", message: error.message } as AuthError }; } finally { setIsLoadingGlobal(false); setLoadingMessage(""); } }, [setIsLoadingGlobal, setLoadingMessage]);
-    const signIn = useCallback( async (email: string, password: string, captchaToken: string | null) => { const opts = captchaToken ? { captchaToken } : {}; const { data, error } = await supabase.auth.signInWithPassword({ email, password, options: opts }); return { data: data ?? undefined, error }; }, [] );
-    const signUp = useCallback( async (name: string, email: string, password: string, captchaToken: string | null) => { const opts: any = { data: { name } }; if (captchaToken) opts.captchaToken = captchaToken; const { data, error } = await supabase.auth.signUp({ email, password, options: opts }); return { data: data ?? undefined, error }; }, [] );
+    
+    const signIn = useCallback(
+      async (email: string, password: string) => {
+        const { data, error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
+        });
+        return { data: data ?? undefined, error };
+      }, 
+    []); 
+    
+    const signUp = useCallback(
+      async (name: string, email: string, password: string) => {
+        const opts: any = { data: { name } };
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password, 
+          options: opts 
+        });
+        return { data: data ?? undefined, error };
+      }, 
+    []);
+    
     const signOut = useCallback(async () => { setIsLoadingGlobal(true); setLoadingMessage("Logging out..."); const { error } = await supabase.auth.signOut(); setIsLoadingGlobal(false); setLoadingMessage(""); if (error) { toast.error(error.message || "Sign out failed."); } else { toast.success("Logged out."); setUser(null); setSession(null); } return { error }; }, [setIsLoadingGlobal, setLoadingMessage]);
-    const sendPasswordReset = useCallback( (email: string, captchaToken: string | null) => { const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || `${window.location.origin}/reset-password`; const opts = { redirectTo: redirectUrl, ...(captchaToken && { captchaToken })}; return supabase.auth.resetPasswordForEmail(email, opts); }, [] );
-    const updateUserEmail = useCallback( async (newEmail: string) => { const { error } = await supabase.auth.updateUser({ email: newEmail }); return { error }; }, [] );
-    const updateUserPassword = useCallback( async (newPassword: string) => { const { error } = await supabase.auth.updateUser({ password: newPassword }); return { error }; }, [] );
-    const signInWithProvider = useCallback( (provider: Provider) => { const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin; return performAuthAction( () => supabase.auth.signInWithOAuth({ provider, options: { redirectTo: redirectUrl } }), `Redirecting...`, "", `OAuth Sign In` ); }, [performAuthAction] );
-    const refreshSession = useCallback(async () => { console.log("[Auth] Refreshing session..."); try { const { data, error } = await supabase.auth.refreshSession(); if (error) { if (error.status === 401 || error.status === 403) { await signOut(); } } else { console.log("[Auth] Session refreshed. AAL:", (data.session?.user as any)?.aal); } } catch (err) { await signOut(); } }, [signOut]);
+    
+    const sendPasswordReset = useCallback((email: string) => {
+      const redirectUrl = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL || 
+        `${window.location.origin}/reset-password`;
+      return supabase.auth.resetPasswordForEmail(email, { 
+        redirectTo: redirectUrl 
+      });
+    }, []);
+    
+    const updateUserEmail = useCallback(async (newEmail: string) => {
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      return { error };
+    }, []);
+    
+    const updateUserPassword = useCallback(async (newPassword: string) => {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      return { error };
+    }, []);
+    
+    const signInWithProvider = useCallback((provider: Provider) => {
+      const redirectUrl = import.meta.env.VITE_OAUTH_REDIRECT_URL || window.location.origin;
+      return performAuthAction(
+        () => supabase.auth.signInWithOAuth({ 
+          provider, 
+          options: { redirectTo: redirectUrl } 
+        }),
+        `Redirecting...`,
+        "",
+        `OAuth Sign In`
+      );
+    }, [performAuthAction]);
+    
+    const refreshSession = useCallback(async () => {
+      console.log("[Auth] Refreshing session...");
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) {
+          if (error.status === 401 || error.status === 403) {
+            await signOut();
+          }
+        } else {
+          console.log("[Auth] Session refreshed. AAL:", (data.session?.user as any)?.aal);
+        }
+      } catch (err) {
+        await signOut();
+      }
+    }, [signOut]);
 
     const value: AuthContextProps = { isAuthenticated: !!session && !!user, user, session, isLoadingAuth, isLoginModalOpen, openLoginModal, closeLoginModal, redirectPathAfterLogin, clearRedirectPath, signIn, signUp, signOut, sendPasswordReset, updateUserEmail, updateUserPassword, signInWithProvider, refreshSession };
 
