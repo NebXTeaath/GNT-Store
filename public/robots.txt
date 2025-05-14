@@ -1,5 +1,5 @@
 # GNT - Next-Gen Console & PC Marketplace
-# https://gnt-store.vercel.app
+# https://www.gnt-store.shop/
 
 # Allow all web crawlers
 User-agent: *
