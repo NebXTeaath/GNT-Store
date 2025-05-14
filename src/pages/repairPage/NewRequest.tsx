@@ -1,7 +1,8 @@
+
 // src/pages/repairPage/NewRequest.tsx
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { CheckCircle, Loader2, AlertCircle, AlertTriangle, X } from "lucide-react";
+import { CheckCircle, Loader2, AlertCircle, AlertTriangle, X, Bot } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { usePincodeValidator } from "@/components/global/Profile/pincodeValidator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { copyToClipboard } from "@/lib/utils";
+import AIHelpInstructions from "@/components/pages/repairPage/AIHelpInstructions";
 
 interface NewRequestProps { onSuccessfulSubmission: (requestId: string) => void; }
 interface FormErrors { deviceType: boolean; deviceModel: boolean; issueDescription: boolean; }
@@ -30,6 +33,8 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [submittedRequestId, setSubmittedRequestId] = useState<string>("");
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
+    const [showAIHelp, setShowAIHelp] = useState<boolean>(false);
+    const [aiPromptTemplate, setAiPromptTemplate] = useState<string>("");
     const { data: userProfileData, isLoading: isProfileLoading, isFetching: isProfileFetching } = useUserProfileQuery();
     const { user, isAuthenticated } = useAuth();
     const { isValidating: isPincodeValidatingHook, validatePincode } = usePincodeValidator();
@@ -39,6 +44,7 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
     const [pinValidationMessage, setPinValidationMessage] = useState<string | null>(null);
     const [isCheckingProfilePin, setIsCheckingProfilePin] = useState<boolean>(false);
     const [isCheckingSubmitPin, setIsCheckingSubmitPin] = useState(false);
+    const pinValidatedRef = useRef<boolean>(false);
 
     // Form Validation Logic
     const validateField = useCallback((field: keyof FormErrors): boolean => {
@@ -102,38 +108,56 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
 
     // Effect to Validate Profile PIN on Load
     useEffect(() => {
-        const checkProfilePin = async () => {
-          if (isAuthenticated && userProfileData?.address?.zip && userProfileData.address.zip.length === 6) {
-             setIsCheckingProfilePin(true);
-             console.log(`Validating profile PIN on load: ${userProfileData.address.zip}`);
-             try {
-                 const result = await validatePincode(userProfileData.address.zip);
-                 if (result.valid && !result.isServiceAvailable) {
-                   setIsPinUnserviceable(true);
-                   setPinValidationMessage(result.message || "Service unavailable for the PIN code in your profile.");
-                 } else if (!result.valid) {
-                   setIsPinUnserviceable(true);
-                   setPinValidationMessage(result.message || "The PIN code in your profile is invalid.");
-                 } else {
+    const checkProfilePin = async () => {
+        // Skip if already validated or is currently validating
+        if (pinValidatedRef.current || isCheckingProfilePin) {
+            return;
+        }
+        
+        if (isAuthenticated && userProfileData?.address?.zip && userProfileData.address.zip.length === 6) {
+            setIsCheckingProfilePin(true);
+            console.log(`Validating profile PIN on load: ${userProfileData.address.zip}`);
+            
+            try {
+                const result = await validatePincode(userProfileData.address.zip);
+                if (result.valid && !result.isServiceAvailable) {
+                    setIsPinUnserviceable(true);
+                    setPinValidationMessage(result.message || "Service unavailable for the PIN code in your profile.");
+                } else if (!result.valid) {
+                    setIsPinUnserviceable(true);
+                    setPinValidationMessage(result.message || "The PIN code in your profile is invalid.");
+                } else {
                     setIsPinUnserviceable(false);
                     setPinValidationMessage(null);
-                 }
-             } catch (error) {
-                 console.error("Error validating profile PIN on load:", error);
-             } finally {
-                 setIsCheckingProfilePin(false);
-             }
-          } else {
-              setIsPinUnserviceable(false);
-              setPinValidationMessage(null);
-              setIsCheckingProfilePin(false);
-          }
-        };
-
-        if (!isProfileLoading && !isProfileFetching && !isCheckingProfilePin && !isPincodeValidatingHook) {
-            checkProfilePin();
+                }
+                // Mark as validated
+                pinValidatedRef.current = true;
+            } catch (error) {
+                console.error("Error validating profile PIN on load:", error);
+            } finally {
+                setIsCheckingProfilePin(false);
+            }
+        } else {
+            setIsPinUnserviceable(false);
+            setPinValidationMessage(null);
+            setIsCheckingProfilePin(false);
+            // Mark simple cases as validated too
+            pinValidatedRef.current = true;
         }
-    }, [userProfileData, isProfileLoading, isProfileFetching, isAuthenticated, validatePincode, isPincodeValidatingHook, isCheckingProfilePin]);
+    };
+
+    // Only check if profile data is loaded and not already validating
+    if (!isProfileLoading && !isProfileFetching && userProfileData) {
+        checkProfilePin();
+    }
+    
+    // Reset validation status if user profile changes
+    return () => {
+        pinValidatedRef.current = false;
+    };
+    
+    // Remove isCheckingProfilePin and validatePincode from dependencies
+}, [userProfileData, isProfileLoading, isProfileFetching, isAuthenticated]);
 
     // Submit Handler with PIN Validation
     const submitRepairRequest = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -195,7 +219,41 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
         finally { setIsSubmitting(false); }
     };
 
+    // New: Ask AI function
+    const handleAskAI = () => {
+        // First validate the form
+        if (!validateForm()) {
+            toast.error("Please fill all required fields to get AI help", { 
+                icon: <AlertCircle className="h-5 w-5 text-red-400" /> 
+            });
+            return;
+        }
+
+        // Format the template message with form details
+        const aiPrompt = `
+User has been directed to ChatGPT from gnt-store.shop website, to troubleshoot the repair service by themselves using Artificial Intelligence.
+
+I want you to act as a professional repair services technician for this request and help the user with the following issue:
+
+Device Model/Specs: ${repairForm.deviceModel.trim()}
+Device Type: ${repairForm.deviceType}
+Issue Description: ${repairForm.issueDescription.trim()}
+
+If this issue is very severe and can't be solved by the help of AI, please explain this to the user and tell them to create a request on gnt-store.shop/repair/new-request to get professional help.
+
+If the issue is resolvable with low technical expertise, show the repair steps to the user and help them resolve their problem.
+`;
+
+        setAiPromptTemplate(aiPrompt);
+        setShowAIHelp(true);
+        
+        copyToClipboard(aiPrompt)
+    };
+
     const handleConfirmationClose = (): void => { setShowConfirmation(false); if (submittedRequestId) onSuccessfulSubmission(submittedRequestId); };
+    const handleAIHelpClose = (): void => {
+        setShowAIHelp(false);
+    };
 
     const showPinWarning = isAuthenticated && isPinUnserviceable;
 
@@ -204,7 +262,12 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
             <div className="max-w-4xl mx-auto p-4">
                 {/* Confirmation Modal */}
                  {showConfirmation && ( <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"> <SuccessConfirmation requestId={submittedRequestId} onClose={handleConfirmationClose} /> </div> )}
-
+                {/* AI Help Instructions Modal */}
+                {showAIHelp && (
+                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                        <AIHelpInstructions aiPrompt={aiPromptTemplate} onClose={handleAIHelpClose} />
+                    </div>
+                )}
                 {/* PIN Code Serviceability Warning */}
 {showPinWarning && (
   <Alert 
@@ -272,26 +335,37 @@ export default function NewRequest({ onSuccessfulSubmission }: NewRequestProps) 
                     </div>
                     <div className="text-xs text-gray-400"><span className="text-red-400 mr-1">*</span>Required fields</div>
 
-                    {/* Submit Button */}
-                    <Button
-                      type="submit"
-                      className="w-full bg-[#5865f2] hover:bg-[#4752c4] py-3 text-base"
-                      disabled={
-                        isSubmitting ||         // Actual submission in progress
-                        isCheckingSubmitPin ||  // Checking PIN on submit
-                        isProfileLoading ||     // Still loading profile data
-                        isProfileFetching       // Still fetching profile data
-                      }
-                    >
-                      {isCheckingSubmitPin ? (
-                        <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Checking Area...</>
-                      ) : isSubmitting ? (
-                        <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Submitting...</>
-                      ) : (
-                        "Submit Repair Request"
-                      )}
-                    </Button>
-                     {/* End Submit Button */}
+                    {/* Submit and Ask AI Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="sm:w-4/5 w-full">
+                        <Button
+                          type="submit"
+                          className="w-full bg-[#5865f2] hover:bg-[#4752c4] py-3 text-base"
+                          disabled={isSubmitting || isCheckingSubmitPin || isProfileLoading || isProfileFetching}
+                        >
+                          {isCheckingSubmitPin ? (
+                            <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Checking Area...</>
+                          ) : isSubmitting ? (
+                            <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Submitting...</>
+                          ) : (
+                            "Submit Repair Request"
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="sm:w-1/5 w-full">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleAskAI}
+                          className="w-full border-[#5865f2] text-[#5865f2] hover:text-white hover:bg-[#5865f2]/10 py-3 text-base"
+                        >
+                          <Bot className="h-5 w-5 mr-2" />
+                          Get AI Help
+                        </Button>
+                      </div>
+                    </div>
+                  {/* End Buttons */}
                 </form>
             </div>
         </div>
