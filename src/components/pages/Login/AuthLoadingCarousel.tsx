@@ -1,6 +1,8 @@
+// src/components/pages/Login/AuthLoadingCarousel.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
+import { formatCurrencyWithSeparator } from '../../../lib/currencyFormat'; // Import the currency formatter
 
 export interface CarouselItem {
   image: string;
@@ -118,15 +120,15 @@ export const AuthLoadingCarousel: React.FC<AuthLoadingCarouselProps> = ({ items 
                       {item.discount_price !== undefined && item.discount_price < (item.price || 0) ? (
                         <div className="flex gap-2 items-center">
                           <span className="text-gray-400 line-through text-xs">
-                            ${item.price?.toFixed(2)}
+                            {item.price ? formatCurrencyWithSeparator(item.price) : ''}
                           </span>
                           <span className="text-[#5865f2] font-bold">
-                            ${item.discount_price.toFixed(2)}
+                            {formatCurrencyWithSeparator(item.discount_price)}
                           </span>
                         </div>
                       ) : (
                         <span className="text-white font-bold">
-                          ${item.price?.toFixed(2)}
+                          {item.price !== undefined ? formatCurrencyWithSeparator(item.price) : ''}
                         </span>
                       )}
                     </div>
