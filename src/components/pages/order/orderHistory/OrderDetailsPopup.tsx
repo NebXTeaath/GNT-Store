@@ -11,6 +11,10 @@ import { formatDiscountInfo } from "@/lib/pages/order/checkout/Discount/formatDi
 // Import the safer date formatter
 import { formatDate } from "../../../../lib/pages/order/orderHistory/orderService";
 
+// Import ReactMarkdown and its types for custom components
+import ReactMarkdown, { Components } from 'react-markdown';
+import { cn } from "@/lib/utils"; // Import cn for conditional classes
+
 // Import the admin's WhatsApp number from the environment variable
 const adminWhatsAppNumber = import.meta.env.VITE_ADMIN_WHATSAPP;
 
@@ -38,6 +42,27 @@ interface OrderDetailsContentProps extends Omit<OrderDetailsModalProps, "open" |
   order: FetchedSupabaseOrder; // Assume order is non-null when this renders
   isMobile: boolean;
 }
+
+// Define custom components for ReactMarkdown
+const markdownComponents: Components = {
+  // Customize <strong> tags
+  strong: ({ node, ...props }) => (
+    <strong
+      className="font-semibold text-base" // Keep font-semibold from prose, but increase base size
+      {...props}
+    />
+  ),
+  // Ensure ordered lists have their markers
+  ol: ({ node, ...props }) => (
+    <ol className="list-decimal list-inside my-2 pl-4 space-y-1" {...props} />
+  ),
+  li: ({ node, ...props }) => (
+    <li className="text-gray-300" {...props} />
+  ),
+  // You can customize other elements like p, h1, h2, etc. if needed
+  // p: ({node, ...props}) => <p className="my-1" {...props} />,
+};
+
 
 const OrderDetailsContent = ({
   order,
@@ -100,6 +125,7 @@ const OrderDetailsContent = ({
     if (orderStatus.toLowerCase() === "delivered") {
       message += `Delivered on ${formattedDate}\n`;
     } else {
+      // The remark will be handled by ReactMarkdown, so keep the raw string here for the WhatsApp message
       message += `Delivery Info: ${order.remark || "to be updated soon by our team"}\n`;
     }
 
@@ -145,7 +171,7 @@ const OrderDetailsContent = ({
       </div>
 
       {/* Scrollable content */}
-      <ScrollArea className={ isMobile ? "flex-1 min-h-0 overflow-y-auto" : "max-h-[calc(80vh-132px)] overflow-y-auto" } >
+      <ScrollArea className={ cn("overflow-y-auto", isMobile ? "flex-1 min-h-0" : "max-h-[calc(80vh-132px)]") } >
         {/* Add a check: If orderDetails is missing, show an error message */}
         {!orderDetails ? (
              <div className="p-6 text-center text-red-400">
@@ -222,9 +248,16 @@ const OrderDetailsContent = ({
                   <div>
                     <h4 className="font-medium mb-3">Delivery Information</h4>
                     {orderStatus.toLowerCase() === "delivered" ? (
-                        <p className="text-sm text-gray-300"> <span className="text-emerald-500 font-medium">✓</span>{" "} Delivered on {formattedDate} </p>
+                        <p className="text-sm text-gray-300">
+                          <span className="text-emerald-500 font-medium">✓</span>{" "}
+                          Delivered on {formattedDate}
+                        </p>
                     ) : (
-                         <p className="text-sm text-gray-300 italic"> {order.remark || "to be updated soon by our team"} </p>
+                        <div className="text-sm text-gray-300 prose prose-sm prose-invert max-w-none break-words">
+                          <ReactMarkdown components={markdownComponents}>
+                            {order.remark || "_to be updated soon by our team_"}
+                          </ReactMarkdown>
+                        </div>
                     )}
                   </div>
                 </div>
@@ -314,6 +347,3 @@ function getStatusColor(status: string = ""): string {
     default: return "bg-gray-500/10 text-gray-400";
   }
 }
-
-// Import the safer date formatter (already done above)
-// import { formatDate } from "./orderService";
