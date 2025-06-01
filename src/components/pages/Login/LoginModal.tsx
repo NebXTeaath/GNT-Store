@@ -87,7 +87,7 @@ const CheckEmailView = ({ email, onClose }: { email: string; onClose: () => void
     <div className="p-6 text-center space-y-4">
       {/* Close button for CheckEmailView */}
       <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white hover:bg-gray-700/50">
-        <X className="h-4 w-4" />
+        
         <span className="sr-only">Close</span>
       </Button>
       <MailCheck className="mx-auto h-12 w-12 text-green-500" />
