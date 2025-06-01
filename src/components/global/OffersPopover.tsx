@@ -41,9 +41,9 @@ export function OffersPopover({ className }: OffersPopoverProps) {
       >
         <div className="flex flex-col">
           <div className="font-medium text-lg mb-2 text-white">Special Offer!</div>
-          <p className="text-sm text-gray-300 mb-3">
+          {/*<p className="text-sm text-gray-300 mb-3">
             Use code <span className="font-bold text-[#5865f2]">newUser</span> to get an additional 10% discount on all orders at checkout.
-          </p>
+          </p>*/}
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => setIsOpen(false)}
               className="text-xs bg-transparent border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] text-gray-300 hover:text-white">
