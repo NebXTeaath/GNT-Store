@@ -1,7 +1,7 @@
 
 // src/components/pages/Login/LoginModal.tsx
 import React, { useState, useEffect } from "react";
-import { MailCheck, Loader2, AlertCircle, KeyRound, X } from "lucide-react";
+import { MailCheck, Loader2, AlertCircle, KeyRound } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import LoginForm from "@/components/pages/Login/login";
