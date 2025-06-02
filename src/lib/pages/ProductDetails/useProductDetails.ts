@@ -40,6 +40,8 @@ export interface ProductDetailsData {
   o_slug: string;
   o_stock_units: number | null; // <<< ADDED: Add as number or null
   o_similar_products: SimilarProduct[];
+  o_average_rating: number | null;
+  o_review_count: number | null;
 }
 
 // Function to fetch product details using product slug

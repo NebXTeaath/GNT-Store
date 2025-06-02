@@ -1,4 +1,4 @@
-"use client"
+// src/lib/pages/searchPage/search/SearchBar.tsx
 
 import type React from "react"
 

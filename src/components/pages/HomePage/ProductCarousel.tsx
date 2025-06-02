@@ -18,6 +18,7 @@ export interface Product {
   label?: string;
   condition?: string;
   average_rating?: number;
+  review_count?: number;
 }
 
 interface ProductCarouselProps {

@@ -20,6 +20,7 @@ export interface Product {
   label?: string;
   condition: string;
   average_rating: number;
+  review_count?: number;
 }
 
 // -------------------------- AnimatedRepairPreview Component --------------------------
@@ -87,7 +88,8 @@ const mapToProductInterface = (apiProducts: any[]): Product[] => {
       is_bestseller: Boolean(product?.is_bestseller),
       label: product?.label || undefined,
       condition: product?.condition || "New",
-      average_rating: typeof product?.average_rating === 'number' ? product.average_rating : 0
+      average_rating: typeof product?.average_rating === 'number' ? product.average_rating : 0,
+      review_count: typeof product?.review_count === 'number' ? product.review_count : 0 // <<< ADD THIS LINE
     };
   });
 };

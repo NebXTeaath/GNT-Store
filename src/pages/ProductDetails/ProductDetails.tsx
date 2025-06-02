@@ -1,9 +1,9 @@
-
+// src/pages/ProductDetails/ProductDetails.tsx
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Minus, Plus, Heart, ShoppingBag } from 'lucide-react';
+import { Minus, Plus, Heart, ShoppingBag, Star } from 'lucide-react'; // Star icon for ratings
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import ReactMarkdown from "react-markdown";
 import { useCart } from "@/context/CartContext";
@@ -17,13 +17,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LoginModal from "@/components/pages/Login/LoginModal";
 import DescriptionModal from "../../components/pages/ProductDetails/DescriptionModal";
 import { formatCurrencyWithSeparator } from "@/lib/currencyFormat";
-// Ensure correct types are imported
 import { useProductDetails, useProductDetailsBySlug, ProductDetailsData, SimilarProduct } from "@/lib/pages/ProductDetails/useProductDetails";
 import { OptimizedImage } from "@/components/global/productsPage/ProductCard/optimized-image";
 import SEO from '@/components/seo/SEO';
 import StructuredData from '@/components/seo/StructuredData';
-import WhyBuyFromUs from "./whyTrustUs/WhyBuyFromUs";
 import ProductTrustBadges from "./whyTrustUs/WhyBuyFromUs";
+import ProductReviewsSection from '@/components/reviews/ProductReviewsSection';
 
 // --- Animation variants ---
 const fadeIn: Variants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
@@ -33,7 +32,7 @@ const staggerContainer: Variants = { hidden: { opacity: 0 }, visible: { opacity:
 const capitalize = (s: string = "") => s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 const truncate = (text: string = "", maxLength: number = 20) => text?.length > maxLength ? text.substring(0, maxLength) + "..." : text;
 const calculateDiscountPercentage = (originalPrice: number, discountPrice: number): number => {
-  if (!originalPrice || originalPrice <= 0 || discountPrice < 0) return 0;
+  if (!originalPrice || originalPrice <= 0 || discountPrice < 0 || discountPrice >= originalPrice) return 0;
   return Math.round(((originalPrice - discountPrice) / originalPrice) * 100);
 };
 
@@ -102,6 +101,7 @@ export default function ProductDetailsPage() {
   const [showMobileFooter, setShowMobileFooter] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+  const reviewsSectionRef = useRef<HTMLDivElement>(null); // <<<--- 1. Create a ref for the reviews section
 
   const siteUrl = window.location.origin;
 
@@ -123,29 +123,25 @@ export default function ProductDetailsPage() {
       const existingCartItem = cartItems.find(item => item.id === productData.o_product_id);
       setQuantity(existingCartItem ? existingCartItem.quantity : 1);
 
-      // SEO Update
       const title = `${productData.o_product_name} | GNT Store`;
       const desc = productData.o_product_description
         ? productData.o_product_description.substring(0, 160) + (productData.o_product_description.length > 160 ? '...' : '')
         : `Buy ${productData.o_product_name} at GNT Store. Check details and price.`;
       const canonical = `${siteUrl}/product/${productData.o_slug}`;
-      // ** CORRECTED IMAGE ACCESS **
       const ogImage = productData.o_images?.[0]?.url && !productData.o_images[0].url.includes('placeholder')
           ? productData.o_images[0].url
           : `${siteUrl}/favicon/og-image.png`;
 
       setSeoTitle(title); setSeoDescription(desc); setSeoCanonicalUrl(canonical); setSeoOgImage(ogImage);
 
-      // Redirect check
       if (!isLoading && !isFetching && id && productData.o_slug && !slug) {
-        console.log(`Redirecting from ID (${id}) to slug (${productData.o_slug})`);
         navigate(`/product/${productData.o_slug}`, { replace: true });
       }
 
-    } else if (!isLoading && !isFetching) { // Handle Not Found SEO
+    } else if (!isLoading && !isFetching) {
       setSeoTitle('Product Not Found | GNT Store'); setSeoDescription('The requested product could not be found.'); setSeoCanonicalUrl(`${siteUrl}${location.pathname}`); setSeoOgImage(`${siteUrl}/favicon/og-image.png`);
       setQuantity(null);
-    } else { // Handle Loading SEO
+    } else {
       setSeoTitle('Loading Product... | GNT Store'); setSeoDescription('Loading product details...'); setSeoCanonicalUrl(`${siteUrl}${location.pathname}`); setSeoOgImage(`${siteUrl}/favicon/og-image.png`);
     }
   }, [cartItems, productData, id, slug, navigate, isLoading, isFetching, location.pathname, siteUrl]);
@@ -165,7 +161,6 @@ export default function ProductDetailsPage() {
           addToCart({
               id: productData.o_product_id, slug: productData.o_slug, title: productData.o_product_name,
               price: parseFloat(productData.o_price), discount_price: parseFloat(productData.o_discount_price),
-              // ** CORRECTED IMAGE ACCESS **
               image: productData.o_images?.[0]?.url || "/placeholder.svg"
           }, quantity);
       } else { console.warn("Add to cart called without product data or valid quantity."); toast.error("Could not add item to cart.", { id: "add-cart-error" }); }
@@ -180,22 +175,23 @@ export default function ProductDetailsPage() {
             addToWishlist({
                 id: productData.o_product_id, slug: productData.o_slug, title: productData.o_product_name,
                 price: parseFloat(productData.o_price), discount_price: parseFloat(productData.o_discount_price),
-                 // ** CORRECTED IMAGE ACCESS **
                 image: productData.o_images?.[0]?.url || "/placeholder.svg"
             });
         }
     }
   };
 
-  // --- Mobile Footer Visibility Logic ---
+  // <<<--- 2. Click handler for scrolling to reviews ---<<<
+  const handleScrollToReviews = () => {
+    reviewsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const checkMobileFooterVisibility = useCallback(() => { if (window.innerWidth >= 768) { setShowMobileFooter(false); return; } if (!mainContentRef.current || !addToCartSectionRef.current) return; const windowHeight = window.innerHeight; const addToCartRect = addToCartSectionRef.current.getBoundingClientRect(); const shouldShowFooter = addToCartRect.bottom < 0 || addToCartRect.top > windowHeight; setShowMobileFooter(shouldShowFooter); }, []);
   useEffect(() => { let ticking = false; const throttledCheck = () => { if (!ticking) { window.requestAnimationFrame(() => { checkMobileFooterVisibility(); ticking = false; }); ticking = true; } }; window.addEventListener("scroll", throttledCheck, { passive: true }); window.addEventListener("resize", throttledCheck); throttledCheck(); return () => { window.removeEventListener("scroll", throttledCheck); window.removeEventListener("resize", throttledCheck); }; }, [checkMobileFooterVisibility]);
-  useLayoutEffect(() => { const timer = setTimeout(() => { checkMobileFooterVisibility(); }, 150); return () => clearTimeout(timer); }, [checkMobileFooterVisibility, productData]);
 
   // --- RENDER LOGIC ---
-
-  // Loading State
   if (isLoading && !(productData && (slug || id))) {
+    // Skeleton UI (remains the same)
     return (
       <div className="min-h-screen bg-[#0f1115] text-white font-sans overflow-x-hidden relative">
         <SEO title={seoTitle} description={seoDescription} canonicalUrl={seoCanonicalUrl} noIndex={true} />
@@ -211,8 +207,8 @@ export default function ProductDetailsPage() {
     );
   }
 
-  // Error State
   if (error) {
+    // Error UI (remains the same)
     return (
       <div className="min-h-screen bg-[#0f1115] text-white font-sans overflow-x-hidden flex flex-col items-center justify-center p-4">
         <SEO title="Error Loading Product | GNT Store" description={`There was an error loading the product details: ${error}`} canonicalUrl={seoCanonicalUrl} noIndex={true} />
@@ -228,8 +224,8 @@ export default function ProductDetailsPage() {
     );
   }
 
-  // Not Found State
   if (!isLoading && !productData) {
+    // Not Found UI (remains the same)
     return (
       <div className="min-h-screen bg-[#0f1115] text-white font-sans overflow-x-hidden flex flex-col items-center justify-center p-4">
         <SEO title={seoTitle} description={seoDescription} canonicalUrl={seoCanonicalUrl} noIndex={true} />
@@ -245,19 +241,16 @@ export default function ProductDetailsPage() {
     );
   }
 
-  // Should not happen, but satisfy TypeScript and prevent crash
   if (!productData) { console.error("Product data is unexpectedly null after loading checks"); return null; }
 
-  // --- Prepare data for rendering (productData is guaranteed non-null here) ---
-  // ** CORRECTED IMAGE DERIVATION **
   const images = productData.o_images?.map(img => img.url ?? "/placeholder.svg") ?? [];
-  if (images.length === 0) images.push("/placeholder.svg"); // Ensure placeholder if array is empty
-
+  if (images.length === 0) images.push("/placeholder.svg");
   const price = parseFloat(productData.o_price);
   const discountPrice = parseFloat(productData.o_discount_price);
   const isProductInWishlist = isInWishlist(productData.o_product_id);
   const description = productData.o_product_description || "";
-
+  const averageRating = productData.o_average_rating ?? 0;
+  const reviewCount = productData.o_review_count ?? 0;
 
   return (
     <div className="min-h-screen bg-[#0f1115] text-white font-sans overflow-x-hidden relative">
@@ -273,14 +266,13 @@ export default function ProductDetailsPage() {
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-x-8 xl:gap-x-16 gap-y-8">
-
           {/* Image Carousel */}
           <motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
             <div className="relative w-full aspect-square bg-[#1a1c23] rounded-xl overflow-hidden max-w-full" style={{ maxHeight: 'min(calc(100vh - 200px), 600px)' }}>
                 {isFetching && ( <div className="absolute inset-0 flex items-center justify-center bg-[#1a1c23]/70 z-10"> <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#5865f2]"></div> </div> )}
                 <Carousel setApi={setApi} opts={{ loop: images.length > 1, containScroll: "keepSnaps" }} className="w-full h-full">
                     <CarouselContent className="h-full">
-                        {images.map((imgUrl, index) => ( // Use imgUrl from corrected 'images' array
+                        {images.map((imgUrl, index) => (
                             <CarouselItem key={index} className="h-full flex items-center justify-center">
                                 <div className="w-full h-full flex items-center justify-center p-2 sm:p-4">
                                     <img src={imgUrl} alt={`${productData.o_product_name} image ${index + 1}`} className="max-w-full max-h-full object-contain" width={600} height={600} loading={index === 0 ? "eager" : "lazy"}
@@ -289,22 +281,19 @@ export default function ProductDetailsPage() {
                             </CarouselItem>
                         ))}
                     </CarouselContent>
-                    {images.length > 1 && (
-                        <>
-                            <Button variant="ghost" size="icon" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full hidden sm:flex" onClick={() => api?.scrollPrev()}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"> <path d="m15 18-6-6 6-6"/> </svg> <span className="sr-only">Previous</span>
-                            </Button>
-                            <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full hidden sm:flex" onClick={() => api?.scrollNext()}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"> <path d="m9 18 6-6-6-6"/> </svg> <span className="sr-only">Next</span>
-                            </Button>
-                        </>
-                    )}
+                    {images.length > 1 && ( /* Nav buttons */ <>
+                        <Button variant="ghost" size="icon" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full hidden sm:flex" onClick={() => api?.scrollPrev()}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"> <path d="m15 18-6-6 6-6"/> </svg> <span className="sr-only">Previous</span>
+                        </Button>
+                        <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full hidden sm:flex" onClick={() => api?.scrollNext()}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"> <path d="m9 18 6-6-6-6"/> </svg> <span className="sr-only">Next</span>
+                        </Button>
+                    </>)}
                 </Carousel>
             </div>
-            {/* Thumbnails */}
-            {images.length > 1 && (
+            {images.length > 1 && ( /* Thumbnails */
                 <div className="grid grid-cols-4 gap-2 md:gap-4">
-                    {images.slice(0, 4).map((imgUrl, index) => ( // Use imgUrl from corrected 'images' array
+                    {images.slice(0, 4).map((imgUrl, index) => (
                         <motion.div key={index} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3, delay: index * 0.1 }} onClick={() => api?.scrollTo(index)}
                                     className={`aspect-square relative overflow-hidden rounded-lg bg-[#1a1c23] cursor-pointer transition-all duration-300 ${ currentSlide === index ? "ring-2 ring-[#5865f2]" : "hover:ring-2 hover:ring-[#5865f2]/50" }`}>
                             <img src={imgUrl} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" width={150} height={150} loading="lazy" />
@@ -338,6 +327,22 @@ export default function ProductDetailsPage() {
                 </motion.div>
                 {isFetching && <p className="text-sm text-gray-500 mt-1">Updating price...</p>}
               </div>
+
+              {/* Display Average Rating - Make this clickable */}
+              {reviewCount > 0 && (
+                <div
+                    className="flex items-center gap-1 text-sm text-gray-300 my-3 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={handleScrollToReviews} // <<<--- 3. Attach click handler
+                    title="View customer reviews"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleScrollToReviews();}}
+                >
+                  {Array(5).fill(0).map((_, i) => (<Star key={i} size={18} className={i < Math.round(averageRating) ? "text-yellow-400 fill-yellow-400" : "text-gray-600"} />))}
+                  <span className="ml-2 font-semibold text-base">{averageRating.toFixed(1)}</span>
+                  <span className="text-gray-400">({reviewCount} Review{reviewCount !== 1 ? 's' : ''})</span>
+                </div>
+              )}
 
               {/* Product Trust Badges */}
               <ProductTrustBadges />
@@ -374,8 +379,6 @@ export default function ProductDetailsPage() {
             </div>
           </motion.div>
         </div>
-
-        
 
         {/* Similar Products Section */}
         <div className="overflow-hidden">
@@ -415,6 +418,13 @@ export default function ProductDetailsPage() {
         </div>
       </main>
 
+      {/* Reviews Section - Ensure it's always rendered if it exists */}
+      <div className="container mx-auto px-4 py-4 max-w-7xl" ref={reviewsSectionRef}> {/* <<<--- 3. Attach ref here ---<<< */}
+        {productData?.o_product_id && productData?.o_product_name && ( // Conditionally render only if productId and name exist
+            <ProductReviewsSection productId={productData.o_product_id} productName={productData.o_product_name} />
+        )}
+      </div>
+
       {/* Mobile Persistent Footer */}
       {productData && (
           <div className={`fixed bottom-0 left-0 right-0 md:hidden transition-transform duration-300 ease-in-out z-40 ${ showMobileFooter ? "translate-y-0" : "translate-y-full" }`}>
@@ -428,9 +438,7 @@ export default function ProductDetailsPage() {
       )}
 
       {/* Modals */}
-      <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} onLoginSuccess={function (): void {
-        throw new Error("Function not implemented.");
-      } } />
+      <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} onLoginSuccess={() => { setLoginModalOpen(false); toast.success("Logged in!"); }} />
       {productData && ( <DescriptionModal title={productData.o_product_name} content={description} open={descriptionModalOpen} onOpenChange={setDescriptionModalOpen} /> )}
     </div>
   );
