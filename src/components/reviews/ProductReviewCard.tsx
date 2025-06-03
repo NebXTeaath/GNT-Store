@@ -34,7 +34,7 @@
               {review.user_name ? review.user_name.charAt(0).toUpperCase() : 'A'}
             </div>
             <div className="ml-3">
-              <h4 className="font-medium text-sm text-white">{review.user_name || 'Anonymous User'}</h4>
+              <h4 className="font-medium text-sm text-white">{review.user_name || 'Verified User'}</h4>
               <p className="text-xs text-gray-400">{formatDate(review.created_at)}</p>
             </div>
           </div>
