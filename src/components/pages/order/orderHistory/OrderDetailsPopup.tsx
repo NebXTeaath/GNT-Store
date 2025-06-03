@@ -203,8 +203,80 @@ const OrderDetailsContent = ({ order, isMobile }: OrderDetailsContentProps) => {
     // Modal will close via its onOpenChange, and the button will update due to query refetch
   };
 
-  const formatOrderDetailsForWhatsApp = () => { /* ... as before ... */ return ""; };
-  const handleNeedHelpClick = (e: React.MouseEvent<HTMLButtonElement>) => { /* ... as before ... */ };
+  // Function to format order details for WhatsApp using server data
+  const formatOrderDetailsForWhatsApp = () => {
+    // Add checks for summary and customer existence
+    if (!orderDetails || !orderSummary || !customer) {
+        return "Order details are incomplete. Cannot generate support message.";
+    }
+
+    const {
+      discount_rate: discountRate,
+      discount_code: discountCode,
+      discount_type: discountType,
+      discount_amount: discountAmount,
+      subtotal,
+      total,
+    } = orderSummary;
+    // Check if discountAmount is present and greater than 0 for hasDiscount
+    const hasDiscount = discountAmount !== null && discountAmount !== undefined && discountAmount > 0;
+
+    let message = "Order Support Request\n\n";
+    message += `Order ID: ${order.id ?? 'N/A'}\n`;
+    message += `Order Date: ${formattedDate}\n`; // Use pre-formatted safe date
+    message += `Status: ${orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)}\n\n`; // Use safe status
+
+    message += "Items:\n";
+    products.forEach((product) => { // Use safe 'products' array
+      message += `• ${product.name ?? 'Unknown Item'} (Qty: ${product.quantity ?? 0}) - ${formatCurrencyWithSeparator(
+        product.subtotal // Access subtotal directly
+      )}\n`;
+    });
+    message += `\nSubtotal: ${formatCurrencyWithSeparator(subtotal)}\n`;
+
+    if (hasDiscount) {
+        // Safely access discount properties
+        const discountCodeDisplay = discountCode ?? 'N/A';
+        const discountTypeDisplay = discountType ?? 'N/A';
+        const rateDisplay = formatDiscountInfo(discountTypeDisplay, discountRate ?? 0); // Use helper
+
+        message += `Discount Applied: ${discountCodeDisplay} (${rateDisplay}) - Saving ${formatCurrencyWithSeparator(discountAmount)}\n`;
+    }
+
+    message += `Total: ${formatCurrencyWithSeparator(total)}\n`;
+    message += `Shipping Address: ${customer.address ?? 'N/A'}\n\n`;
+
+    if (orderStatus.toLowerCase() === "delivered") {
+      message += `Delivered on ${formattedDate}\n`;
+    } else {
+      message += `Delivery Info: ${order.remark || "to be updated soon by our team"}\n`;
+    }
+
+    message += "\nPlease assist with this order.";
+    return message;
+  };
+
+
+  // WhatsApp "Need Help?" button handler
+  const handleNeedHelpClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation(); // Prevent modal close if button is inside clickable area
+    if (!adminWhatsAppNumber) {
+        console.error("Admin WhatsApp number (VITE_ADMIN_WHATSAPP) is not configured.");
+        alert("Support contact is currently unavailable.");
+        return;
+    }
+    const message = formatOrderDetailsForWhatsApp();
+    // Add check if details were incomplete
+    if (message.startsWith("Order details are incomplete")) {
+        alert(message);
+        return;
+    }
+    window.open(
+      `https://wa.me/${adminWhatsAppNumber}?text=${encodeURIComponent(message)}`,
+      "_blank"
+    );
+  };
+  
   const hasDiscountApplied = orderSummary?.discount_amount !== null && orderSummary?.discount_amount !== undefined && orderSummary.discount_amount > 0;
 
   return (
