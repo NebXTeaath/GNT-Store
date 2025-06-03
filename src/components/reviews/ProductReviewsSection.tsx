@@ -104,7 +104,7 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({ productId
       <div className="mt-12 py-8 text-center">
         <MessageSquare className="mx-auto h-12 w-12 text-gray-500 mb-4" />
         <h3 className="text-xl font-semibold text-white">No Reviews Yet</h3>
-        <p className="text-gray-400 mt-1">Buy and be the first to review {productName}!</p>
+        <p className="text-gray-400 mt-1">Buy now to be the first to review {productName}!</p>
       </div>
     );
   }
