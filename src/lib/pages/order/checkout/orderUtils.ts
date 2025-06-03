@@ -1,18 +1,19 @@
-// src/pages/order/checkout/orderUtils.ts
-import { supabase } from '@/lib/supabase'; // Keep only one import
+// src/lib/pages/order/checkout/orderUtils.ts
+import { supabase } from '@/lib/supabase';
 import { FunctionsError, FunctionsHttpError } from '@supabase/supabase-js';
 
-// Keep type definitions (assuming they are needed here or exported for use elsewhere)
-export interface OrderItem {
-    id: string; // Product UUID from your DB
+// Rich CartItem structure (as used in CartContext and for display on the frontend)
+export interface DisplayCartItem {
+    id: string; // Product UUID
     title: string;
-    image?: string;
     price: number; // Original price
-    discount_price: number; // Selling price
+    discount_price: number; // Selling price (after potential base discount)
     quantity: number;
-    slug?: string; // Optional: For linking back to product page
+    image: string; // URL
+    slug: string; // For navigation
 }
 
+// UserProfile and UserProfileAddress interfaces remain the same
 export interface UserProfileAddress {
     line1: string;
     line2?: string;
@@ -31,10 +32,16 @@ export interface UserProfile {
     profileDocId?: string; // Optional: If you also store a separate profile document ID
 }
 
+// Simplified structure for cart items in the order payload sent to the backend
+interface OrderPayloadCartItem {
+    id: string; // Product UUID
+    quantity: number;
+}
+
+// OrderPayload now uses the simplified cart item structure
 interface OrderPayload {
-    // userId: string; // User ID will be implicitly available in the Edge Function via auth token
-    cartItems: OrderItem[];
-    userProfile: UserProfile; // Send necessary profile snapshot
+    cartItems: OrderPayloadCartItem[];
+    userProfile: UserProfile;
     discountCode?: string | null;
 }
 
@@ -42,12 +49,75 @@ interface OrderPayload {
 interface OrderResponse {
     success: boolean;
     orderId?: string; // The ID of the newly created order in Supabase DB
-    order?: any; // Optional: Full order details if returned by function
-    error?: string; // Error message string from function
     message?: string; // Success or info message from function
+    error?: string;   // Optional top-level error type
+    total?: number;   // Optional final total if returned
+    details?: string; // Optional details on RPC call failure
 }
 
-// --- Add the missing Supabase Order Details Structure Definitions ---
+// Function to invoke the Supabase Edge Function 'orders'
+export async function createServerOrder(
+    displayCartItems: DisplayCartItem[], // Receive the rich cart items from the context
+    userProfile: UserProfile,
+    discountCode: string | null
+): Promise<string> { // Still returns order ID on success
+    console.log("[createServerOrder] Preparing payload for 'orders' Edge Function...");
+
+    // MAP rich DisplayCartItem[] to simplified OrderPayloadCartItem[]
+    const simplifiedCartItems: OrderPayloadCartItem[] = displayCartItems.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+    }));
+
+    // Prepare the payload with simplified cart items
+    const payload: OrderPayload = {
+        cartItems: simplifiedCartItems,
+        userProfile: userProfile,
+        discountCode: discountCode || null,
+    };
+    console.log("[createServerOrder] Sending payload:", JSON.stringify(payload, null, 2));
+
+    try {
+        // Invoke the Edge function
+        const { data, error } = await supabase.functions.invoke<OrderResponse>('orders', {
+            method: 'POST',
+            body: payload,
+        });
+
+        // Handle Edge Function Invocation Errors
+        if (error) {
+            let displayMessage = error.message || 'Failed to communicate with order service.';
+            if (error instanceof FunctionsHttpError) {
+                console.error('Edge Function HTTP Error Context:', await error.context.json().catch(() => ({})));
+                try {
+                    const errBody = await error.context.json();
+                    displayMessage = errBody.message || errBody.error || displayMessage;
+                } catch { /* ignore parsing error */ }
+            } else if (error instanceof FunctionsError) { // More generic FunctionsError
+                console.error('Edge Function Generic Error Context:', error.context);
+            }
+            console.error('Edge Function Invocation Error:', error);
+            throw new Error(displayMessage);
+        }
+
+        // Handle Application-Level Errors from the Function's Response
+        if (!data || !data.success || !data.orderId) {
+            const errorMessage = data?.message || data?.error || "Order creation failed: Invalid response from server.";
+            console.error('Order Creation Failed Logic:', errorMessage, data);
+            throw new Error(errorMessage);
+        }
+
+        // Success Case
+        console.log(`[createServerOrder] Order successfully created. Order ID: ${data.orderId}, Message: ${data.message}`);
+        return data.orderId;
+
+    } catch (error) {
+        console.error('Error during createServerOrder process:', error);
+        throw error instanceof Error ? error : new Error('An unknown error occurred during order creation.');
+    }
+}
+
+// --- Definitions for data structures fetched from the database (e.g., for order history) ---
 // Structure expected within the 'order_details' JSONB column of the 'orders' table
 export interface OrderDetailsStructure {
     customer: {
@@ -75,7 +145,6 @@ export interface OrderDetailsStructure {
         discount_type?: string; // 'percentage' or 'fixed'
         discount_rate?: number; // The rate applied (e.g., 0.05 for 5%)
         total: number; // Final amount paid (subtotal - discount_amount)
-        // Add tax, shipping if applicable
     };
 }
 
@@ -92,82 +161,6 @@ export interface FetchedSupabaseOrder {
     created_at: string; // Timestamp
     updated_at: string; // Timestamp
 }
-// --- End Added Definitions ---
-
-
-interface OrderResponse {
-    success: boolean;
-    orderId?: string; // UUID string
-    message?: string; // Success or error message from function/RPC
-    error?: string;   // Optional top-level error type
-    total?: number;   // Optional final total if returned
-    details?: string; // Optional details on RPC call failure
-}
-
-// Function to invoke the Supabase Edge Function 'orders' (now calling RPC internally)
-export async function createServerOrder(
-    cartItems: OrderItem[],
-    userProfile: UserProfile,
-    discountCode: string | null
-): Promise<string> { // Still returns order ID on success
-    console.log("[createServerOrder] Preparing payload for 'orders' Edge Function...");
-
-    // Prepare the payload according to the Edge Function's expectation
-    // THIS IS THE LINE TO FIX:
-    const payload: OrderPayload = {
-        
-        // CORRECT ASSIGNMENTS:
-        cartItems: cartItems,         // Assign cartItems array to cartItems key
-        userProfile: userProfile,     // Assign userProfile object to userProfile key
-        discountCode: discountCode || null, // Assign discountCode string/null to discountCode key
-    };
-    console.log("[createServerOrder] Sending payload:", JSON.stringify(payload, null, 2)); // Log payload for debugging
-
-    try {
-        // Invoke the Edge function (which now calls the RPC)
-        const { data, error } = await supabase.functions.invoke<OrderResponse>('orders', {
-            method: 'POST',
-            body: payload,
-        });
-
-        // Handle Edge Function Invocation Errors (Network, 5xx from function itself)
-        if (error) {
-            let displayMessage = error.message || 'Failed to communicate with order service.';
-             // Try to get more context for logging/debugging
-             if (error instanceof FunctionsHttpError) {
-                 console.error('Edge Function HTTP Error Context:', await error.context.json().catch(() => ({}))); // Log response body if possible
-                 // Try to extract a specific message from the response body
-                 try {
-                     const errBody = await error.context.json();
-                     displayMessage = errBody.message || errBody.error || displayMessage;
-                 } catch { /* ignore parsing error */ }
-             } else if (error instanceof FunctionsError) {
-                 console.error('Edge Function Generic Error Context:', error.context);
-             }
-
-            console.error('Edge Function Invocation Error:', error); // Log the original error object
-            throw new Error(displayMessage); // Throw a user-friendly error message
-        }
-
-        // Handle Application-Level Errors indicated by the Function's Response
-        // (e.g., RPC returned success: false due to validation)
-        if (!data || !data.success || !data.orderId) {
-            const errorMessage = data?.message || "Order creation failed: Invalid response from server.";
-            console.error('Order Creation Failed Logic:', errorMessage, data); // Log the response data
-            throw new Error(errorMessage); // Throw the message from the function/RPC
-        }
-
-        // Success Case
-        console.log(`[createServerOrder] Order successfully created via RPC. Order ID: ${data.orderId}, Message: ${data.message}`);
-        return data.orderId; // Return the new Order ID
-
-    } catch (error) {
-        console.error('Error during createServerOrder process:', error); // Catch any other errors
-        // Re-throw the caught error (which should now have a good message)
-        // or a generic fallback
-        throw error instanceof Error ? error : new Error('An unknown error occurred during order creation.');
-    }
-}
 
 // Helper functions (optional, could be moved to specific components)
 export function getCustomerInfo(orderDetails: OrderDetailsStructure | undefined) {
@@ -180,7 +173,7 @@ export function getOrderSummary(orderDetails: OrderDetailsStructure | undefined)
     return orderDetails?.order_summary;
 }
 
-// Utility to get status color (assuming you need it here, might be better in UI component)
+// Utility to get status color
 export const getStatusColor = (status: string | null | undefined): string => {
     const s = status?.toLowerCase();
     switch(s){
@@ -189,9 +182,7 @@ export const getStatusColor = (status: string | null | undefined): string => {
         case 'delivered': return 'bg-emerald-500/10 text-emerald-400';
         case 'cancelled': return 'bg-red-500/10 text-red-400';
         case 'pending': return 'bg-yellow-500/10 text-yellow-400';
-        case 'failed': return 'bg-red-700/20 text-red-500'; // Added failed state
+        case 'failed': return 'bg-red-700/20 text-red-500';
         default: return 'bg-gray-500/10 text-gray-400';
     }
 };
-
-// --- REMOVED Duplicated code sections ---
