@@ -11,6 +11,7 @@
     }
 
     const ProductReviewCard: React.FC<ProductReviewCardProps> = ({ review, className }) => {
+       console.log("ProductReviewCard received review:", JSON.stringify(review, null, 2));
       const renderStars = () => {
         return Array(5).fill(0).map((_, index) => (
           <Star
