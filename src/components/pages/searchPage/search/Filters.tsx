@@ -73,6 +73,7 @@ const FilterBooleanCheckbox = ({
 };
 
 // Slider for numeric range filtering
+// Fixed FilterSliderSection component
 const FilterSliderSection = ({
   options,
   activeOptions,
@@ -82,8 +83,9 @@ const FilterSliderSection = ({
   activeOptions: (string | number)[];
   onRangeChange: (range: [number, number]) => void;
 }) => {
-  const min = Math.min(...options);
-  const max = Math.max(...options);
+  const sortedOptions = [...options].sort((a, b) => a - b);
+  const min = sortedOptions[0];
+  const max = sortedOptions[sortedOptions.length - 1];
   
   const currentRange: [number, number] = useMemo(() => {
     if (activeOptions.length === 2 && !isNaN(Number(activeOptions[0])) && !isNaN(Number(activeOptions[1]))) {
@@ -98,15 +100,50 @@ const FilterSliderSection = ({
     setLocalRange(currentRange);
   }, [currentRange]);
 
+  // Calculate appropriate step based on actual data distribution
+  const calculateStep = () => {
+    if (sortedOptions.length <= 1) return 1;
+    
+    // For small datasets, use the minimum gap between consecutive values
+    if (sortedOptions.length <= 10) {
+      const gaps = [];
+      for (let i = 1; i < sortedOptions.length; i++) {
+        gaps.push(sortedOptions[i] - sortedOptions[i - 1]);
+      }
+      const minGap = Math.min(...gaps);
+      return minGap > 0 ? minGap : 1;
+    }
+    
+    // For larger datasets, use a fraction of the total range
+    const totalRange = max - min;
+    const desiredSteps = Math.min(20, sortedOptions.length);
+    return Math.max(1, Math.round(totalRange / desiredSteps));
+  };
+
+  const step = calculateStep();
+
+  // Snap values to nearest available option
+  const snapToNearestOption = (value: number): number => {
+    return sortedOptions.reduce((closest, option) => {
+      return Math.abs(option - value) < Math.abs(closest - value) ? option : closest;
+    });
+  };
+
   const handleSliderChange = (value: number[]) => {
     if (value.length === 2) {
-      setLocalRange([value[0], value[1]]);
+      // Snap both values to nearest available options
+      const snappedMin = snapToNearestOption(value[0]);
+      const snappedMax = snapToNearestOption(value[1]);
+      setLocalRange([snappedMin, snappedMax]);
     }
   };
 
   const handleSliderCommit = (value: number[]) => {
     if (value.length === 2) {
-      onRangeChange([value[0], value[1]]);
+      // Ensure final values are snapped to actual options
+      const snappedMin = snapToNearestOption(value[0]);
+      const snappedMax = snapToNearestOption(value[1]);
+      onRangeChange([snappedMin, snappedMax]);
     }
   };
 
@@ -115,7 +152,7 @@ const FilterSliderSection = ({
       <Slider
         min={min}
         max={max}
-        step={options.length > 20 ? Math.round((max - min) / 20) : 1}
+        step={step}
         value={localRange}
         onValueChange={handleSliderChange}
         onValueCommit={handleSliderCommit}
@@ -125,6 +162,12 @@ const FilterSliderSection = ({
         <span>{localRange[0]}</span>
         <span>{localRange[1]}</span>
       </div>
+      {/* Show available values for small datasets */}
+      {sortedOptions.length <= 10 && (
+        <div className="text-xs text-gray-500 mt-2">
+          Available values: {sortedOptions.join(', ')}
+        </div>
+      )}
     </div>
   );
 };
