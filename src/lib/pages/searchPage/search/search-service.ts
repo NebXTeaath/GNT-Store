@@ -1,16 +1,32 @@
-// src/pages/searchPage/search/search-service.ts
+// src/lib/pages/searchPage/search/search-service.ts
 import { supabase } from "@/lib/supabase";
-import type { ProductSearchResult } from "@/lib/types/product"; // Adjust path if needed
-import type { SearchSuggestion } from "@/lib/types/search"; // Adjust path if needed
+import type { ProductSearchResult } from "@/lib/types/product";
+import type { SearchSuggestion } from "@/lib/types/search";
 
 // Interfaces (assume defined or imported correctly)
-// interface ProductSearchResult { ... }
-// interface SearchSuggestion { ... }
-
+export interface SearchResultsParams {
+    term: string;
+    category?: string | null;
+    subcategory?: string | null;
+    label?: string | null;
+    minPrice?: number | null;
+    maxPrice?: number | null;
+    condition?: string | null;
+    sortBy?: string;
+    page?: number;
+    pageSize?: number;
+}
+export interface SearchResultsData {
+    results: ProductSearchResult[];
+    totalResults: number;
+    page: number;
+    totalPages: number;
+    suggestions: SearchSuggestion[];
+    didYouMean: string | null;
+}
 
 /**
  * Fetches autocomplete results, suggestions, and 'did you mean'.
- * This function will be called by the useAutocompleteSearch hook.
  */
 export async function getAutocompleteResults(
     term: string,
@@ -48,7 +64,6 @@ export async function getAutocompleteResults(
             if (suggestions.length > 0 && suggestions[0].similarity_score > 0.6) {
                 didYouMean = suggestions[0].suggestion;
             }
-            // console.log("Suggestions Data :: ", suggestions); // Keep if needed
         } else if (suggestionsRes.status === "rejected" || suggestionsRes.value.error) {
             console.error("Search suggestions RPC error:", suggestionsRes.status === 'rejected' ? suggestionsRes.reason : suggestionsRes.value.error);
         }
@@ -60,18 +75,9 @@ export async function getAutocompleteResults(
     }
 }
 
-// Interface for search results parameters (Unchanged)
-export interface SearchResultsParams { /* ... */
-    term: string; category?: string | null; subcategory?: string | null; label?: string | null; minPrice?: number | null; maxPrice?: number | null; condition?: string | null; sortBy?: string; page?: number; pageSize?: number;
-}
-// Interface for the return value of getSearchResults (Unchanged)
-export interface SearchResultsData { /* ... */
-    results: ProductSearchResult[]; totalResults: number; page: number; totalPages: number; suggestions: SearchSuggestion[]; didYouMean: string | null;
-}
 
 /**
  * Fetches paginated search results and total count.
- * This function will be called by the useSearchResults hook.
  */
 export async function getSearchResults(
     params: SearchResultsParams
@@ -80,7 +86,6 @@ export async function getSearchResults(
 
     if (!term && !category && !subcategory && !label) {
         console.warn("Search attempted without term or primary filters.");
-        // Return empty results if no search term or filters are provided
         return { results: [], totalResults: 0, page: 1, totalPages: 0, suggestions: [], didYouMean: null };
     }
 
@@ -96,7 +101,6 @@ export async function getSearchResults(
             searchResults = searchRes.value.data || [];
         } else if (searchRes.status === 'rejected' || searchRes.value.error) {
             console.error("Search results RPC error:", searchRes.status === 'rejected' ? searchRes.reason : searchRes.value.error);
-             // FIX: Check error before accessing message
             throw new Error(searchRes.status === 'rejected' ? 'Failed to fetch search results' : searchRes.value.error?.message || 'Unknown search error');
         }
 
@@ -105,7 +109,6 @@ export async function getSearchResults(
             totalResults = countRes.value.data || 0;
         } else if (countRes.status === 'rejected' || countRes.value.error) {
             console.error("Search count RPC error:", countRes.status === 'rejected' ? countRes.reason : countRes.value.error);
-             // FIX: Check error before accessing message
             throw new Error(countRes.status === 'rejected' ? 'Failed to fetch search count' : countRes.value.error?.message || 'Unknown count error');
         }
 
@@ -117,7 +120,6 @@ export async function getSearchResults(
                 didYouMean = suggestions[0].suggestion;
             }
         } else if (suggestionsRes.status === 'rejected' || (suggestionsRes.status === 'fulfilled' && suggestionsRes.value?.error)) {
-            // Log suggestion errors but don't fail the whole search for it
             console.warn("Search suggestions RPC error:", suggestionsRes.status === 'rejected' ? suggestionsRes.reason : suggestionsRes.value?.error);
         }
 

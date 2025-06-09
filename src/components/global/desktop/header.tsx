@@ -23,24 +23,51 @@ import LoginModal from "@/components/pages/Login/LoginModal";
 import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { ProfileIndex } from "@/components/global/Profile/components/ProfileIndex";
 import { OffersPopover } from "@/components/global/OffersPopover";
+// import { OptimizedImage } from "@/components/global/productsPage/ProductCard/optimized-image"; // Using simple img for now
 
-// Define the nested product categories structure
+// Define the nested product categories structure type
+type LabelItem = {
+  name: string;
+  display_url: string | null;
+};
+
 type ProductCategoriesStructure = {
   [category: string]: {
-    [subcategory: string]: string[];
+    [subcategory: string]: LabelItem[];
   };
 };
 
+
 // --- Function to fetch categories (can be moved to a service/api file) ---
 async function fetchCategoriesStructure(): Promise<ProductCategoriesStructure | null> {
-  console.log("[Header] Fetching category structure...");
+  console.log("[Header] Attempting to fetch category structure via RPC...");
   const { data, error } = await supabase.rpc("get_product_categories_structure");
+
   if (error) {
-    console.error("Error fetching product categories structure:", error);
-    toast.error("Failed to load shop categories");
+    console.error("Error fetching product categories structure from RPC:", error);
+    toast.error("Failed to load shop categories. Please try again later.");
     return null;
   }
-  return data as ProductCategoriesStructure;
+
+  // Assuming the SQL function `RETURNS jsonb` and `data` is the direct JSONB object
+  // or null if the RPC itself had an issue not caught by the error object (e.g. RLS)
+  console.log("[Header] Received data from RPC:", data);
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+      // This case handles if data is unexpectedly not the direct object, or if it's an array (like the sample)
+      // which might indicate a misunderstanding of the RPC return type or an issue with the RPC definition.
+      // If the sample `[{"get_product_categories_structure": {...}}]` IS correct, then data[0]... is needed.
+      // BUT, if SQL is `RETURNS jsonb`, `data` should be the object itself.
+      // The safest bet is to check if 'get_product_categories_structure' is a key if it's an array.
+      if (Array.isArray(data) && data.length > 0 && data[0] && typeof data[0] === 'object' && 'get_product_categories_structure' in data[0]) {
+         console.log("[Header] RPC returned array, extracting from data[0].get_product_categories_structure");
+         return (data[0] as any).get_product_categories_structure as ProductCategoriesStructure | null;
+      }
+      console.log("[Header] Data from RPC is not the expected direct object structure. Returning null or data itself if it's an object.", data);
+      // If data is an object (like {} or {"Consoles":...}), cast it. Otherwise null.
+      return typeof data === 'object' && !Array.isArray(data) ? data as ProductCategoriesStructure : null;
+  }
+  
+  return data as ProductCategoriesStructure | null;
 }
 
 export default function Header() {
@@ -61,6 +88,7 @@ export default function Header() {
   const {
     data: productCategories,
     isLoading: categoriesLoading,
+    isError: categoriesError, // Added to check for query errors
   } = useQuery<ProductCategoriesStructure | null, Error>({
     queryKey: ['productCategoriesStructure'],
     queryFn: fetchCategoriesStructure,
@@ -68,6 +96,16 @@ export default function Header() {
     gcTime: 1000 * 60 * 120, // Keep in cache for 2 hours
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+      if (productCategories) {
+          console.log("[Header] productCategories loaded:", productCategories);
+      }
+      if (categoriesError) {
+          console.error("[Header] Error state from useQuery for categories:", categoriesError);
+      }
+  }, [productCategories, categoriesError]);
+
 
   // --- State and Refs for Vertical Tab Animation ---
   const [activeIndex, setActiveIndex] = useState(0);
@@ -266,7 +304,7 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="px-6 py-4">
-                  {productCategories ? (
+                  {productCategories && Object.keys(productCategories).length > 0 ? (
                     Object.entries(productCategories).map(([category, subcategories], index, arr) => (
                       <div key={category} className="mb-6">
                         <div onClick={() => navigateWithLoading(`/${category}`, `Loading ${category}...`, setIsLoadingProducts)} className="flex items-center gap-2 mb-3 text-lg font-semibold text-white hover:text-[#5865f2] cursor-pointer p-1">
@@ -280,10 +318,22 @@ export default function Header() {
                                 {subcategory}
                               </div>
                               {labels.length > 0 && (
-                                <div className="ml-4 mt-2 grid grid-cols-2 gap-2">
-                                  {labels.map((label) => (
-                                    <div key={label} onClick={() => navigateWithLoading(`/${category}/${subcategory}?label=${encodeURIComponent(label)}`, `Loading ${label}...`, setIsLoadingProducts)} className="text-sm text-gray-400 hover:text-[#5865f2] cursor-pointer p-1">
-                                      {label}
+                                <div className="ml-4 mt-2 grid grid-cols-2 gap-4">
+                                  {labels.map((labelItem) => (
+                                    <div
+                                      key={labelItem.name}
+                                      onClick={() => navigateWithLoading(`/${category}/${subcategory}?label=${encodeURIComponent(labelItem.name)}`, `Loading ${labelItem.name}...`, setIsLoadingProducts)}
+                                      className="flex flex-col items-center text-center p-2 rounded-md hover:bg-[#2a2f3a] transition-colors cursor-pointer group"
+                                    >
+                                      <img 
+                                        src={labelItem.display_url || "/shortLogo.svg"} 
+                                        alt={labelItem.name}
+                                        className="w-16 h-16 object-contain mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200"
+                                        onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }} 
+                                      />
+                                      <span className="text-xs text-gray-300 group-hover:text-white transition-colors">
+                                        {labelItem.name}
+                                      </span>
                                     </div>
                                   ))}
                                 </div>
@@ -488,7 +538,6 @@ export default function Header() {
         open={loginOpen} 
         onOpenChange={setLoginOpen} 
         onLoginSuccess={() => {
-          // Implement login success handler here
           setLoginOpen(false);
         }} 
       />

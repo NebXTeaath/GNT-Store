@@ -18,7 +18,7 @@ supabase
 Merger
 scripts
 AI.md
-upload_metadata_slug_log.json
+upload_metadata*
 populate_reviews
 deno*
 temp*
