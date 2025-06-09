@@ -204,8 +204,19 @@ export function FilterContent({
   showSubcategoryFilter = true,
   showLabelFilter = true,
 }: FilterContentProps) {
-  const isComputerCategorySelected = activeCategories.includes('Computers');
-  const showTechSpecs = Object.keys(dynamicSpecFilters).length > 0 && (!activeCategories.length || isComputerCategorySelected);
+  
+  // --- START OF FIX ---
+  // This logic now checks if any label group actually contains any filterable specifications.
+  const showTechSpecs = useMemo(() => {
+    if (!dynamicSpecFilters || Object.keys(dynamicSpecFilters).length === 0) {
+      return false;
+    }
+    // Use .some() to see if AT LEAST ONE of the label groups has filters inside it.
+    return Object.values(dynamicSpecFilters).some(
+      (specsForLabel) => Object.keys(specsForLabel).length > 0
+    );
+  }, [dynamicSpecFilters]);
+  // --- END OF FIX ---
   
   const [localPriceRange, setLocalPriceRange] = useState<[number, number]>(discountPriceRange);
   const [hasPendingPriceChanges, setHasPendingPriceChanges] = useState(false);
@@ -219,7 +230,7 @@ export function FilterContent({
   
   return (
     <div className="space-y-6">
-      <Accordion type="multiple" defaultValue={["categories", "conditions", "price"]} className="w-full border-none">
+      <Accordion type="multiple" defaultValue={["categories", "conditions", "price", "technical-specifications"]} className="w-full border-none">
         
         {showCategoryFilter && (
           <AccordionItem value="categories" className="border-b border-[#2a2d36]">
@@ -251,6 +262,7 @@ export function FilterContent({
           </AccordionItem>
         )}
         
+        {/* --- The conditional rendering logic is now more robust --- */}
         {showTechSpecs && (
           <AccordionItem value="technical-specifications" className="border-b border-[#2a2d36]">
             <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
@@ -263,7 +275,12 @@ export function FilterContent({
             </AccordionTrigger>
             <AccordionContent className="pl-2">
               <Accordion type="multiple" className="w-full">
-                {Object.entries(dynamicSpecFilters).map(([label, specs]) => (
+                {Object.entries(dynamicSpecFilters).map(([label, specs]) => {
+                  // If a label group has no actual specs, don't render its accordion item
+                  if (Object.keys(specs).length === 0) {
+                    return null;
+                  }
+                  return (
                   <AccordionItem key={label} value={label} className="border-b border-neutral-800 last:border-b-0">
                     <AccordionTrigger className="py-2 hover:no-underline text-xs">
                       <span className={Object.keys(specs).some(specKey => activeTechSpecs[specKey]?.length > 0)
@@ -274,7 +291,6 @@ export function FilterContent({
                     </AccordionTrigger>
                     <AccordionContent className="pt-2 pl-2">
                       {Object.entries(specs).map(([specKey, specData]) => {
-                        // FIX: Use the filterType from specData instead of recalculating it
                         const { options, filterType } = specData;
 
                         return (
@@ -312,7 +328,8 @@ export function FilterContent({
                       })}
                     </AccordionContent>
                   </AccordionItem>
-                ))}
+                  );
+                })}
               </Accordion>
             </AccordionContent>
           </AccordionItem>
@@ -468,6 +485,7 @@ export function FilterContent({
   );
 }
 
+// ... ActiveFilters component remains the same ...
 interface ActiveFiltersProps {
   activeCategories: string[];
   activeSubcategories: string[];

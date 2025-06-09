@@ -84,6 +84,7 @@ export function useClientFilteredSearch({
       term: query,
       category: category,
       subcategory: subcategory,
+      label: activeLabels.length > 0 ? activeLabels[0] : null, // Pass label to server for more targeted results
       sortBy: sortBy,
       page: 1,
       pageSize: 1000
@@ -129,13 +130,12 @@ export function useClientFilteredSearch({
             tempDynamicFilters[product.label][specKey] = {
               displayName: formatDisplayName(specKey),
               options: [],
-              filterType: 'checkbox', // Default type
+              filterType: 'checkbox',
             };
           }
           const specDef = tempDynamicFilters[product.label][specKey];
           const optionsSet = new Set(specDef.options);
           
-          // --- START OF CORRECTED LOGIC ---
           let processedValue: string | number | boolean | any[] = value;
           if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
               try {
@@ -147,7 +147,6 @@ export function useClientFilteredSearch({
                   // Not valid JSON, treat as a single string.
               }
           }
-          // --- END OF CORRECTED LOGIC ---
 
           if (Array.isArray(processedValue)) {
               specDef.filterType = 'array-checkbox';
@@ -261,6 +260,22 @@ export function useClientFilteredSearch({
       return true;
     });
   }, [originalResults, activeCategories, activeSubcategories, activeLabels, activeConditions, isDiscountFilterEnabled, discountPriceRange, activeTechSpecs, dynamicSpecFilters]);
+  
+  // --- START OF FIX ---
+  // This new useMemo hook filters the spec groups based on the active label.
+  const relevantDynamicSpecFilters = useMemo(() => {
+    // When on a specific label page (activeLabels has one item), only show specs for that label.
+    if (activeLabels.length === 1 && dynamicSpecFilters[activeLabels[0]]) {
+        const relevantLabel = activeLabels[0];
+        const filteredSpecs: DynamicSpecFilters = {
+            [relevantLabel]: dynamicSpecFilters[relevantLabel]
+        };
+        return filteredSpecs;
+    }
+    // For general search pages or when no specific label is selected, show all available spec filters.
+    return dynamicSpecFilters;
+  }, [dynamicSpecFilters, activeLabels]);
+  // --- END OF FIX ---
 
   const paginatedResults = useMemo(() => {
     return filteredResults.slice((page - 1) * pageSize, page * pageSize);
@@ -272,7 +287,8 @@ export function useClientFilteredSearch({
     totalPages: pageSize > 0 ? Math.ceil(filteredResults.length / pageSize) : 1,
     isLoading: isFetchingFromServer,
     filterGroups,
-    dynamicSpecFilters,
+    // --- Use the new filtered object in the return value ---
+    dynamicSpecFilters: relevantDynamicSpecFilters,
     discountPriceBounds,
     didYouMean: searchData?.didYouMean ?? null,
     serverError: serverError?.message || null,
