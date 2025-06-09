@@ -292,7 +292,10 @@ export default function Header() {
                 Shop <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-full sm:max-w-md bg-[#1a1c23] border-[#2a2d36] text-white overflow-y-auto">
+            {/* MODIFIED: Added flex-1 overflow-y-auto dark-theme-scrollbar to the content wrapper div */}
+            <SheetContent side="left" className="w-full sm:max-w-md bg-[#1a1c23] border-[#2a2d36] text-white flex flex-col"> {/* Added flex flex-col */}
+              <div className="flex-1 overflow-y-auto dark-theme-scrollbar"> {/* This div will handle the scrolling */}
+
               <SheetHeader>
                 <SheetTitle className="text-white">Shop Catalog</SheetTitle>
                 <SheetDescription className="text-gray-400">Browse our product categories</SheetDescription>
@@ -347,8 +350,9 @@ export default function Header() {
                   ) : (
                     <div className="px-3 py-2 text-sm text-gray-300">No categories available</div>
                   )}
-                </div>
+                </div> 
               )}
+              </div>
             </SheetContent>
           </Sheet>
 
