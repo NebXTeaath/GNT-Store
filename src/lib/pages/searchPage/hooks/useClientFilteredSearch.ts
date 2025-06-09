@@ -32,6 +32,8 @@ export interface DynamicSpecFilters {
 
 interface UseClientFilteredSearchParams {
   query: string;
+  category?: string;
+  subcategory?: string;
   sortBy: string;
   page: number;
   pageSize: number;
@@ -39,7 +41,7 @@ interface UseClientFilteredSearchParams {
   activeSubcategories: string[];
   activeLabels: string[];
   activeConditions: string[];
-  activeTechSpecs: Record<string, string[]>; 
+  activeTechSpecs: Record<string, string[]>;
   isDiscountFilterEnabled: boolean;
   discountPriceRange: [number, number];
 }
@@ -63,7 +65,7 @@ const formatDisplayName = (key: string): string => {
 };
 
 export function useClientFilteredSearch({
-  query, sortBy, page, pageSize,
+  query, category, subcategory, sortBy, page, pageSize,
   activeCategories, activeSubcategories, activeLabels, activeConditions,
   activeTechSpecs, isDiscountFilterEnabled, discountPriceRange,
 }: UseClientFilteredSearchParams): UseClientFilteredSearchResult {
@@ -78,8 +80,15 @@ export function useClientFilteredSearch({
     isLoading: isFetchingFromServer,
     error: serverError,
   } = useSearchResults(
-    { term: query, sortBy: sortBy, page: 1, pageSize: 1000 },
-    !!query
+    {
+      term: query,
+      category: category,
+      subcategory: subcategory,
+      sortBy: sortBy,
+      page: 1,
+      pageSize: 1000
+    },
+    !!query || !!category
   );
 
   useEffect(() => {
@@ -116,22 +125,6 @@ export function useClientFilteredSearch({
           const value = product.technical_specification[specKey];
           if (value === null || value === undefined) continue;
 
-          // --- MODIFICATION START: Smartly process values, including stringified arrays ---
-          let optionsSet = new Set(tempDynamicFilters[product.label][specKey]?.options || []);
-          
-          let processedValue = value;
-          // Check if the value is a string that looks like a JSON array.
-          if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-              try {
-                  const parsed = JSON.parse(value);
-                  if (Array.isArray(parsed)) {
-                      if (!Array.isArray(parsed)) {
-                          processedValue = parsed as string | number | boolean; // Cast to compatible type
-                      }
-                  }
-              } catch (e) { /* It's just a string, not valid JSON. Leave processedValue as is. */ }
-          }
-
           if (!tempDynamicFilters[product.label][specKey]) {
             tempDynamicFilters[product.label][specKey] = {
               displayName: formatDisplayName(specKey),
@@ -139,34 +132,44 @@ export function useClientFilteredSearch({
               filterType: 'checkbox', // Default type
             };
           }
+          const specDef = tempDynamicFilters[product.label][specKey];
+          const optionsSet = new Set(specDef.options);
+          
+          // --- START OF CORRECTED LOGIC ---
+          let processedValue: string | number | boolean | any[] = value;
+          if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
+              try {
+                  const parsed = JSON.parse(value);
+                  if (Array.isArray(parsed)) {
+                      processedValue = parsed; 
+                  }
+              } catch (e) {
+                  // Not valid JSON, treat as a single string.
+              }
+          }
+          // --- END OF CORRECTED LOGIC ---
 
-          // Now, handle the processedValue based on its actual type
           if (Array.isArray(processedValue)) {
-              tempDynamicFilters[product.label][specKey].filterType = 'array-checkbox';
+              specDef.filterType = 'array-checkbox';
               if (processedValue.length > 0) {
                   const firstElementType = typeof processedValue[0];
-                  tempDynamicFilters[product.label][specKey].elementType = 
+                  specDef.elementType = 
                     firstElementType === "string" || firstElementType === "number" || firstElementType === "boolean" 
                     ? firstElementType 
                     : undefined;
+                  
                   processedValue.forEach(item => {
                       if (item !== null && item !== undefined) optionsSet.add(item);
                   });
               }
           } else if (typeof processedValue === 'boolean') {
-              tempDynamicFilters[product.label][specKey].filterType = 'boolean';
+              specDef.filterType = 'boolean';
               optionsSet.add(processedValue);
-          } else { // Single string or number
+          } else { 
               optionsSet.add(processedValue);
           }
-
-          const updatedOptions = Array.from(optionsSet);
-          // Refine numeric type to slider if we have many distinct numbers
-          if (updatedOptions.every(o => typeof o === 'number') && updatedOptions.length > 2) {
-              tempDynamicFilters[product.label][specKey].filterType = 'numeric-slider';
-          }
-          tempDynamicFilters[product.label][specKey].options = updatedOptions;
-          // --- MODIFICATION END ---
+          
+          specDef.options = Array.from(optionsSet);
         }
       }
     });
@@ -177,6 +180,11 @@ export function useClientFilteredSearch({
     for (const label in tempDynamicFilters) {
       for (const specKey in tempDynamicFilters[label]) {
         const specData = tempDynamicFilters[label][specKey];
+        
+        if (specData.filterType === 'checkbox' && specData.options.every(o => typeof o === 'number') && specData.options.length > 2) {
+            specData.filterType = 'numeric-slider';
+        }
+        
         if (specData.filterType === 'numeric-slider' || specData.elementType === 'number') {
              specData.options.sort((a, b) => (a as number) - (b as number));
         } else if (specData.filterType !== 'boolean') {
@@ -222,16 +230,15 @@ export function useClientFilteredSearch({
 
         const productValue = p.technical_specification?.[specKey];
 
-        // --- MODIFICATION START: Updated Filtering Logic ---
         if (specDef.filterType === 'numeric-slider') {
             if (typeof productValue !== 'number') return false;
             const [min, max] = [Number(activeValues[0]), Number(activeValues[1])];
             if (productValue < min || productValue > max) return false;
         } else if (specDef.filterType === 'array-checkbox') {
              let productArray: any[];
-             if (Array.isArray(productValue)) { // Handles native JSON arrays
+             if (Array.isArray(productValue)) { 
                  productArray = productValue;
-             } else if (typeof productValue === 'string') { // Handles stringified JSON arrays
+             } else if (typeof productValue === 'string') { 
                  try {
                      const parsed = JSON.parse(productValue);
                      productArray = Array.isArray(parsed) ? parsed : [];
@@ -239,18 +246,16 @@ export function useClientFilteredSearch({
                      productArray = [];
                  }
              } else {
-                 return false; // Product doesn't have a valid array/string for this spec
+                 return false; 
              }
              
-             // Check if there is any intersection between the product's values and the active filter values
              const hasMatch = activeValues.some(selectedValue => productArray.map(String).includes(selectedValue));
              if (!hasMatch) return false;
-        } else { // Standard checkbox or boolean
+        } else { 
             if (productValue === undefined || productValue === null) return false;
             const productValueStr = String(productValue);
             if (!activeValues.includes(productValueStr)) return false;
         }
-        // --- MODIFICATION END ---
       }
       
       return true;

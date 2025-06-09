@@ -10,9 +10,8 @@ import type { FilterGroups, DynamicSpecFilters } from "@/lib/pages/searchPage/ho
 import { useMemo, useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
-// --- START: New Filter Components ---
+// --- START: Reusable Filter UI Components ---
 
-// Checkbox Section for non-boolean string/number options
 const FilterCheckboxSection = ({
   options,
   activeOptions,
@@ -43,7 +42,6 @@ const FilterCheckboxSection = ({
   );
 };
 
-// Boolean Checkbox for single true/false filtering
 const FilterBooleanCheckbox = ({
   specKey,
   activeOptions,
@@ -53,7 +51,6 @@ const FilterBooleanCheckbox = ({
   activeOptions: (string | number)[];
   onToggle: (option: boolean) => void;
 }) => {
-  // A boolean filter is "active" if it includes either "true" or true.
   const isChecked = activeOptions.includes('true');
 
   return (
@@ -61,8 +58,6 @@ const FilterBooleanCheckbox = ({
       <Checkbox
         id={`bool-${specKey}`}
         checked={isChecked}
-        // When toggled, we always toggle the `true` value.
-        // The parent logic will handle clearing any "false" if necessary.
         onCheckedChange={() => onToggle(true)}
       />
       <label htmlFor={`bool-${specKey}`} className="ml-2 text-sm cursor-pointer text-gray-300">
@@ -72,8 +67,6 @@ const FilterBooleanCheckbox = ({
   );
 };
 
-// Slider for numeric range filtering
-// Fixed FilterSliderSection component
 const FilterSliderSection = ({
   options,
   activeOptions,
@@ -100,11 +93,9 @@ const FilterSliderSection = ({
     setLocalRange(currentRange);
   }, [currentRange]);
 
-  // Calculate appropriate step based on actual data distribution
   const calculateStep = () => {
     if (sortedOptions.length <= 1) return 1;
     
-    // For small datasets, use the minimum gap between consecutive values
     if (sortedOptions.length <= 10) {
       const gaps = [];
       for (let i = 1; i < sortedOptions.length; i++) {
@@ -114,7 +105,6 @@ const FilterSliderSection = ({
       return minGap > 0 ? minGap : 1;
     }
     
-    // For larger datasets, use a fraction of the total range
     const totalRange = max - min;
     const desiredSteps = Math.min(20, sortedOptions.length);
     return Math.max(1, Math.round(totalRange / desiredSteps));
@@ -122,7 +112,6 @@ const FilterSliderSection = ({
 
   const step = calculateStep();
 
-  // Snap values to nearest available option
   const snapToNearestOption = (value: number): number => {
     return sortedOptions.reduce((closest, option) => {
       return Math.abs(option - value) < Math.abs(closest - value) ? option : closest;
@@ -131,7 +120,6 @@ const FilterSliderSection = ({
 
   const handleSliderChange = (value: number[]) => {
     if (value.length === 2) {
-      // Snap both values to nearest available options
       const snappedMin = snapToNearestOption(value[0]);
       const snappedMax = snapToNearestOption(value[1]);
       setLocalRange([snappedMin, snappedMax]);
@@ -140,7 +128,6 @@ const FilterSliderSection = ({
 
   const handleSliderCommit = (value: number[]) => {
     if (value.length === 2) {
-      // Ensure final values are snapped to actual options
       const snappedMin = snapToNearestOption(value[0]);
       const snappedMax = snapToNearestOption(value[1]);
       onRangeChange([snappedMin, snappedMax]);
@@ -162,7 +149,6 @@ const FilterSliderSection = ({
         <span>{localRange[0]}</span>
         <span>{localRange[1]}</span>
       </div>
-      {/* Show available values for small datasets */}
       {sortedOptions.length <= 10 && (
         <div className="text-xs text-gray-500 mt-2">
           Available values: {sortedOptions.join(', ')}
@@ -172,8 +158,7 @@ const FilterSliderSection = ({
   );
 };
 
-// --- END: New Filter Components ---
-
+// --- END: Reusable Filter UI Components ---
 
 interface FilterContentProps {
   filterGroups: FilterGroups;
@@ -193,6 +178,9 @@ interface FilterContentProps {
   handlePriceRangeChange: (value: [number, number] | number, isMin?: boolean) => void;
   discountPriceBounds: [number, number];
   onApplyPriceFilter: (range: [number, number]) => void;
+  showCategoryFilter?: boolean;
+  showSubcategoryFilter?: boolean;
+  showLabelFilter?: boolean;
 }
 
 
@@ -212,6 +200,9 @@ export function FilterContent({
   discountPriceRange,
   discountPriceBounds,
   onApplyPriceFilter,
+  showCategoryFilter = true,
+  showSubcategoryFilter = true,
+  showLabelFilter = true,
 }: FilterContentProps) {
   const isComputerCategorySelected = activeCategories.includes('Computers');
   const showTechSpecs = Object.keys(dynamicSpecFilters).length > 0 && (!activeCategories.length || isComputerCategorySelected);
@@ -228,36 +219,38 @@ export function FilterContent({
   
   return (
     <div className="space-y-6">
-      <Accordion type="multiple" defaultValue={["categories"]} className="w-full border-none">
+      <Accordion type="multiple" defaultValue={["categories", "conditions", "price"]} className="w-full border-none">
         
-        <AccordionItem value="categories" className="border-b border-[#2a2d36]">
-          <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
-            <span className={activeCategories.length > 0 ? "text-[#5865f2]" : "text-white"}>Categories</span>
-          </AccordionTrigger>
-          <AccordionContent>
-            <FilterCheckboxSection
-              options={filterGroups.categories.map(c => c.name)}
-              activeOptions={activeCategories}
-              onToggle={(opt) => toggleFilterOption("category", String(opt))}
-            />
-          </AccordionContent>
-        </AccordionItem>
+        {showCategoryFilter && (
+          <AccordionItem value="categories" className="border-b border-[#2a2d36]">
+            <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
+              <span className={activeCategories.length > 0 ? "text-[#5865f2]" : "text-white"}>Categories</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <FilterCheckboxSection
+                options={filterGroups.categories.map(c => c.name)}
+                activeOptions={activeCategories}
+                onToggle={(opt) => toggleFilterOption("category", String(opt))}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
-        <AccordionItem value="subcategories" className="border-b border-[#2a2d36]">
-          <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
-            <span className={activeSubcategories.length > 0 ? "text-[#5865f2]" : "text-white"}>Subcategories</span>
-          </AccordionTrigger>
-          <AccordionContent>
-            <FilterCheckboxSection
-              options={filterGroups.subcategories.map(s => s.name)}
-              activeOptions={activeSubcategories}
-              onToggle={(opt) => toggleFilterOption("subcategory", String(opt))}
-            />
-          </AccordionContent>
-        </AccordionItem>
+        {showSubcategoryFilter && (
+          <AccordionItem value="subcategories" className="border-b border-[#2a2d36]">
+            <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
+              <span className={activeSubcategories.length > 0 ? "text-[#5865f2]" : "text-white"}>Subcategories</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <FilterCheckboxSection
+                options={filterGroups.subcategories.map(s => s.name)}
+                activeOptions={activeSubcategories}
+                onToggle={(opt) => toggleFilterOption("subcategory", String(opt))}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
         
-        
-          {/* --- Group all specs under a single accordion --- */}
         {showTechSpecs && (
           <AccordionItem value="technical-specifications" className="border-b border-[#2a2d36]">
             <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
@@ -281,14 +274,8 @@ export function FilterContent({
                     </AccordionTrigger>
                     <AccordionContent className="pt-2 pl-2">
                       {Object.entries(specs).map(([specKey, specData]) => {
-                        const options = specData.options;
-                        let filterType: 'boolean' | 'numeric-slider' | 'checkbox' = 'checkbox';
-
-                        if (options.length === 2 && options.every(o => typeof o === 'boolean')) {
-                          filterType = 'boolean';
-                        } else if (options.length > 2 && options.every(o => typeof o === 'number')) {
-                          filterType = 'numeric-slider';
-                        }
+                        // FIX: Use the filterType from specData instead of recalculating it
+                        const { options, filterType } = specData;
 
                         return (
                           <AccordionItem key={specKey} value={specKey} className="border-b border-neutral-800 last:border-b-0">
@@ -312,7 +299,7 @@ export function FilterContent({
                                   onRangeChange={(range) => handleTechSpecRangeChange(specKey, range)}
                                 />
                               )}
-                              {filterType === 'checkbox' && (
+                              {(filterType === 'checkbox' || filterType === 'array-checkbox') && (
                                 <FilterCheckboxSection
                                   options={options.filter((o): o is string | number => typeof o === 'string' || typeof o === 'number')}
                                   activeOptions={activeTechSpecs[specKey] || []}
@@ -331,21 +318,22 @@ export function FilterContent({
           </AccordionItem>
         )}
 
-        <AccordionItem value="labels" className="border-b border-[#2a2d36]">
-          <AccordionTrigger className="py-2 hover:no-underline text-sm font-medium">
-            <div className="flex items-center gap-2">
-              
-              <span className={activeLabels.length > 0 ? "text-[#5865f2]" : "text-white"}>Labels</span>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent>
-            <FilterCheckboxSection
-              options={filterGroups.labels.map(l => l.name)}
-              activeOptions={activeLabels}
-              onToggle={(opt) => toggleFilterOption("label", String(opt))}
-            />
-          </AccordionContent>
-        </AccordionItem>
+        {showLabelFilter && (
+          <AccordionItem value="labels" className="border-b border-[#2a2d36]">
+            <AccordionTrigger className="py-2 hover:no-underline text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <span className={activeLabels.length > 0 ? "text-[#5865f2]" : "text-white"}>Labels</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <FilterCheckboxSection
+                options={filterGroups.labels.map(l => l.name)}
+                activeOptions={activeLabels}
+                onToggle={(opt) => toggleFilterOption("label", String(opt))}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
         <AccordionItem value="conditions" className="border-b border-[#2a2d36]">
           <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
@@ -514,10 +502,8 @@ export function ActiveFilters({
       {activeConditions.map((cond) => ( <Badge key={`cond-${cond}`} variant="default" className="bg-[#2a2d36] border-[#3f4354] py-1 px-2"> Condition: {cond} <button onClick={() => toggleFilterOption("condition", cond)} className="ml-1 text-gray-400 hover:text-white"><X className="h-3 w-3" /></button></Badge> ))}
       
       {Object.entries(activeTechSpecs).map(([specKey, values]) => {
-        // Check for range slider representation (min/max keys)
         if (specKey.endsWith('_min') || specKey.endsWith('_max')) return null;
 
-        // If it's a range, combine min and max into one badge
         const minKey = `${specKey}_min`;
         const maxKey = `${specKey}_max`;
         if (activeTechSpecs[minKey] && activeTechSpecs[maxKey]) {
@@ -525,7 +511,7 @@ export function ActiveFilters({
             <Badge key={`${specKey}-range`} variant="default" className="bg-[#2a2d36] border-[#3f4354] py-1 px-2">
               {formatDisplayName(specKey)}: {activeTechSpecs[minKey][0]} - {activeTechSpecs[maxKey][0]}
               <button onClick={() => {
-                handleTechSpecRangeChange(specKey, [-1, -1]); // Use a special value to signal reset
+                handleTechSpecRangeChange(specKey, [-1, -1]);
               }} className="ml-1 text-gray-400 hover:text-white">
                 <X className="h-3 w-3" />
               </button>
@@ -533,7 +519,6 @@ export function ActiveFilters({
           );
         }
 
-        // Otherwise, render individual badges for checkbox/boolean
         return values.map(value => (
           <Badge key={`${specKey}-${value}`} variant="default" className="bg-[#2a2d36] border-[#3f4354] py-1 px-2">
             {formatDisplayName(specKey)}: {String(value)}
