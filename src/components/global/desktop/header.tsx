@@ -5,11 +5,9 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/assets/logo.svg"; // Ensure path is correct
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import { useWishlist } from "@/context/WishlistContext";
-import { SearchBar } from "@/components/global/desktop/search-bar";
+import { useWishlist } from "@/context/WishlistContext"; // Keep this if used, but not in diff related to image caching directly
+import { SearchBar } from "./search-bar"; // Corrected path
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/lib/supabase";
-import { useQuery } from '@tanstack/react-query';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,58 +15,20 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useWindowSize } from "@/components/global/hooks/useWindowSize";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/components/global/Mobile/use-mobile";
 import LoginModal from "@/components/pages/Login/LoginModal";
 import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { ProfileIndex } from "@/components/global/Profile/components/ProfileIndex";
 import { OffersPopover } from "@/components/global/OffersPopover";
-// import { OptimizedImage } from "@/components/global/productsPage/ProductCard/optimized-image"; // Using simple img for now
-
-// Define the nested product categories structure type
-type LabelItem = {
-  name: string;
-  display_url: string | null;
-};
-
-type ProductCategoriesStructure = {
-  [category: string]: {
-    [subcategory: string]: LabelItem[];
-  };
-};
-
-
-// --- Function to fetch categories (can be moved to a service/api file) ---
-async function fetchCategoriesStructure(): Promise<ProductCategoriesStructure | null> {
-  console.log("[Header] Attempting to fetch category structure via RPC...");
-  const { data, error } = await supabase.rpc("get_product_categories_structure");
-
-  if (error) {
-    console.error("Error fetching product categories structure from RPC:", error);
-    toast.error("Failed to load shop categories. Please try again later.");
-    return null;
-  }
-
-  // Assuming the SQL function `RETURNS jsonb` and `data` is the direct JSONB object
-  // or null if the RPC itself had an issue not caught by the error object (e.g. RLS)
-  console.log("[Header] Received data from RPC:", data);
-  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
-      // This case handles if data is unexpectedly not the direct object, or if it's an array (like the sample)
-      // which might indicate a misunderstanding of the RPC return type or an issue with the RPC definition.
-      // If the sample `[{"get_product_categories_structure": {...}}]` IS correct, then data[0]... is needed.
-      // BUT, if SQL is `RETURNS jsonb`, `data` should be the object itself.
-      // The safest bet is to check if 'get_product_categories_structure' is a key if it's an array.
-      if (Array.isArray(data) && data.length > 0 && data[0] && typeof data[0] === 'object' && 'get_product_categories_structure' in data[0]) {
-         console.log("[Header] RPC returned array, extracting from data[0].get_product_categories_structure");
-         return (data[0] as any).get_product_categories_structure as ProductCategoriesStructure | null;
-      }
-      console.log("[Header] Data from RPC is not the expected direct object structure. Returning null or data itself if it's an object.", data);
-      // If data is an object (like {} or {"Consoles":...}), cast it. Otherwise null.
-      return typeof data === 'object' && !Array.isArray(data) ? data as ProductCategoriesStructure : null;
-  }
-  
-  return data as ProductCategoriesStructure | null;
-}
+import { useProductCategories, ProductCategoriesStructure } from '@/components/global/hooks/useProductCategories.ts';
+import { CachedImage } from '@/components/global/cached-image';
 
 export default function Header() {
   const isMobile = useIsMobile();
@@ -88,14 +48,8 @@ export default function Header() {
   const {
     data: productCategories,
     isLoading: categoriesLoading,
-    isError: categoriesError, // Added to check for query errors
-  } = useQuery<ProductCategoriesStructure | null, Error>({
-    queryKey: ['productCategoriesStructure'],
-    queryFn: fetchCategoriesStructure,
-    staleTime: 1000 * 60 * 60, // Cache categories for 1 hour
-    gcTime: 1000 * 60 * 120, // Keep in cache for 2 hours
-    refetchOnWindowFocus: false,
-  });
+    isError: categoriesError,
+  } = useProductCategories(); // Use the shared hook
 
   useEffect(() => {
       if (productCategories) {
@@ -308,45 +262,67 @@ export default function Header() {
               ) : (
                 <div className="px-6 py-4">
                   {productCategories && Object.keys(productCategories).length > 0 ? (
-                    Object.entries(productCategories).map(([category, subcategories], index, arr) => (
-                      <div key={category} className="mb-6">
-                        <div onClick={() => navigateWithLoading(`/${category}`, `Loading ${category}...`, setIsLoadingProducts)} className="flex items-center gap-2 mb-3 text-lg font-semibold text-white hover:text-[#5865f2] cursor-pointer p-1">
-                          {category === "Consoles" ? <Gamepad2 className="h-5 w-5" /> : category === "Computers" ? <Cpu className="h-5 w-5" /> : null}
-                          {category}
-                        </div>
-                        <div className="ml-6 space-y-3">
-                          {Object.entries(subcategories).map(([subcategory, labels]) => (
-                            <div key={subcategory} className="mb-3">
-                              <div onClick={() => navigateWithLoading(`/${category}/${subcategory}`, `Loading ${subcategory}...`, setIsLoadingProducts)} className="block text-base font-medium text-gray-300 hover:text-[#5865f2] cursor-pointer p-1">
-                                {subcategory}
-                              </div>
-                              {labels.length > 0 && (
-                                <div className="ml-4 mt-2 grid grid-cols-2 gap-4">
-                                  {labels.map((labelItem) => (
-                                    <div
-                                      key={labelItem.name}
-                                      onClick={() => navigateWithLoading(`/${category}/${subcategory}?label=${encodeURIComponent(labelItem.name)}`, `Loading ${labelItem.name}...`, setIsLoadingProducts)}
-                                      className="flex flex-col items-center text-center p-2 rounded-md hover:bg-[#2a2f3a] transition-colors cursor-pointer group"
-                                    >
-                                      <img 
-                                        src={labelItem.display_url || "https://images.gnt-store.shop/favicon.ico"} 
-                                        alt={labelItem.name}
-                                        className="w-16 h-16 object-contain mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200"
-                                        onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }} 
-                                      />
-                                      <span className="text-xs text-gray-300 group-hover:text-white transition-colors">
-                                        {labelItem.name}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                    <Accordion 
+                      type="multiple" 
+                      className="space-y-4"
+                      defaultValue={Object.keys(productCategories)}
+                      value={Object.keys(productCategories)}
+                      onValueChange={() => {}}
+                    >
+                      {Object.entries(productCategories).map(([category, subcategories], index, arr) => (
+                        <AccordionItem key={category} value={category} className="border-[#2a2d36]">
+                          <AccordionTrigger className="hover:no-underline p-1 text-lg font-semibold text-white hover:text-[#5865f2]">
+                            <div className="flex items-center gap-2">
+                              {category === "Consoles" ? <Gamepad2 className="h-5 w-5" /> : category === "Computers" ? <Cpu className="h-5 w-5" /> : null}
+                              {category}
                             </div>
-                          ))}
-                        </div>
-                        {index < arr.length - 1 && <Separator className="my-4 bg-[#2a2d36]" />}
-                      </div>
-                    ))
+                          </AccordionTrigger>
+                          <AccordionContent className="ml-6 space-y-3 pt-2"> 
+                            <Accordion 
+                              type="multiple" 
+                              className="space-y-2"
+                              defaultValue={Object.keys(subcategories)}
+                              value={Object.keys(subcategories)}
+                              onValueChange={() => {}}
+                            >
+                              {Object.entries(subcategories).map(([subcategory, labels]) => (
+                                <AccordionItem key={subcategory} value={subcategory} className="border-[#2a2d36]">
+                                  <AccordionTrigger className="hover:no-underline p-1 text-base font-medium text-gray-300 hover:text-[#5865f2]">
+                                    {subcategory}
+                                  </AccordionTrigger>
+                                  <AccordionContent className="pt-2">
+                                    {labels.length > 0 && (
+                                      <div className="ml-4 mt-2 grid grid-cols-2 gap-4">
+                                        {labels.map((labelItem) => (
+                                          <div
+                                            key={labelItem.name}
+                                            onClick={() => navigateWithLoading(`/${category}/${subcategory}?label=${encodeURIComponent(labelItem.name)}`, `Loading ${labelItem.name}...`, setIsLoadingProducts)}
+                                            className="flex flex-col items-center text-center p-2 rounded-md hover:bg-[#2a2f3a] transition-colors cursor-pointer group"
+                                          >
+                                            <CachedImage
+                                              src={labelItem.display_url}
+                                              alt={labelItem.name}
+                                              className="w-16 h-16 mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200"
+                                              imgClassName="w-full h-full object-contain"
+                                              placeholderSrc="https://images.gnt-store.shop/favicon.ico" // Fallback if display_url is null
+                                              queryKeySuffix={`header-catalog-icon-${labelItem.name}`}
+                                            />
+                                            <span className="text-xs text-gray-300 group-hover:text-white transition-colors">
+                                              {labelItem.name}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              ))}
+                            </Accordion>
+                            {index < Object.entries(productCategories).length - 1 && <Separator className="my-4 bg-[#2a2d36]" />}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
                   ) : (
                     <div className="px-3 py-2 text-sm text-gray-300">No categories available</div>
                   )}

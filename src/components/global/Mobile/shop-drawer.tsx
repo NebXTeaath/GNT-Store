@@ -3,9 +3,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -18,36 +15,16 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useLoading } from '@/components/global/Loading/LoadingContext';
 import { cn } from '@/lib/utils';
-
-// Types (same as before)
-type LabelItem = {
-  name: string;
-  display_url: string | null;
-};
-
-type ProductCategoriesStructure = {
-  [category: string]: {
-    [subcategory: string]: LabelItem[];
-  };
-};
-
-async function fetchDrawerCategoriesStructure(): Promise<ProductCategoriesStructure | null> {
-  console.log("[ShopCatalogDrawer] Fetching category structure...");
-  const { data, error } = await supabase.rpc("get_product_categories_structure");
-  if (error) {
-    console.error("[ShopCatalogDrawer] Error fetching categories:", error);
-    toast.error("Failed to load shop categories");
-    return null;
-  }
-  if (data === null || typeof data !== 'object') return null;
-  if (Array.isArray(data) && data.length > 0 && data[0] && typeof data[0] === 'object' && 'get_product_categories_structure' in data[0]) {
-     return (data[0] as any).get_product_categories_structure as ProductCategoriesStructure | null;
-  }
-  return data as ProductCategoriesStructure | null;
-}
+import { useProductCategories, LabelItem, ProductCategoriesStructure } from '@/components/global/hooks/useProductCategories.ts';
+import { CachedImage } from '@/components/global/cached-image';
 
 interface ShopCatalogDrawerProps {
   open: boolean;
@@ -108,7 +85,7 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
                 console.error("[ShopCatalogDrawer] Empty label name for:", labelItem);
                 return <div key={`empty-${labelIdx}`} className="text-xs text-orange-500">Empty Label</div>;
             }
-            const uniqueKey = `${categoryName}-${subcategoryName}-${itemName}-${labelIdx}`;
+            const uniqueKey = `drawer-${categoryName}-${subcategoryName}-${itemName}-${labelIdx}`;
 
             return (
               <div
@@ -116,11 +93,13 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
                 onClick={() => onNavigate(`/${categoryName}/${subcategoryName}?label=${encodeURIComponent(itemName)}`, `Loading ${itemName}...`)}
                 className="flex flex-col items-center text-center p-2 rounded-lg hover:bg-[#22252e] transition-all duration-200 ease-in-out cursor-pointer group transform hover:scale-105"
               >
-                <img
-                  src={labelItem.display_url || 'https://images.gnt-store.shop/favicon.ico'}
+                <CachedImage
+                  src={labelItem.display_url}
                   alt={itemName}
-                  className="w-20 h-20 object-contain mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200 shadow-md"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                  className="w-20 h-20 mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200 shadow-md"
+                  imgClassName="w-full h-full object-contain"
+                  placeholderSrc="https://images.gnt-store.shop/favicon.ico" // Fallback if display_url is null
+                  queryKeySuffix={`drawer-catalog-icon-${itemName}`}
                 />
                 <span className="text-xs text-gray-300 group-hover:text-white transition-colors">
                   {itemName}
@@ -141,14 +120,7 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
   const {
     data: productCategories,
     isLoading: categoriesLoading,
-  } = useQuery<ProductCategoriesStructure | null, Error>({
-    queryKey: ['drawerProductCategoriesStructure'],
-    queryFn: fetchDrawerCategoriesStructure,
-    staleTime: 1000 * 60 * 60,
-    gcTime: 1000 * 60 * 120,
-    refetchOnWindowFocus: false,
-    enabled: open,
-  });
+  } = useProductCategories(); // Use the shared hook
 
   const handleNavigation = (path: string, message: string) => {
     setLoadingMessage(message);
@@ -185,17 +157,22 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
                   {[...Array(3)].map((_, i) => <Skeleton key={`skel-cat-${i}`} className="h-10 w-full bg-[#2a2d36] mb-3" />)}
                 </div>
               ) : productCategories && Object.keys(productCategories).length > 0 ? (
-                <div className="space-y-6 pb-4">
+                <Accordion 
+                  type="multiple" 
+                  className="space-y-4 pb-4"
+                  defaultValue={Object.keys(productCategories)}
+                  value={Object.keys(productCategories)}
+                  onValueChange={() => {}}
+                >
                   {Object.entries(productCategories).map(([category, subcategoriesObj], catIdx) => (
-                    <div key={`${category}-${catIdx}`}>
-                      <div
-                        onClick={() => handleNavigation(`/${category}`, `Loading ${category}...`)}
-                        className="flex items-center gap-3 mb-3 p-2 rounded-md hover:bg-[#1e2129] cursor-pointer transition-colors"
-                      >
-                        {category === "Consoles" ? <Gamepad2 className="h-6 w-6 text-[#5865f2]" /> : category === "Computers" ? <Cpu className="h-6 w-6 text-[#5865f2]" /> : null}
-                        <span className="text-lg font-semibold text-white">{category}</span>
-                      </div>
-                      <div className="ml-4 pl-4 border-l border-[#2a2d36]">
+                    <AccordionItem key={`${category}-${catIdx}`} value={category} className="border-[#2a2d36]">
+                      <AccordionTrigger className="hover:no-underline p-2 rounded-md hover:bg-[#1e2129] transition-colors">
+                        <div className="flex items-center gap-3">
+                          {category === "Consoles" ? <Gamepad2 className="h-6 w-6 text-[#5865f2]" /> : category === "Computers" ? <Cpu className="h-6 w-6 text-[#5865f2]" /> : null}
+                          <span className="text-lg font-semibold text-white">{category}</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="ml-4 pl-4 border-l border-[#2a2d36] pt-2">
                         {typeof subcategoriesObj === 'object' && subcategoriesObj !== null ? 
                             Object.entries(subcategoriesObj).map(([subcategoryName, labelsArray]) => (
                             <SubcategoryAccordionItem
@@ -207,11 +184,10 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
                             />
                             )) : <p className="text-sm text-gray-500">No subcategories</p>
                         }
-                      </div>
-                      {catIdx < Object.keys(productCategories).length - 1 && <Separator className="my-6 bg-[#2a2d36]" />}
-                    </div>
+                       </AccordionContent>
+                    </AccordionItem>
                   ))}
-                </div>
+                </Accordion>
               ) : (
                 <div className="text-center py-10 text-gray-400">
                   <p>No categories available at the moment.</p>
