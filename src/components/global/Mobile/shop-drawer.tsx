@@ -36,6 +36,9 @@ interface SubcategoryAccordionItemProps {
   subcategoryName: string;
   labels: LabelItem[];
   onNavigate: (path: string, message: string) => void;
+  // Props for controlling this sub-accordion's open state from parent
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
@@ -43,8 +46,10 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
   subcategoryName,
   labels,
   onNavigate,
+  isOpen,       // Use passed-in isOpen state
+  onToggle,     // Use passed-in onToggle function
 }) => {
-  const [isOpen, setIsOpen] = useState(true); 
+  // const [isOpen, setIsOpen] = useState(true); // Remove local state for open/close
 
   return (
     <div className="border-b border-[#2a2d36] last:border-b-0 py-2">
@@ -52,7 +57,8 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
         className="flex items-center justify-between py-3 cursor-pointer"
         onClick={() => {
           if (labels.length > 0) {
-            setIsOpen(!isOpen);
+            // setIsOpen(!isOpen); // Use onToggle instead
+            onToggle();
           } else {
             onNavigate(`/${categoryName}/${subcategoryName}`, `Loading ${subcategoryName}...`);
           }
@@ -73,7 +79,7 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
           </Button>
         )}
       </div>
-      {isOpen && labels.length > 0 && (
+      {isOpen && labels.length > 0 && ( // Use isOpen prop here
         <div className="pl-4 pt-2 pb-4 grid grid-cols-2 gap-x-3 gap-y-4">
           {labels.map((labelItem, labelIdx) => {
              if (typeof labelItem !== 'object' || labelItem === null || !labelItem.hasOwnProperty('name') || typeof labelItem.name !== 'string') {
@@ -98,7 +104,7 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
                   alt={itemName}
                   className="w-20 h-20 mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200 shadow-md"
                   imgClassName="w-full h-full object-contain"
-                  placeholderSrc="https://images.gnt-store.shop/favicon.ico" // Fallback if display_url is null
+                  placeholderSrc="https://images.gnt-store.shop/favicon.ico"
                   queryKeySuffix={`drawer-catalog-icon-${itemName}`}
                 />
                 <span className="text-xs text-gray-300 group-hover:text-white transition-colors">
@@ -120,7 +126,26 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
   const {
     data: productCategories,
     isLoading: categoriesLoading,
-  } = useProductCategories(); // Use the shared hook
+  } = useProductCategories();
+
+  const [openCategoryAccordions, setOpenCategoryAccordions] = useState<string[]>([]);
+  const [openSubCategoryAccordions, setOpenSubCategoryAccordions] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    if (productCategories && Object.keys(productCategories).length > 0) {
+      setOpenCategoryAccordions(Object.keys(productCategories));
+      
+      const initialOpenSubcategories: Record<string, string[]> = {};
+      Object.keys(productCategories).forEach(catKey => {
+        if (productCategories[catKey]) { // Check if subcategories exist for this category
+             initialOpenSubcategories[catKey] = Object.keys(productCategories[catKey]);
+        } else {
+            initialOpenSubcategories[catKey] = [];
+        }
+      });
+      setOpenSubCategoryAccordions(initialOpenSubcategories);
+    }
+  }, [productCategories]);
 
   const handleNavigation = (path: string, message: string) => {
     setLoadingMessage(message);
@@ -130,6 +155,21 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
         navigate(path);
     }, 300);
   };
+
+  // Toggle function for sub-category accordions
+  const toggleSubCategoryAccordion = (categoryName: string, subCategoryName: string) => {
+    setOpenSubCategoryAccordions(prev => {
+      const currentOpenForCat = prev[categoryName] || [];
+      const isOpen = currentOpenForCat.includes(subCategoryName);
+      return {
+        ...prev,
+        [categoryName]: isOpen 
+          ? currentOpenForCat.filter(sc => sc !== subCategoryName) 
+          : [...currentOpenForCat, subCategoryName]
+      };
+    });
+  };
+
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}> 
@@ -149,7 +189,6 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
           </DrawerDescription>
         </DrawerHeader>
 
-        {/* Key changes: Explicit height and min-height for ScrollArea */}
         <div className="flex-1 overflow-y-auto dark-theme-scrollbar">
           <div className="p-4">
               {categoriesLoading ? (
@@ -160,9 +199,8 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
                 <Accordion 
                   type="multiple" 
                   className="space-y-4 pb-4"
-                  defaultValue={Object.keys(productCategories)}
-                  value={Object.keys(productCategories)}
-                  onValueChange={() => {}}
+                  value={openCategoryAccordions} 
+                  onValueChange={setOpenCategoryAccordions}
                 >
                   {Object.entries(productCategories).map(([category, subcategoriesObj], catIdx) => (
                     <AccordionItem key={`${category}-${catIdx}`} value={category} className="border-[#2a2d36]">
@@ -181,6 +219,8 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
                                 subcategoryName={subcategoryName}
                                 labels={Array.isArray(labelsArray) ? labelsArray : []}
                                 onNavigate={handleNavigation}
+                                isOpen={(openSubCategoryAccordions[category] || []).includes(subcategoryName)}
+                                onToggle={() => toggleSubCategoryAccordion(category, subcategoryName)}
                             />
                             )) : <p className="text-sm text-gray-500">No subcategories</p>
                         }
