@@ -117,7 +117,7 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
                 className="flex flex-col items-center text-center p-2 rounded-lg hover:bg-[#22252e] transition-all duration-200 ease-in-out cursor-pointer group transform hover:scale-105"
               >
                 <img
-                  src={labelItem.display_url || '/shortLogo.svg'}
+                  src={labelItem.display_url || 'https://images.gnt-store.shop/favicon.ico'}
                   alt={itemName}
                   className="w-20 h-20 object-contain mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200 shadow-md"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}

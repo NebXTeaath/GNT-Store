@@ -329,7 +329,7 @@ export default function Header() {
                                       className="flex flex-col items-center text-center p-2 rounded-md hover:bg-[#2a2f3a] transition-colors cursor-pointer group"
                                     >
                                       <img 
-                                        src={labelItem.display_url || "/shortLogo.svg"} 
+                                        src={labelItem.display_url || "https://images.gnt-store.shop/favicon.ico"} 
                                         alt={labelItem.name}
                                         className="w-16 h-16 object-contain mb-2 rounded-md bg-[#2a2d36] border border-transparent group-hover:border-[#5865f2] transition-all duration-200"
                                         onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }} 
