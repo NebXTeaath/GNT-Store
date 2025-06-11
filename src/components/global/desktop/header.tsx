@@ -27,7 +27,7 @@ import LoginModal from "@/components/pages/Login/LoginModal";
 import { useLoading } from "@/components/global/Loading/LoadingContext";
 import { ProfileIndex } from "@/components/global/Profile/components/ProfileIndex";
 import { OffersPopover } from "@/components/global/OffersPopover";
-import { useProductCategories, ProductCategoriesStructure } from '@/components/global/hooks/useProductCategories.ts'; // Corrected import path
+import { useProductCategories, ProductCategoriesStructure } from '@/components/global/hooks/useProductCategories'; // Corrected import path
 import { CachedImage } from '@/components/global/cached-image'; // Corrected import path
 
 export default function Header() {

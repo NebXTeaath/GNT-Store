@@ -140,6 +140,7 @@ function getStatusColor(status: string = ""): string { // Add default value
     case "pending": return "bg-yellow-500/10 text-yellow-400"; // Adjusted colors slightly
     case "processing": return "bg-blue-500/10 text-blue-400";
     case "shipped": return "bg-violet-500/10 text-violet-400";
+    case "out for delivery": return "bg-cyan-500/10 text-cyan-400";
     case "delivered": return "bg-emerald-500/10 text-emerald-400";
     case "cancelled": return "bg-red-500/10 text-red-400";
     case "failed": return "bg-red-700/20 text-red-500";

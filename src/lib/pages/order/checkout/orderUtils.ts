@@ -179,6 +179,7 @@ export const getStatusColor = (status: string | null | undefined): string => {
     switch(s){
         case 'processing': return 'bg-blue-500/10 text-blue-400';
         case 'shipped': return 'bg-violet-500/10 text-violet-400';
+        case 'out for delivery': return 'bg-cyan-500/10 text-cyan-400';
         case 'delivered': return 'bg-emerald-500/10 text-emerald-400';
         case 'cancelled': return 'bg-red-500/10 text-red-400';
         case 'pending': return 'bg-yellow-500/10 text-yellow-400';

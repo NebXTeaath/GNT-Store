@@ -93,6 +93,7 @@ export const getStatusIcon = (status: string = ''): string => {
   switch (status.toLowerCase()) {
     case 'processing': return '⚙️';
     case 'shipped': return '🚚';
+    case 'out for delivery': return '🛵';
     case 'delivered': return '✅';
     case 'cancelled': return '❌';
     case 'pending': return '⏳';

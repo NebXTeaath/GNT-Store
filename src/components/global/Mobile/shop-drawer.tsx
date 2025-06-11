@@ -1,5 +1,4 @@
 // src/components/global/Mobile/ShopCatalogDrawer.tsx
-"use client";
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +22,7 @@ import {
 } from "@/components/ui/accordion";
 import { useLoading } from '@/components/global/Loading/LoadingContext';
 import { cn } from '@/lib/utils';
-import { useProductCategories, LabelItem, ProductCategoriesStructure } from '@/components/global/hooks/useProductCategories.ts';
+import { useProductCategories, LabelItem, ProductCategoriesStructure } from '@/components/global/hooks/useProductCategories';
 import { CachedImage } from '@/components/global/cached-image';
 
 interface ShopCatalogDrawerProps {

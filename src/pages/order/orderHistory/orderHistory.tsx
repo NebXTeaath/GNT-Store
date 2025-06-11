@@ -68,8 +68,8 @@ const OrderHistory = () => {
     const orderIdMatch = order.id.toLowerCase().includes(searchQuery.toLowerCase());
     const productNameMatch = order.order_details?.products?.some( (product) => product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false ) ?? false;
     const matchesSearch = orderIdMatch || productNameMatch;
-    const status = order.order_status?.toLowerCase() ?? 'unknown';
-    const isActiveOrder = ["pending", "processing", "shipped", "failed"].includes(status);
+    const status = order.order_status?.toLowerCase() ?? 'unknown'; // prettier-ignore
+    const isActiveOrder = ["pending", "processing", "shipped", "out for delivery", "failed"].includes(status);
     const isCompletedOrder = ["delivered", "cancelled"].includes(status);
     return matchesSearch && (activeTab === "active-orders" ? isActiveOrder : isCompletedOrder);
   }) ?? [];
