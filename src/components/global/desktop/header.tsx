@@ -60,19 +60,9 @@ export default function Header() {
       const categoryNames = productCategories.categories.map(cat => cat.name);
       setOpenDesktopCategoryAccordions(categoryNames);
       
-      const initialOpenSubcategories: Record<string, string[]> = {};
-      // MODIFICATION: Loop through the categories array
-      productCategories.categories.forEach(categoryItem => {
-          const subcategories = categoryItem.subcategories;
-          if (subcategories) {
-              // MODIFICATION: Map over the subcategory array to get their names
-              initialOpenSubcategories[categoryItem.name] = subcategories.map(sub => sub.name);
-          } else {
-              initialOpenSubcategories[categoryItem.name] = [];
-          }
-      });
-      setOpenDesktopSubCategoryAccordions(initialOpenSubcategories);
-    }
+      // Keep sub-category accordions closed by default. They open on user click.
+      setOpenDesktopSubCategoryAccordions({});
+     }
     if (categoriesError) {
       console.error("[Header] Error state from useQuery for categories:", categoriesError);
     }

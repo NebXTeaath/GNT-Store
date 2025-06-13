@@ -135,17 +135,9 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
       const categoryNames = productCategories.categories.map(cat => cat.name);
       setOpenCategoryAccordions(categoryNames);
       
-      const initialOpenSubcategories: Record<string, string[]> = {};
-      productCategories.categories.forEach(categoryItem => {
-        if (categoryItem.subcategories) {
-          // Map over the subcategory array to get their names
-          initialOpenSubcategories[categoryItem.name] = categoryItem.subcategories.map(sub => sub.name);
-        } else {
-          initialOpenSubcategories[categoryItem.name] = [];
-        }
-      });
-      setOpenSubCategoryAccordions(initialOpenSubcategories);
-    }
+      // Keep sub-category accordions closed by default. They open on user click.
+      setOpenSubCategoryAccordions({});
+     }
   }, [productCategories]);
 
   const handleNavigation = (path: string, message: string) => {
