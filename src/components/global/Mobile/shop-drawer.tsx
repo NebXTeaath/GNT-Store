@@ -1,9 +1,7 @@
-// src/components/global/Mobile/ShopCatalogDrawer.tsx
-
+// src/components/global/Mobile/shop-drawer.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Gamepad2, Cpu, XIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import {
@@ -22,7 +20,8 @@ import {
 } from "@/components/ui/accordion";
 import { useLoading } from '@/components/global/Loading/LoadingContext';
 import { cn } from '@/lib/utils';
-import { useProductCategories, LabelItem, ProductCategoriesStructure } from '@/components/global/hooks/useProductCategories';
+// MODIFICATION: Import the new types
+import { useProductCategories, LabelItem, SubcategoryDataItem } from '@/components/global/hooks/useProductCategories';
 import { CachedImage } from '@/components/global/cached-image';
 
 interface ShopCatalogDrawerProps {
@@ -32,23 +31,23 @@ interface ShopCatalogDrawerProps {
 
 interface SubcategoryAccordionItemProps {
   categoryName: string;
-  subcategoryName: string;
-  labels: LabelItem[];
+  // MODIFICATION: Pass the whole subcategory item object
+  subcategoryItem: SubcategoryDataItem;
   onNavigate: (path: string, message: string) => void;
-  // Props for controlling this sub-accordion's open state from parent
   isOpen: boolean;
   onToggle: () => void;
 }
 
 const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
   categoryName,
-  subcategoryName,
-  labels,
+  subcategoryItem, // Use the whole item
   onNavigate,
-  isOpen,       // Use passed-in isOpen state
-  onToggle,     // Use passed-in onToggle function
+  isOpen,
+  onToggle,
 }) => {
-  // const [isOpen, setIsOpen] = useState(true); // Remove local state for open/close
+  // MODIFICATION: Destructure from the item object
+  const { name: subcategoryName, data: subcategoryData } = subcategoryItem;
+  const labels = subcategoryData.labels;
 
   return (
     <div className="border-b border-[#2a2d36] last:border-b-0 py-2">
@@ -56,7 +55,6 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
         className="flex items-center justify-between py-3 cursor-pointer"
         onClick={() => {
           if (labels.length > 0) {
-            // setIsOpen(!isOpen); // Use onToggle instead
             onToggle();
           } else {
             onNavigate(`/${categoryName}/${subcategoryName}`, `Loading ${subcategoryName}...`);
@@ -78,7 +76,7 @@ const SubcategoryAccordionItem: React.FC<SubcategoryAccordionItemProps> = ({
           </Button>
         )}
       </div>
-      {isOpen && labels.length > 0 && ( // Use isOpen prop here
+      {isOpen && labels.length > 0 && (
         <div className="pl-4 pt-2 pb-4 grid grid-cols-2 gap-x-3 gap-y-4">
           {labels.map((labelItem, labelIdx) => {
              if (typeof labelItem !== 'object' || labelItem === null || !labelItem.hasOwnProperty('name') || typeof labelItem.name !== 'string') {
@@ -131,15 +129,19 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
   const [openSubCategoryAccordions, setOpenSubCategoryAccordions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    if (productCategories && Object.keys(productCategories).length > 0) {
-      setOpenCategoryAccordions(Object.keys(productCategories));
+    // MODIFICATION: Check for the new structure
+    if (productCategories && productCategories.categories) {
+      // Map over the array to get category names
+      const categoryNames = productCategories.categories.map(cat => cat.name);
+      setOpenCategoryAccordions(categoryNames);
       
       const initialOpenSubcategories: Record<string, string[]> = {};
-      Object.keys(productCategories).forEach(catKey => {
-        if (productCategories[catKey]) { // Check if subcategories exist for this category
-             initialOpenSubcategories[catKey] = Object.keys(productCategories[catKey]);
+      productCategories.categories.forEach(categoryItem => {
+        if (categoryItem.subcategories) {
+          // Map over the subcategory array to get their names
+          initialOpenSubcategories[categoryItem.name] = categoryItem.subcategories.map(sub => sub.name);
         } else {
-            initialOpenSubcategories[catKey] = [];
+          initialOpenSubcategories[categoryItem.name] = [];
         }
       });
       setOpenSubCategoryAccordions(initialOpenSubcategories);
@@ -155,7 +157,6 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
     }, 300);
   };
 
-  // Toggle function for sub-category accordions
   const toggleSubCategoryAccordion = (categoryName: string, subCategoryName: string) => {
     setOpenSubCategoryAccordions(prev => {
       const currentOpenForCat = prev[categoryName] || [];
@@ -168,7 +169,6 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
       };
     });
   };
-
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}> 
@@ -194,32 +194,33 @@ export function ShopCatalogDrawer({ open, onOpenChange }: ShopCatalogDrawerProps
                 <div className="space-y-4">
                   {[...Array(3)].map((_, i) => <Skeleton key={`skel-cat-${i}`} className="h-10 w-full bg-[#2a2d36] mb-3" />)}
                 </div>
-              ) : productCategories && Object.keys(productCategories).length > 0 ? (
+              ) : productCategories && productCategories.categories.length > 0 ? (
                 <Accordion 
                   type="multiple" 
                   className="space-y-4 pb-4"
                   value={openCategoryAccordions} 
                   onValueChange={setOpenCategoryAccordions}
                 >
-                  {Object.entries(productCategories).map(([category, subcategoriesObj], catIdx) => (
-                    <AccordionItem key={`${category}-${catIdx}`} value={category} className="border-[#2a2d36]">
+                  {/* MODIFICATION: Loop through the categories array */}
+                  {productCategories.categories.map((categoryItem, catIdx) => (
+                    <AccordionItem key={`${categoryItem.name}-${catIdx}`} value={categoryItem.name} className="border-[#2a2d36]">
                       <AccordionTrigger className="hover:no-underline p-2 rounded-md hover:bg-[#1e2129] transition-colors">
                         <div className="flex items-center gap-3">
-                          {category === "Consoles" ? <Gamepad2 className="h-6 w-6 text-[#5865f2]" /> : category === "Computers" ? <Cpu className="h-6 w-6 text-[#5865f2]" /> : null}
-                          <span className="text-lg font-semibold text-white">{category}</span>
+                          {categoryItem.name === "Consoles" ? <Gamepad2 className="h-6 w-6 text-[#5865f2]" /> : categoryItem.name === "Computers" ? <Cpu className="h-6 w-6 text-[#5865f2]" /> : null}
+                          <span className="text-lg font-semibold text-white">{categoryItem.name}</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="ml-4 pl-4 border-l border-[#2a2d36] pt-2">
-                        {typeof subcategoriesObj === 'object' && subcategoriesObj !== null ? 
-                            Object.entries(subcategoriesObj).map(([subcategoryName, labelsArray]) => (
+                        {/* MODIFICATION: Check and loop through the subcategories array */}
+                        {Array.isArray(categoryItem.subcategories) ? 
+                            categoryItem.subcategories.map((subcategoryItem) => (
                             <SubcategoryAccordionItem
-                                key={`${category}-${subcategoryName}-${catIdx}`}
-                                categoryName={category}
-                                subcategoryName={subcategoryName}
-                                labels={Array.isArray(labelsArray) ? labelsArray : []}
+                                key={`${categoryItem.name}-${subcategoryItem.name}-${catIdx}`}
+                                categoryName={categoryItem.name}
+                                subcategoryItem={subcategoryItem}
                                 onNavigate={handleNavigation}
-                                isOpen={(openSubCategoryAccordions[category] || []).includes(subcategoryName)}
-                                onToggle={() => toggleSubCategoryAccordion(category, subcategoryName)}
+                                isOpen={(openSubCategoryAccordions[categoryItem.name] || []).includes(subcategoryItem.name)}
+                                onToggle={() => toggleSubCategoryAccordion(categoryItem.name, subcategoryItem.name)}
                             />
                             )) : <p className="text-sm text-gray-500">No subcategories</p>
                         }
