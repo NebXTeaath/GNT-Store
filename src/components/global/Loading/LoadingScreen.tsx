@@ -1,9 +1,11 @@
-
+// src/components/global/Loading/LoadingScreen.tsx
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import logo from "@/assets/logo.svg"; // Adjust the path as necessary
+import logo from "@/assets/logo.svg";
 import { AuthLoadingCarousel, CarouselItem } from '@/components/pages/Login/AuthLoadingCarousel';
-import { useProducts } from '@/components/global/productsPage/useProducts';
+import { useProductCategories } from '@/components/global/hooks/useProductCategories';
+import { supabase } from '@/lib/supabase';
+import { Product } from '@/lib/types/product';
 
 // Animation variants for the container
 const containerVariants = {
@@ -30,47 +32,80 @@ const LoadingScreen = ({
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
   const [isCarouselReady, setIsCarouselReady] = useState(false);
   
-  // Use the products hook to get items for the carousel
-  const { products: consolesProducts, isLoading: consolesLoading } = useProducts({ 
-    category: "Consoles", 
-    pageSize: 10 
-  });
-  
-  const { products: computersProducts, isLoading: computersLoading } = useProducts({ 
-    category: "Computers", 
-    pageSize: 10 
-  });
+  // Get all product categories dynamically
+  const { data: productCategories, isLoading: categoriesLoading } = useProductCategories();
 
   useEffect(() => {
-    // Only proceed if this is an auth loading screen
-    if (!isAuth) return;
-
-    if (!consolesLoading && !computersLoading) {
-      // Combine and map products to carousel items format
-      const allProducts = [...(consolesProducts || []), ...(computersProducts || [])].filter(Boolean);
-      
-      if (allProducts.length > 0) {
-        // Map the products to the carousel item format
-        const mappedItems: CarouselItem[] = allProducts.map(product => ({
-          image: product.primary_image || '',
-          title: product.product_name || 'Product',
-          price: typeof product.price === 'number' ? product.price : undefined,
-          discount_price: typeof product.discount_price === 'number' ? product.discount_price : undefined,
-        }));
-        
-        // Shuffle the array
-        const shuffledItems = [...mappedItems];
-        for (let i = shuffledItems.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffledItems[i], shuffledItems[j]] = [shuffledItems[j], shuffledItems[i]];
-        }
-        
-        setCarouselItems(shuffledItems);
+    // Only proceed if this is an auth loading screen and categories have been fetched
+    if (!isAuth || categoriesLoading || !productCategories) {
+      if (!categoriesLoading && isAuth) {
+        // If categories are done loading but there are none, mark carousel as ready to show empty state
+        setIsCarouselReady(true);
       }
-      
-      setIsCarouselReady(true);
+      return;
     }
-  }, [consolesProducts, computersProducts, consolesLoading, computersLoading, isAuth]);
+
+    const fetchAllFeaturedProducts = async () => {
+      try {
+        const categoryNames = Object.keys(productCategories);
+        if (categoryNames.length === 0) {
+          setIsCarouselReady(true); // No categories, just show empty state
+          return;
+        }
+
+        // Create a promise for each category to fetch a sample of products
+        const productPromises = categoryNames.map(categoryName => 
+          supabase.rpc("get_products_list", {
+            page_number: 1,
+            page_size: 10, // Fetch up to 10 products from each top-level category
+            category_filter: categoryName,
+            subcategory_filter: null,
+            label_filter: null,
+            condition_filter: null,
+          })
+        );
+
+        // Await all fetches to complete
+        const results = await Promise.all(productPromises);
+
+        // Combine all products from successful fetches into a single array
+        const allProducts = results.flatMap(result => {
+          if (result.error) {
+            console.error(`Error fetching products for a category:`, result.error);
+            return []; // Return empty array for this category if there's an error
+          }
+          return (result.data as Product[]) || [];
+        });
+
+        if (allProducts.length > 0) {
+          // Map the combined products to the format required by the carousel
+          const mappedItems: CarouselItem[] = allProducts.map(product => ({
+            image: product.primary_image || '',
+            title: product.product_name || 'Product',
+            price: typeof product.price === 'number' ? product.price : undefined,
+            discount_price: typeof product.discount_price === 'number' ? product.discount_price : undefined,
+          }));
+          
+          // Shuffle the array for a random display of featured products
+          const shuffledItems = [...mappedItems];
+          for (let i = shuffledItems.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledItems[i], shuffledItems[j]] = [shuffledItems[j], shuffledItems[i]];
+          }
+          
+          setCarouselItems(shuffledItems);
+        }
+      } catch (error) {
+        console.error("Error fetching featured products for carousel:", error);
+      } finally {
+        // Mark the carousel as ready to be displayed (even if there are no items)
+        setIsCarouselReady(true);
+      }
+    };
+
+    fetchAllFeaturedProducts();
+
+  }, [isAuth, productCategories, categoriesLoading]);
 
   return (
     <motion.div

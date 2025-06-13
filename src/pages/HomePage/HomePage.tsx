@@ -1,12 +1,14 @@
-// src\pages\HomePage\HomePage.tsx
+// src/pages/HomePage/HomePage.tsx
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProducts } from "@/components/global/productsPage/useProducts";
 import { ProductCarousel, ProductCarouselSkeleton } from "../../components/pages/HomePage/ProductCarousel";
 import { HeroCarousel } from "../../components/pages/HomePage/Youtube/heroCarousel";
-import SEO from '@/components/seo/SEO'; // Import SEO component
+import SEO from '@/components/seo/SEO';
 import HomeTestimonialSection from "@/components/global/Testimonials/TestimonialSection";
+import { useProductCategories } from "@/components/global/hooks/useProductCategories";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Create a shared Product interface
 export interface Product {
@@ -89,67 +91,101 @@ const mapToProductInterface = (apiProducts: any[]): Product[] => {
       label: product?.label || undefined,
       condition: product?.condition || "New",
       average_rating: typeof product?.average_rating === 'number' ? product.average_rating : 0,
-      review_count: typeof product?.review_count === 'number' ? product.review_count : 0 // <<< ADD THIS LINE
+      review_count: typeof product?.review_count === 'number' ? product.review_count : 0
     };
   });
 };
 
-// -------------------------- FeaturedProductsCarousel Component --------------------------
-const FeaturedProductsCarousel: React.FC = () => {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { products: consolesProducts, isLoading: consolesLoading, error: consolesError } = useProducts({ category: "Consoles", pageSize: 10 });
-  const { products: computersProducts, isLoading: computersLoading, error: computersError } = useProducts({ category: "Computers", pageSize: 10 });
+// -------------------------- SubcategoryCarousel Component (Helper) --------------------------
+const SubcategoryCarousel: React.FC<{ category: string; subcategory: string }> = ({ category, subcategory }) => {
+    const { products, isLoading, error } = useProducts({
+        category: category,
+        subcategory: subcategory,
+        pageSize: 10, // Fetch up to 10 products for the carousel
+    });
 
-  useEffect(() => {
-    if (!consolesLoading && !computersLoading) {
-      setIsLoading(false);
-      if (consolesError) { setError(consolesError); return; }
-      if (computersError) { setError(computersError); return; }
-      const mappedConsolesProducts = mapToProductInterface(consolesProducts || []);
-      const mappedComputersProducts = mapToProductInterface(computersProducts || []);
-      const allProducts = [...mappedConsolesProducts, ...mappedComputersProducts];
-      const shuffledProducts = [...allProducts];
-      for (let i = shuffledProducts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffledProducts[i], shuffledProducts[j]] = [shuffledProducts[j], shuffledProducts[i]]; }
-      setFeaturedProducts(shuffledProducts.slice(0, 20));
+    const mappedProducts = mapToProductInterface(products || []);
+    const linkToShowAll = `/${category}/${subcategory}`;
+
+    // Don't render anything if there are no products and it's not loading
+    if (!isLoading && mappedProducts.length === 0) {
+        return null;
     }
-  }, [consolesProducts, computersProducts, consolesLoading, computersLoading, consolesError, computersError]);
 
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6"> <h2 className="text-xl font-bold text-white">Featured Products</h2> </div>
-      {isLoading ? (<ProductCarouselSkeleton />) : error ? ( <div className="text-center py-12 bg-[#1a1c23] rounded-lg"> <h3 className="text-lg font-medium mb-2">Error</h3> <p className="text-gray-400">{error}</p> </div> ) : featuredProducts.length > 0 ? ( <ProductCarousel products={featuredProducts} autoplayDelay={4000} /> ) : ( <div className="text-center py-12 bg-[#1a1c23] rounded-lg"> <h3 className="text-lg font-medium mb-2">No products found</h3> <p className="text-gray-400">Try browsing specific categories</p> </div> )}
-    </div>
-  );
+    return (
+        <div key={`${category}-${subcategory}`}>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white">Featured In {subcategory}</h2>
+                <Button asChild variant="ghost" className="text-gray-300 bg-gray-800 hover:text-white hover:bg-[#4752c4]">
+                    <Link to={linkToShowAll}>Show All</Link>
+                </Button>
+            </div>
+            {isLoading ? (
+                <ProductCarouselSkeleton />
+            ) : error ? (
+                <div className="text-center py-12 bg-[#1a1c23] rounded-lg">
+                    <h3 className="text-lg font-medium mb-2">Error</h3>
+                    <p className="text-gray-400">{error}</p>
+                </div>
+            ) : (
+                <ProductCarousel products={mappedProducts} autoplayDelay={4000} />
+            )}
+        </div>
+    );
 };
 
-// -------------------------- FeaturedProductsSection Component --------------------------
-const FeaturedProductsSection: React.FC = () => {
-  const { products: consolesProductsRaw, isLoading: consolesLoading, error: consolesError } = useProducts({ category: "Consoles", pageSize: 10 });
-  const { products: computersProductsRaw, isLoading: computersLoading, error: computersError } = useProducts({ category: "Computers", pageSize: 10 });
-  const consolesProducts = mapToProductInterface(consolesProductsRaw || []);
-  const computersProducts = mapToProductInterface(computersProductsRaw || []);
 
-  return (
-    <section className="py-12 bg-[#0f1115]">
-      <div className="container mx-auto px-4 md:px-6 space-y-12">
-        {/* Featured in Consoles Carousel */}
-        <div>
-          <div className="flex justify-between items-center mb-6"> <h2 className="text-xl font-bold text-white">Featured In Consoles</h2> <Button variant="ghost" className="text-gray-300 bg-gray-800 hover:text-white hover:bg-[#4752c4]"> <Link to="/Consoles">Show All</Link> </Button> </div>
-          {consolesLoading ? (<ProductCarouselSkeleton />) : consolesError ? ( <div className="text-center py-12 bg-[#1a1c23] rounded-lg"> <h3 className="text-lg font-medium mb-2">Error</h3> <p className="text-gray-400">{consolesError}</p> </div> ) : consolesProducts.length > 0 ? ( <ProductCarousel products={consolesProducts} /> ) : ( <div className="text-center py-12 bg-[#1a1c23] rounded-lg"> <h3 className="text-lg font-medium mb-2">No products found</h3> <p className="text-gray-400">Try browsing a different category</p> </div> )}
-        </div>
-        {/* Repair Request Section */}
-        <RepairServiceSection />
-        {/* Featured in Computers Carousel */}
-        <div>
-          <div className="flex justify-between items-center mb-6"> <h2 className="text-xl font-bold text-white">Featured In Computers</h2> <Button variant="ghost" className="text-gray-300 bg-gray-800 hover:text-white hover:bg-[#4752c4]"> <Link to="/Computers">Show All</Link> </Button> </div>
-          {computersLoading ? (<ProductCarouselSkeleton />) : computersError ? ( <div className="text-center py-12 bg-[#1a1c23] rounded-lg"> <h3 className="text-lg font-medium mb-2">Error</h3> <p className="text-gray-400">{computersError}</p> </div> ) : computersProducts.length > 0 ? ( <ProductCarousel products={computersProducts} /> ) : ( <div className="text-center py-12 bg-[#1a1c23] rounded-lg"> <h3 className="text-lg font-medium mb-2">No products found</h3> <p className="text-gray-400">Try browsing a different category</p> </div> )}
-        </div>
-      </div>
-    </section>
-  );
+// -------------------------- Dynamic Featured Products Section --------------------------
+const DynamicFeaturedSection: React.FC = () => {
+    const { data: productCategories, isLoading: categoriesLoading, isError: categoriesError } = useProductCategories();
+
+    if (categoriesLoading) {
+        return (
+            <section className="py-12 bg-[#0f1115]">
+                <div className="container mx-auto px-4 md:px-6 space-y-12">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i}>
+                            <div className="flex justify-between items-center mb-6">
+                                <Skeleton className="h-7 w-48 bg-[#2a2d36]" />
+                                <Skeleton className="h-9 w-24 bg-[#2a2d36]" />
+                            </div>
+                            <ProductCarouselSkeleton />
+                        </div>
+                    ))}
+                </div>
+            </section>
+        );
+    }
+
+    if (categoriesError || !productCategories || !productCategories.categories) {
+        return (
+            <section className="py-12 bg-[#0f1115]">
+                <div className="container mx-auto px-4 md:px-6">
+                    <div className="text-center text-red-400">Could not load featured product sections.</div>
+                </div>
+            </section>
+        );
+    }
+
+    // MODIFICATION: Flatten all subcategories from the new array-based structure
+    const allSubcategories = productCategories.categories.flatMap(categoryItem =>
+        categoryItem.subcategories.map(subcategoryItem => ({
+            category: categoryItem.name,
+            subcategory: subcategoryItem.name
+        }))
+    );
+
+    return (
+        <section className="py-12 bg-[#0f1115]">
+            <div className="container mx-auto px-4 md:px-6 space-y-12">
+                {allSubcategories.map(({ category, subcategory }) => (
+                    <SubcategoryCarousel key={`${category}-${subcategory}`} category={category} subcategory={subcategory} />
+                ))}
+            </div>
+        </section>
+    );
 };
+
 
 // -------------------------- RepairServiceSection Component --------------------------
 function RepairServiceSection() {
@@ -170,60 +206,49 @@ function RepairServiceSection() {
   );
 }
 
-// -------------------------- GNTStore Homepage Component --------------------------
+// -------------------------- GNTStore Homepage Component (Main) --------------------------
 const GNTStore: React.FC = () => {
-  const location = useLocation(); // Get location for canonical URL
-  const siteUrl = window.location.origin; // Get base URL
-  const canonicalUrl = `${siteUrl}${location.pathname}`; // Homepage canonical
+  const location = useLocation();
+  const siteUrl = window.location.origin;
+  const canonicalUrl = `${siteUrl}${location.pathname}`;
 
-   // Effect to scroll to top on initial load or path change (without hash)
-   useEffect(() => {
-    // Only scroll to top if there's no hash in the URL
+  useEffect(() => {
     if (!location.hash) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [location.pathname]); // Run only when the pathname changes (not just the hash)
+  }, [location.pathname]);
 
-  // **** ADD THIS useEffect TO HANDLE HASH SCROLLING ****
   useEffect(() => {
     if (location.hash === '#testimonials') {
-      // Use setTimeout to ensure the element exists in the DOM after navigation/rendering
       const timer = setTimeout(() => {
         const element = document.getElementById('testimonials');
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          console.log("Scrolling to #testimonials");
-        } else {
-          console.warn("#testimonials element not found for scrolling.");
         }
-      }, 150); // Adjust delay if necessary (100-300ms is usually sufficient)
-
-      return () => clearTimeout(timer); // Cleanup the timer
+      }, 150);
+      return () => clearTimeout(timer);
     }
-  }, [location.hash]); // Rerun this effect specifically when the hash changes
+  }, [location.hash]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0f1115]">
       <SEO
             title="GNT – Next-Gen Console & PC Marketplace | Home"
             description="Explore the future of gaming tech with GNT – Your go-to marketplace for consoles, computers, and expert repair services. Find featured products and learn about our repair process."
-            canonicalUrl={canonicalUrl} // Use homepage canonical URL
-            ogData={{ // OG data specific to homepage
+            canonicalUrl={canonicalUrl}
+            ogData={{
                 title: "GNT – Next-Gen Console & PC Marketplace | Home",
                 description: "Your go-to marketplace for consoles, computers, and expert repair services.",
                 type: "website",
-                image: `${siteUrl}/favicon/og-image.png`, // Ensure you have an og-image.png
+                image: `${siteUrl}/favicon/og-image.png`,
                 url: canonicalUrl
             }}
         />
       <main>
         <HeroCarousel />
-        <section className="py-12 bg-[#0f1115]">
-          <div className="container mx-auto px-4 md:px-6"> <FeaturedProductsCarousel /> </div>
-        </section>
         <HomeTestimonialSection />
+        <DynamicFeaturedSection />
         <RepairServiceSection />
-        <FeaturedProductsSection />
       </main>
     </div>
   );

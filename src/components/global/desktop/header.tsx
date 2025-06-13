@@ -54,24 +54,27 @@ export default function Header() {
   const [openDesktopSubCategoryAccordions, setOpenDesktopSubCategoryAccordions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    if (productCategories) {
+    if (productCategories && productCategories.categories) {
       console.log("[Header] productCategories loaded:", productCategories);
-      setOpenDesktopCategoryAccordions(Object.keys(productCategories));
+      // MODIFICATION: Map over the array to get category names
+      const categoryNames = productCategories.categories.map(cat => cat.name);
+      setOpenDesktopCategoryAccordions(categoryNames);
+      
+      const initialOpenSubcategories: Record<string, string[]> = {};
+      // MODIFICATION: Loop through the categories array
+      productCategories.categories.forEach(categoryItem => {
+          const subcategories = categoryItem.subcategories;
+          if (subcategories) {
+              // MODIFICATION: Map over the subcategory array to get their names
+              initialOpenSubcategories[categoryItem.name] = subcategories.map(sub => sub.name);
+          } else {
+              initialOpenSubcategories[categoryItem.name] = [];
+          }
+      });
+      setOpenDesktopSubCategoryAccordions(initialOpenSubcategories);
     }
     if (categoriesError) {
       console.error("[Header] Error state from useQuery for categories:", categoriesError);
-    }
-    // Initialize sub-category accordions to be open by default
-    if (productCategories) {
-      const initialOpenSubcategories: Record<string, string[]> = {};
-      Object.keys(productCategories).forEach(catKey => {
-        if (productCategories[catKey]) { // Check if subcategories exist for this category
-          initialOpenSubcategories[catKey] = Object.keys(productCategories[catKey]);
-        } else {
-          initialOpenSubcategories[catKey] = []; // Initialize with empty array if no subcategories
-        }
-      });
-      setOpenDesktopSubCategoryAccordions(initialOpenSubcategories);
     }
   }, [productCategories, categoriesError]);
 
@@ -264,45 +267,45 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="px-6 py-4">
-                  {productCategories && Object.keys(productCategories).length > 0 ? (
+                  {productCategories && productCategories.categories.length > 0 ? (
                     <Accordion 
                       type="multiple" 
                       className="space-y-4"
                       value={openDesktopCategoryAccordions}
                       onValueChange={setOpenDesktopCategoryAccordions}
                     >
-                      {Object.entries(productCategories).map(([category, subcategories], index) => (
-                        <AccordionItem key={category} value={category} className="border-[#2a2d36]">
+                      {/* MODIFICATION: Loop through the new array structure */}
+                      {productCategories.categories.map((categoryItem, index) => (
+                        <AccordionItem key={categoryItem.name} value={categoryItem.name} className="border-[#2a2d36]">
                           <AccordionTrigger className="hover:no-underline p-1 text-lg font-semibold text-white hover:text-[#5865f2]">
                             <div className="flex items-center gap-2">
-                              {category === "Consoles" ? <Gamepad2 className="h-5 w-5" /> : category === "Computers" ? <Cpu className="h-5 w-5" /> : null}
-                              {category}
+                              {categoryItem.name === "Consoles" ? <Gamepad2 className="h-5 w-5" /> : categoryItem.name === "Computers" ? <Cpu className="h-5 w-5" /> : null}
+                              {categoryItem.name}
                             </div>
                           </AccordionTrigger>
                           <AccordionContent className="ml-6 space-y-3 pt-2"> 
                             <Accordion 
                               type="multiple" 
                               className="space-y-2"
-                              value={openDesktopSubCategoryAccordions[category] || []}
+                              value={openDesktopSubCategoryAccordions[categoryItem.name] || []}
                               onValueChange={(values) => {
-                                setOpenDesktopSubCategoryAccordions(prev => ({
-                                  ...prev,
-                                  [category]: values
-                                }));
+                                setOpenDesktopSubCategoryAccordions(prev => ({ ...prev, [categoryItem.name]: values }));
                               }}
                             >
-                              {Object.entries(subcategories).map(([subcategory, labels]) => (
-                                <AccordionItem key={subcategory} value={subcategory} className="border-[#2a2d36]">
+                              {/* MODIFICATION: Loop through the subcategories array */}
+                              {categoryItem.subcategories.map((subcategoryItem) => (
+                                <AccordionItem key={subcategoryItem.name} value={subcategoryItem.name} className="border-[#2a2d36]">
                                   <AccordionTrigger className="hover:no-underline p-1 text-base font-medium text-gray-300 hover:text-[#5865f2]">
-                                    {subcategory}
+                                    {subcategoryItem.name}
                                   </AccordionTrigger>
                                   <AccordionContent className="pt-2">
-                                    {labels.length > 0 && (
+                                    {/* MODIFICATION: Access labels from subcategoryItem.data */}
+                                    {subcategoryItem.data.labels.length > 0 && (
                                       <div className="ml-4 mt-2 grid grid-cols-2 gap-4">
-                                        {labels.map((labelItem) => (
+                                        {subcategoryItem.data.labels.map((labelItem) => (
                                           <div
                                             key={labelItem.name}
-                                            onClick={() => navigateWithLoading(`/${category}/${subcategory}?label=${encodeURIComponent(labelItem.name)}`, `Loading ${labelItem.name}...`, setIsLoadingProducts)}
+                                            onClick={() => navigateWithLoading(`/${categoryItem.name}/${subcategoryItem.name}?label=${encodeURIComponent(labelItem.name)}`, `Loading ${labelItem.name}...`, setIsLoadingProducts)}
                                             className="flex flex-col items-center text-center p-2 rounded-md hover:bg-[#2a2f3a] transition-colors cursor-pointer group"
                                           >
                                             <CachedImage
@@ -324,7 +327,7 @@ export default function Header() {
                                 </AccordionItem>
                               ))}
                             </Accordion>
-                            {index < Object.keys(productCategories).length - 1 && <Separator className="my-4 bg-[#2a2d36]" />}
+                            {index < productCategories.categories.length - 1 && <Separator className="my-4 bg-[#2a2d36]" />}
                           </AccordionContent>
                         </AccordionItem>
                       ))}
