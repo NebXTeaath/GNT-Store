@@ -29,6 +29,11 @@ export default function GameLoadHistory() {
     }
   }, [isLoadingAuth, isAuthenticated, openLoginModal, location.pathname]);
 
+// --- ADDED: Scroll to top on initial mount ---
+useEffect(() => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}, []);
+
   const {
     data: queryData,
     isLoading: isLoadingRequests,

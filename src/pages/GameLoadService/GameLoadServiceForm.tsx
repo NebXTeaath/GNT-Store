@@ -1,5 +1,5 @@
 // src/pages/GameLoadService/GameLoadServiceForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { gameLoadServiceSchema, GameLoadServiceFormData } from '@/lib/types/GameLoadServiceTypes';
@@ -41,6 +41,10 @@ export default function GameLoadServiceForm() {
     },
     mode: 'onChange',
   });
+  // --- ADDED: Scroll to top on mount ---
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
