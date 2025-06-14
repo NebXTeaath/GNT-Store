@@ -1,5 +1,5 @@
 // src/pages/GameLoadService/GameLoadServiceForm.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { gameLoadServiceSchema, GameLoadServiceFormData } from '@/lib/types/GameLoadServiceTypes';
@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserProfileQuery } from '@/components/global/hooks/useUserProfileData';
 import { useNavigate } from 'react-router-dom';
 import ProfilePreviewButton from '@/components/global/Profile/ProfilePreviewButton';
+import GameLoadSuccessConfirmation from './SuccessConfirmation';
 import AIHelpInstructions from '@/components/pages/repairPage/AIHelpInstructions';
 import { copyToClipboard } from '@/lib/utils';
 import { formatCurrencyWithSeparator } from '@/lib/currencyFormat';
@@ -28,13 +29,15 @@ export default function GameLoadServiceForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAIHelp, setShowAIHelp] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [submittedRequestId, setSubmittedRequestId] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
 
   const form = useForm<GameLoadServiceFormData>({
     resolver: zodResolver(gameLoadServiceSchema),
     defaultValues: {
-      consoleType: 'PS5',
-      availableStorage: 500,
+      consoleType: undefined,
+      availableStorage: undefined,
       storageUnit: 'GB',
       games: [{ value: '' }],
       addStorage: false,
@@ -42,7 +45,6 @@ export default function GameLoadServiceForm() {
     mode: 'onChange',
   });
 
-  // Scroll to top on mount
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
@@ -52,27 +54,15 @@ export default function GameLoadServiceForm() {
     name: "games",
   });
 
-  const persistFormState = (data: Partial<GameLoadServiceFormData>) => {
-    sessionStorage.setItem('gameLoadFormState', JSON.stringify(data));
-  };
-
-  // Load state from sessionStorage on component mount
   useEffect(() => {
     const savedState = sessionStorage.getItem('gameLoadFormState');
     if (savedState) {
       try {
         const parsedState = JSON.parse(savedState);
-        // Ensure consoleType and storageUnit have valid values
-        const sanitizedState = {
-          ...parsedState,
-          consoleType: parsedState.consoleType && ['PS4', 'PS5'].includes(parsedState.consoleType) 
-            ? parsedState.consoleType 
-            : 'PS5',
-          storageUnit: parsedState.storageUnit && ['GB', 'TB'].includes(parsedState.storageUnit) 
-            ? parsedState.storageUnit 
-            : 'GB',
-        };
-        form.reset(sanitizedState);
+        if (!parsedState.games || parsedState.games.length === 0) {
+          parsedState.games = [{ value: '' }];
+        }
+        form.reset(parsedState);
       } catch (error) {
         console.error('Error parsing saved form state:', error);
         sessionStorage.removeItem('gameLoadFormState');
@@ -89,17 +79,13 @@ export default function GameLoadServiceForm() {
     fields.length >= 10 ||
     (fields.length > 0 && watchedGames[fields.length - 1]?.value.trim() === '');
 
-  // Subscribe to form changes to persist them
   useEffect(() => {
-    const subscription = form.watch((value) => {
-      // The `value` here is the entire form state
-      persistFormState({
-        ...value,
-        games: value.games?.filter((game): game is { value: string } => !!game?.value?.trim()) || [],
-      });
-    });
+    const subscription = form.watch((value) =>
+      sessionStorage.setItem('gameLoadFormState', JSON.stringify(value))
+    );
     return () => subscription.unsubscribe();
   }, [form.watch]);
+
 
   const handleShowAIPrompt = async () => {
     const isValid = await form.trigger();
@@ -127,21 +113,31 @@ export default function GameLoadServiceForm() {
         ...data,
         games: data.games.map(g => g.value).filter(g => g.trim()),
       };
-      const { error } = await supabase.functions.invoke('console-games-addon-service', { body: payload });
-      if (error) throw error;
+      const { data: newRecord, error } = await supabase.functions.invoke('console-games-addon-service', { body: payload });
+      if (error || !newRecord?.success) throw new Error(error?.message || 'Failed to submit request.');
+
+      form.reset();
+      sessionStorage.removeItem('gameLoadFormState');
+      
       toast.success("Service Request Submitted!", {
         description: "We will contact you shortly to arrange for pickup.",
         duration: 5000,
       });
-      form.reset();
-      sessionStorage.removeItem('gameLoadFormState');
-      navigate('/game-load/history');
+
+      setSubmittedRequestId(newRecord.requestId || '');
+      setShowConfirmation(true);
+      
     } catch (err: any) {
       console.error("Error submitting service request:", err);
       toast.error("Submission Failed", { description: err.message });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleConfirmationClose = () => {
+    setShowConfirmation(false);
+    navigate('/game-load/history');
   };
 
   const storageAddonPrice = consoleType === 'PS4' ? 2499 : 5999;
@@ -156,6 +152,12 @@ export default function GameLoadServiceForm() {
         </div>
       )}
 
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <GameLoadSuccessConfirmation requestId={submittedRequestId} onClose={handleConfirmationClose} />
+        </div>
+      )}
+
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="mb-8"></div>
         <div className="max-w-4xl mx-auto p-4 space-y-8">
@@ -167,9 +169,8 @@ export default function GameLoadServiceForm() {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="consoleType" className="text-gray-300">Console Type *</Label>
-                {/* FIXED: Use value prop with fallback and proper validation */}
                 <Select 
-                  value={consoleType || 'PS5'} 
+                  value={consoleType || ''} 
                   onValueChange={(value) => {
                     if (value === 'PS4' || value === 'PS5') {
                       form.setValue('consoleType', value, { shouldValidate: true, shouldDirty: true });
@@ -197,7 +198,6 @@ export default function GameLoadServiceForm() {
                     className="bg-[#2a2d36] border-[#3f4354] placeholder:text-gray-500"
                     {...form.register('availableStorage')}
                   />
-                  {/* ALSO FIXED: Use value prop with fallback for storageUnit Select */}
                   <Select 
                     value={storageUnit || 'GB'} 
                     onValueChange={(value) => {

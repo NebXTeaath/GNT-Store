@@ -12,6 +12,8 @@ export interface FetchedGameLoadRequest {
   games_list: string[];
   storage_addon_added: boolean;
   final_price: number;
+  base_service_price: number; 
+  storage_addon_price: number; 
   status: string;
   user_profile_snapshot: any; // Or a more specific profile type
   remark?: string | null;
