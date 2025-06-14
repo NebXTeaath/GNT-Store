@@ -401,6 +401,25 @@ export default function ProductDetailsPage() {
                                         </div>
                                         <div className="p-3 flex flex-col flex-grow">
                                             <h3 className="font-semibold mb-1.5 line-clamp-2 h-12 text-sm md:text-base group-hover:text-[#5865f2] transition-colors">{product.product_name}</h3>
+                                            
+                                            {/* Reviews Section */}
+                                            {(product.review_count && product.review_count > 0) && (
+                                                <div className="flex items-center gap-1 mb-2">
+                                                    <div className="flex">
+                                                        {Array(5).fill(0).map((_, i) => (
+                                                            <Star 
+                                                                key={i} 
+                                                                size={12} 
+                                                                className={i < Math.round(product.average_rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-600"} 
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-xs text-gray-400">
+                                                        {product.average_rating?.toFixed(1)} ({product.review_count})
+                                                    </span>
+                                                </div>
+                                            )}
+
                                             <div className="mt-auto">
                                                 <div className="flex flex-col items-start">
                                                     <p className="text-[#5865f2] font-bold text-base md:text-lg">{formatCurrencyWithSeparator(similarDiscountPrice)}</p>

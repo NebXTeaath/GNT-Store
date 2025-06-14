@@ -292,7 +292,7 @@ const OrderDetailsContent = ({ order, isMobile }: OrderDetailsContentProps) => {
           <div className="px-6 py-4">
             {/* Top Section (as before) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <h3 className="text-lg font-medium">Order #{order.id?.substring(0, 8) ?? 'N/A'}</h3>
+              <h3 className="text-lg font-medium">Order #{order.id?.substring(0, 36) ?? 'N/A'}</h3>
               <div className="text-right">
                 <div className="text-sm text-gray-400">Total</div>
                 <div className="text-lg font-medium">{formatCurrencyWithSeparator(orderSummary?.total)}</div>

@@ -22,6 +22,8 @@ export interface SimilarProduct {
   slug: string;
   is_featured?: boolean;
   is_bestseller?: boolean;
+  average_rating?: number;
+  review_count?: number;
 }
 
 export interface ProductDetailsData {

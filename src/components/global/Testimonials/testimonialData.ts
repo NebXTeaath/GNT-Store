@@ -6,8 +6,8 @@ export interface Testimonial {
     rating: number; // 1-5
     content: string;
     date: string;
-    service?: string; // For repair testimonials
-    device?: string; // For repair testimonials
+    service?: string; 
+    device?: string; 
     productPurchased?: string; // For product testimonials
   }
   
@@ -133,3 +133,65 @@ export interface Testimonial {
     }
   ];
   
+  export const gameLoadTestimonials: Testimonial[] = [
+  {
+    id: "gload-001",
+    name: "Rohan Kapoor",
+    location: "Pune, Maharashtra",
+    rating: 5,
+    content: "My internet is slow and downloading huge games like Call of Duty was a nightmare. GNT's service was a lifesaver! Got my PS5 back in two days, fully loaded with all the games I requested. Absolutely seamless.",
+    date: "2024-04-15",
+    service: "Game Loading",
+    device: "PlayStation 5"
+  },
+  {
+    id: "gload-002",
+    name: "Aisha Begum",
+    location: "Hyderabad, Telangana",
+    rating: 5,
+    content: "I gifted my son a PS4 but had no idea how to set it up with all his favorite games. The GNT team was so professional. They picked it up, loaded everything, and now he's the happiest kid on the block. Highly recommended for non-techy parents!",
+    date: "2024-04-10",
+    service: "Game Loading",
+    device: "PlayStation 4"
+  },
+  {
+    id: "gload-003",
+    name: "Siddharth Jain",
+    location: "Jaipur, Rajasthan",
+    rating: 5,
+    content: "The storage upgrade add-on is a must! I was worried about space, but they installed a new SSD and all 10 of my requested games. My PS5 feels brand new with so much room. Worth every rupee.",
+    date: "2024-04-05",
+    service: "Game Loading + Storage Add-on",
+    device: "PlayStation 5"
+  },
+  {
+    id: "gload-004",
+    name: "Priya Sharma",
+    location: "Chandigarh",
+    rating: 4,
+    content: "The process was super convenient. The AI prompt helped me get a good idea of the storage needed. The only reason for 4 stars is that one game wasn't available, but they communicated it clearly and offered an alternative. Great service overall.",
+    date: "2024-03-28",
+    service: "Game Loading",
+    device: "PlayStation 4"
+  },
+  {
+    id: "gload-005",
+    name: "Vikram Reddy",
+    location: "Bengaluru, Karnataka",
+    rating: 5,
+    content: "As a competitive gamer, I can't afford downtime. GNT's turnaround was incredibly fast. Dropped my console off and had it back the next evening with everything installed and updated. Professional and efficient.",
+    date: "2024-03-25",
+    service: "Game Loading",
+    device: "PlayStation 5"
+  },
+  {
+    id: "gload-006",
+    name: "Neha Gupta",
+    location: "Mumbai, Maharashtra",
+    rating: 5,
+    content: "I was skeptical about letting someone handle my console, but the pickup and delivery were very secure and tracked. Everything came back in perfect condition, loaded with all the latest RPGs I wanted. Fantastic service!",
+    date: "2024-03-20",
+    service: "Game Loading",
+    device: "PlayStation 5"
+  }
+];

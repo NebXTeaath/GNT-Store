@@ -1,6 +1,6 @@
 // src/components/global/desktop/header.tsx
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut } from "lucide-react";
+import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut, DownloadCloud, MonitorCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/assets/logo.svg"; // Ensure path is correct
 import { useAuth } from "@/context/AuthContext";
@@ -15,6 +15,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 // import { toast } from "sonner"; // Removed as it's not used in this file after recent changes
 import { useWindowSize } from "@/components/global/hooks/useWindowSize";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Accordion,
   AccordionContent,
@@ -71,7 +77,7 @@ export default function Header() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeStyle, setActiveStyle] = useState({ top: "0px", height: "0px" });
-  const tabRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const tabRefs = useRef<(HTMLDivElement | HTMLButtonElement | null)[]>([]);
 
   const formattedCartCount = cartCount > 9 ? "9+" : cartCount.toString();
   const wishlistCount = wishlistItems.length;
@@ -333,14 +339,35 @@ export default function Header() {
 
           <SearchBar className="w-full" size={searchBarSize} />
 
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn("flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out cursor-pointer", windowSize.width && windowSize.width < 960 ? "min-w-[75px]" : "min-w-[120px]")}
-            onClick={() => navigateWithLoading("/repair-home", "Loading repair services...", setIsLoading)}
-          >
-            {windowSize.width && windowSize.width < 960 ? "Repairs" : "Repair Services"}
-          </Button>
+                    <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("flex items-center justify-center gap-1 bg-[#1a1c23] text-sm whitespace-nowrap text-gray-300 hover:text-white border border-[#2a2d36] hover:bg-[#2a2d36] hover:border-[#5865f2] transition-all duration-200 ease-in-out cursor-pointer", windowSize.width && windowSize.width < 960 ? "min-w-[75px]" : "min-w-[75px]")}
+              >
+                
+                Services
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-[#1a1c23] border-[#2a2d36] text-white">
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => navigateWithLoading('/repair-home', 'Loading Repair Services...', setIsLoading)}
+              >
+                <Wrench className="mr-2 h-4 w-4" />
+                <span>Repair Services</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => navigateWithLoading('/game-load-service', 'Loading Game Load Service...', setIsLoading)}
+              >
+                <DownloadCloud className="mr-2 h-4 w-4" />
+                <span>Game Load Service</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-2 lg:gap-4 justify-end md:w-auto w-1/4">
@@ -450,26 +477,67 @@ export default function Header() {
                 <div className="relative flex-grow px-4 py-2 overflow-y-auto">
                   <div className="absolute left-0 w-[3px] bg-white rounded-r-md transition-all duration-300 ease-out pointer-events-none" style={activeStyle} />
                   <div className="flex flex-col space-y-1">
-                    {sheetTabs.map((tab, index) => {
-                      const TabIcon = tab.icon;
-                      return (
-                        <div
-                          key={tab.label}
-                          ref={(el) => (tabRefs.current[index] = el)}
-                          className={cn(
-                            "flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md",
-                            "hover:bg-[#ffffff1a]",
-                            index === activeIndex ? "text-white bg-[#ffffff14]" : "text-gray-400 hover:text-gray-100"
-                          )}
-                          onClick={() => { setActiveIndex(index); tab.action(); }}
-                        >
-                          <TabIcon className="mr-3 h-4 w-4" />
-                          <span className="text-sm font-medium whitespace-nowrap">{tab.label}</span>
-                        </div>
-                      );
-                    })}
+                      {/* Static Items */}
+                      <div
+                        ref={(el) => (tabRefs.current[0] = el)}
+                        className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100"
+                        onClick={() => { setActiveIndex(0); handleOpenProfile(); }}
+                      >
+                        <User className="mr-3 h-4 w-4" />
+                        <span className="text-sm font-medium whitespace-nowrap">Profile</span>
+                      </div>
+                      <div
+                        ref={(el) => (tabRefs.current[1] = el)}
+                        className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100"
+                        onClick={() => { setActiveIndex(1); navigateWithLoading('/wishlist', 'Loading your wishlist...', setIsLoading); }}
+                      >
+                        <Heart className="mr-3 h-4 w-4" />
+                        <span className="text-sm font-medium whitespace-nowrap">Wishlist</span>
+                      </div>
+                      <div
+                        ref={(el) => (tabRefs.current[2] = el)}
+                        className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100"
+                        onClick={() => { setActiveIndex(2); navigateWithLoading('/order-history', 'Loading your orders...', setIsLoading); }}
+                      >
+                        <History className="mr-3 h-4 w-4" />
+                        <span className="text-sm font-medium whitespace-nowrap">Orders</span>
+                      </div>
+
+                      {/* Accordion for Service History */}
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="service-history" className="border-b-0">
+                          <AccordionTrigger
+                            ref={(el) => (tabRefs.current[3] = el)}
+                            className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100 hover:no-underline"
+                            onClick={() => setActiveIndex(3)}
+                          >
+                            <div className="flex items-center">
+                                <MonitorCog className="mr-3 h-4 w-4" />
+                                <span className="text-sm font-medium whitespace-nowrap">Service History</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pl-10 pr-2 pb-2 space-y-2">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start text-gray-300 hover:text-gray-100 hover:bg-[#ffffff1a]"
+                              onClick={() => navigateWithLoading('/repair/history', 'Loading your repairs...', setIsLoading)}
+                            >
+                              <Wrench className="mr-2 h-4 w-4" />
+                              Repair History
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start text-gray-300 hover:text-gray-100 hover:bg-[#ffffff1a]"
+                              onClick={() => navigateWithLoading('/game-load/history', 'Loading game load history...', setIsLoading)}
+                            >
+                              <DownloadCloud className="mr-2 h-4 w-4" />
+                              Game Load History
+                            </Button>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
                   </div>
-                </div>
                 <div className="mt-auto p-6 border-t border-[#2a2d36]">
                   <Button variant="destructive" className="w-full flex items-center justify-center gap-2 py-6" onClick={handleLogout}>
                     <LogOut className="h-4 w-4" /> Logout

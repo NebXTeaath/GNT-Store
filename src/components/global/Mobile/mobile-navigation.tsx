@@ -1,7 +1,7 @@
 // src/components/global/Mobile/mobile-navigation.tsx
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Wrench, Search, ShoppingCart, Store, MenuSquare } from "lucide-react"; // Added MenuSquare for catalog
+import { Home, Wrench, Search, ShoppingCart, Store, MenuSquare, Omega } from "lucide-react"; // Added MenuSquare for catalog
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useLoading } from "@/components/global/Loading/LoadingContext";
@@ -9,7 +9,8 @@ import { SearchDrawer } from "@/components/global/Mobile/search-drawer";
 // import { ShopDrawer } from "@/components/global/Mobile/shop-drawer"; // Remove ShopDrawer import
 import LoginModal from "@/components/pages/Login/LoginModal";
 import { MobileAccountSheet } from "@/components/global/Mobile/mobile-account-sheet";
-import { ShopCatalogDrawer } from "@/components/global/Mobile/shop-drawer"; // New import
+import { ShopCatalogDrawer } from "@/components/global/Mobile/shop-drawer";
+import { ServicesDrawer } from './ServicesDrawer';
 
 interface NavItemProps {
   href?: string;
@@ -57,7 +58,8 @@ function NavItem({ href, icon, label, isActive, onClick, badge }: NavItemProps) 
 
 export function MobileNavigation() {
   const [searchOpen, setSearchOpen] = useState(false);
-  const [shopCatalogOpen, setShopCatalogOpen] = useState(false); // Changed state variable
+  const [shopCatalogOpen, setShopCatalogOpen] = useState(false);
+  const [servicesDrawerOpen, setServicesDrawerOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const pathname = location.pathname;
@@ -87,7 +89,9 @@ export function MobileNavigation() {
   };
 
   const handleHomeClick = () => handleNavigationWithLoading("/", "Loading Home...");
-  const handleRepairClick = () => handleNavigationWithLoading("/repair-home/", "Loading Repair Services...");
+  const handleServicesClick = () => {
+    setServicesDrawerOpen(true);
+  };
   const handleCartClick = () => handleNavigationWithLoading("/checkout/cart-details", "Loading Cart...");
   const handleCatalogClick = () => { // This now opens the drawer
     setLoadingMessage("Loading Shop Catalog...");
@@ -142,10 +146,10 @@ export function MobileNavigation() {
           
           <div className="flex-1 h-full flex items-center justify-center">
             <NavItem
-              icon={<Wrench size={22} />}
-              label="Repair"
-              isActive={pathname.startsWith("/repair")} // More robust active check
-              onClick={handleRepairClick}
+              icon={<Omega size={22} />}
+              label="Services" // Changed label
+              isActive={servicesDrawerOpen} // Make active when drawer is open
+              onClick={handleServicesClick} // Use new handler
             />
           </div>
           
@@ -162,7 +166,8 @@ export function MobileNavigation() {
       </nav>
 
       <SearchDrawer open={searchOpen} onOpenChange={setSearchOpen} />
-      <ShopCatalogDrawer open={shopCatalogOpen} onOpenChange={setShopCatalogOpen} /> {/* Use new drawer */}
+      <ShopCatalogDrawer open={shopCatalogOpen} onOpenChange={setShopCatalogOpen} />
+      <ServicesDrawer open={servicesDrawerOpen} onOpenChange={setServicesDrawerOpen} />
       <LoginModal open={loginOpen} onOpenChange={setLoginOpen} onLoginSuccess={() => setLoginOpen(false)} />
       {isAuthenticated && (
         <MobileAccountSheet open={accountOpen} onOpenChange={setAccountOpen} />

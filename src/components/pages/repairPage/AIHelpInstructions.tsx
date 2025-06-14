@@ -28,9 +28,9 @@ const AIHelpInstructions = ({ aiPrompt, onClose }: AIHelpInstructionsProps) => {
         <div className="bg-blue-500/20 p-3 rounded-full">
           <Bot className="h-10 w-10 text-blue-400" />
         </div>
-        <CardTitle className="text-2xl mt-4">AI Troubleshooting</CardTitle>
+        <CardTitle className="text-2xl mt-4">AI Connect</CardTitle>
         <CardDescription className="text-gray-400 text-center">
-          Let AI help you troubleshoot your issue before submitting a repair request
+          Let AI help you before submitting a request
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -53,10 +53,10 @@ const AIHelpInstructions = ({ aiPrompt, onClose }: AIHelpInstructionsProps) => {
           <ol className="list-decimal pl-5 text-sm text-gray-300 space-y-1">
             <li>Click the button below to open ChatGPT in a new tab</li>
             <li>Paste the copied prompt in the ChatGPT chat box</li>
-            <li>Follow the AI's instructions to troubleshoot your issue</li>
+            <li>Follow the AI's instructions</li>
           </ol>
           <p className="text-sm text-gray-400 mt-4">
-            If AI can't resolve your issue, you can still submit a repair request when you return.
+            If AI can't resolve your issue, you can submit a request when you return.
           </p>
         </div>
       </CardContent>

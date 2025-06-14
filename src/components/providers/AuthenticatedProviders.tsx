@@ -23,6 +23,9 @@ import ProfileRouteHandler from "@/components/global/Profile/ProfileRouteHandler
 import NewRequestWrapper from "@/components/pages/repairPage/NewRequestWrapper";
 // Removed WriteReviewPage import as it's not directly routed, OrderReviewPage is
 import OrderReviewPage from '@/pages/reviews/OrderReviewPage'; // Import the new OrderReviewPage
+import GameLoadServiceForm from '@/pages/GameLoadService/GameLoadServiceForm';
+import GameLoadHistory from '@/pages/GameLoadService/gameLoadHistory/GameLoadHistory';
+import GameLoadServiceIndex from '@/pages/GameLoadService';
 
 const AuthenticatedProviders: React.FC = () => {
   return (
@@ -35,6 +38,9 @@ const AuthenticatedProviders: React.FC = () => {
               <Route path="/" element={<GlobalLayout />}>
                 <Route index element={<GNTStore />} />
                 <Route path="support" element={<Support />} />
+                <Route path="game-load-service" element={<GameLoadServiceIndex />} />
+                <Route path="game-load-service/new" element={<GameLoadServiceForm />} />
+                <Route path="game-load/history" element={<GameLoadHistory />} />
                 <Route path="product/details/:id" element={<ProductDetails />} />
                 <Route path="product/:slug" element={<ProductDetails />} />
                 <Route path="search" element={<SearchPage />} />
