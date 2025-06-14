@@ -81,17 +81,17 @@ const GameLoadDetailsContent = ({ request, isMobile }: { request: FetchedGameLoa
                         <h4 className="font-medium text-lg mb-2">Price Breakdown</h4>
                         <div className="flex justify-between text-gray-300">
                             <span>Base Service ({request.console_type})</span>
-                            <span>{formatCurrencyWithSeparator(request.base_service_price)}</span>
+                            <span>{formatCurrencyWithSeparator(request.price_details.base)}</span>
                         </div>
                         {request.storage_addon_added && (
                             <div className="flex justify-between text-gray-300">
                                 <span>Storage Add-on</span>
-                                <span>{formatCurrencyWithSeparator(request.storage_addon_price)}</span>
+                                <span>{formatCurrencyWithSeparator(request.price_details.addon)}</span>
                             </div>
                         )}
                         <div className="flex justify-between font-bold text-xl pt-2 border-t border-gray-600 mt-2 text-white">
                             <span>Total Price</span>
-                            <span>{formatCurrencyWithSeparator(request.final_price)}</span>
+                            <span>{formatCurrencyWithSeparator(request.price_details.total)}</span>
                         </div>
                     </div>
                     {/* --- END MODIFICATION --- */}

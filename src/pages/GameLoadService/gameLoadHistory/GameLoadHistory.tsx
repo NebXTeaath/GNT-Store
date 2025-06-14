@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { DownloadCloud, AlertCircle } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { fetchUserGameLoadRequestsRpc, FetchedGameLoadRequest } from "@/pages/GameLoadService/gameLoadHistory/gameLoadHistoryService";
 import { GameLoadHistoryCard } from "@/pages/GameLoadService/gameLoadHistory/GameLoadHistoryCard";
@@ -19,6 +19,7 @@ const ITEMS_PER_PAGE = 5;
 export default function GameLoadHistory() {
   const location = useLocation();
   const { user, isLoadingAuth, isAuthenticated, openLoginModal } = useAuth();
+  const [searchParams] = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRequest, setSelectedRequest] = useState<FetchedGameLoadRequest | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -46,6 +47,14 @@ useEffect(() => {
     enabled: !!user?.id && isAuthenticated && !isLoadingAuth,
     staleTime: 60 * 1000,
   });
+
+  useEffect(() => {
+    const refreshParam = searchParams.get('refresh');
+    if (refreshParam) {
+      console.log("Refresh parameter detected. Refetching game load history...");
+      refetch();
+    }
+  }, [searchParams, refetch]);
 
   const requests = queryData?.requests ?? [];
   const totalCount = queryData?.totalCount ?? 0;

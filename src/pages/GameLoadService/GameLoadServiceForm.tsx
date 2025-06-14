@@ -137,7 +137,8 @@ export default function GameLoadServiceForm() {
 
   const handleConfirmationClose = () => {
     setShowConfirmation(false);
-    navigate('/game-load/history');
+    const refreshId = new Date().getTime();
+    navigate(`/game-load/history?refresh=${refreshId}`);
   };
 
   const storageAddonPrice = consoleType === 'PS4' ? 2499 : 5999;

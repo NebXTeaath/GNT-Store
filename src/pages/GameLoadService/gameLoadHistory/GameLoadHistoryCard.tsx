@@ -46,7 +46,7 @@ export const GameLoadHistoryCard = ({ request, onOpenDetails }: GameLoadHistoryC
               <p className="text-xs text-gray-400">Submitted: {formatDate(request.created_at)}</p>
             </div>
             <div className="flex flex-col items-start sm:items-end flex-shrink-0 mt-2 sm:mt-0">
-              <p className="font-bold text-xl">{formatCurrencyWithSeparator(request.final_price)}</p>
+              <p className="font-bold text-xl">{formatCurrencyWithSeparator(request.price_details.total)}</p>
               <span className={`mt-1 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(request.status)}`}>
                 {formatStatus(request.status)}
               </span>

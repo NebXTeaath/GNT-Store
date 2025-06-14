@@ -1,7 +1,12 @@
 // src/pages/GameLoadService/gameLoadHistory/gameLoadHistoryService.ts
-import { supabase } from "@/lib/supabase";
 
-// Type for a single game load request, matching the DB table
+import { supabase } from "@/lib/supabase";
+interface PriceDetails {
+  base: number;
+  addon: number;
+  total: number;
+}
+
 export interface FetchedGameLoadRequest {
   id: string;
   user_id: string;
@@ -11,11 +16,9 @@ export interface FetchedGameLoadRequest {
   storage_unit: 'GB' | 'TB';
   games_list: string[];
   storage_addon_added: boolean;
-  final_price: number;
-  base_service_price: number; 
-  storage_addon_price: number; 
+  price_details: PriceDetails;
   status: string;
-  user_profile_snapshot: any; // Or a more specific profile type
+  user_profile_snapshot: any;
   remark?: string | null;
 }
 
