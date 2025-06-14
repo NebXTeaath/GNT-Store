@@ -12,7 +12,6 @@ export const gameLoadServiceSchema = z.object({
     .min(1, 'Storage must be at least 1.')
     .max(16000, 'Storage seems too high. Please check the value.'), // 16TB
   storageUnit: z.enum(['GB', 'TB']),
-  // To work correctly with useFieldArray, the data should be an array of objects
   games: z.array(z.object({
     value: z.string()
       .min(2, 'Game title must be at least 2 characters long.')
@@ -20,6 +19,8 @@ export const gameLoadServiceSchema = z.object({
   }))
     .min(1, 'Please add at least one game.')
     .max(10, 'You can add a maximum of 10 games.'),
+  // --- ADDED THIS FIELD TO THE SCHEMA ---
+  addStorage: z.boolean(),
 });
 
 export type GameLoadServiceFormData = z.infer<typeof gameLoadServiceSchema>;

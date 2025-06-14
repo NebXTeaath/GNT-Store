@@ -1,6 +1,6 @@
 // src/components/global/desktop/header.tsx
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut, DownloadCloud, MonitorCog } from "lucide-react";
+import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut, DownloadCloud, MonitorCog, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/assets/logo.svg"; // Ensure path is correct
 import { useAuth } from "@/context/AuthContext";
@@ -477,7 +477,7 @@ export default function Header() {
                 <div className="relative flex-grow px-4 py-2 overflow-y-auto">
                   <div className="absolute left-0 w-[3px] bg-white rounded-r-md transition-all duration-300 ease-out pointer-events-none" style={activeStyle} />
                   <div className="flex flex-col space-y-1">
-                      {/* Static Items */}
+                      {/* Profile Section */}
                       <div
                         ref={(el) => (tabRefs.current[0] = el)}
                         className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100"
@@ -486,6 +486,8 @@ export default function Header() {
                         <User className="mr-3 h-4 w-4" />
                         <span className="text-sm font-medium whitespace-nowrap">Profile</span>
                       </div>
+
+                      {/* Wishlist Section */}
                       <div
                         ref={(el) => (tabRefs.current[1] = el)}
                         className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100"
@@ -494,29 +496,32 @@ export default function Header() {
                         <Heart className="mr-3 h-4 w-4" />
                         <span className="text-sm font-medium whitespace-nowrap">Wishlist</span>
                       </div>
-                      <div
-                        ref={(el) => (tabRefs.current[2] = el)}
-                        className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100"
-                        onClick={() => { setActiveIndex(2); navigateWithLoading('/order-history', 'Loading your orders...', setIsLoading); }}
-                      >
-                        <History className="mr-3 h-4 w-4" />
-                        <span className="text-sm font-medium whitespace-nowrap">Orders</span>
-                      </div>
 
-                      {/* Accordion for Service History */}
+                      {/* Consolidated History Section */}
                       <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="service-history" className="border-b-0">
+                        <AccordionItem value="order-service-history" className="border-b-0">
                           <AccordionTrigger
-                            ref={(el) => (tabRefs.current[3] = el)}
+                            ref={(el) => (tabRefs.current[2] = el)}
                             className="flex items-center w-full px-4 py-4 cursor-pointer transition-all duration-200 rounded-md hover:bg-[#ffffff1a] text-gray-400 hover:text-gray-100 hover:no-underline"
-                            onClick={() => setActiveIndex(3)}
+                            onClick={() => setActiveIndex(2)}
                           >
                             <div className="flex items-center">
-                                <MonitorCog className="mr-3 h-4 w-4" />
-                                <span className="text-sm font-medium whitespace-nowrap">Service History</span>
+                                <History className="mr-3 h-4 w-4" />
+                                <span className="text-sm font-medium whitespace-nowrap">Order & Service History</span>
                             </div>
                           </AccordionTrigger>
                           <AccordionContent className="pl-10 pr-2 pb-2 space-y-2">
+                            {/* Product Orders */}
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start text-gray-300 hover:text-gray-100 hover:bg-[#ffffff1a]"
+                              onClick={() => navigateWithLoading('/order-history', 'Loading your orders...', setIsLoading)}
+                            >
+                              <Package className="mr-2 h-4 w-4" />
+                              Product Orders
+                            </Button>
+                            
+                            {/* Repair Services */}
                             <Button
                               variant="ghost"
                               className="w-full justify-start text-gray-300 hover:text-gray-100 hover:bg-[#ffffff1a]"
@@ -525,13 +530,15 @@ export default function Header() {
                               <Wrench className="mr-2 h-4 w-4" />
                               Repair History
                             </Button>
+                            
+                            {/* Game Load Services */}
                             <Button
                               variant="ghost"
                               className="w-full justify-start text-gray-300 hover:text-gray-100 hover:bg-[#ffffff1a]"
                               onClick={() => navigateWithLoading('/game-load/history', 'Loading game load history...', setIsLoading)}
                             >
                               <DownloadCloud className="mr-2 h-4 w-4" />
-                              Game Load History
+                              Game(s) Load History
                             </Button>
                           </AccordionContent>
                         </AccordionItem>

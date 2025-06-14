@@ -1,6 +1,6 @@
 // src/App.tsx
 import React, { useEffect } from "react";
-import { BrowserRouter as Router, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, useNavigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from 'sonner';
 import { toast } from 'sonner';
@@ -11,7 +11,7 @@ import { LoadingProvider } from "@/components/global/Loading/LoadingContext";
 import LoadingRouteListener from "@/components/global/Loading/LoadingRouteListener";
 import useMiddleClickNavigation from "@/components/global/hooks/useMiddleClickNavigation.ts";
 import AuthenticatedProviders from "@/components/providers/AuthenticatedProviders";
-import LoginModal from "@/components/pages/Login/LoginModal.tsx"; // Import LoginModal
+import LoginModal from "@/components/pages/Login/LoginModal.tsx";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 300000, refetchOnWindowFocus: false, retry: 1 } } });
 
@@ -20,24 +20,8 @@ function MiddleClickNavigationProvider({ children }: { children: React.ReactNode
     return <>{children}</>;
 }
 
-// Component to manage the globally controlled LoginModal
 const AppWithAuthModal: React.FC = () => {
-    const { isLoginModalOpen, closeLoginModal, redirectPathAfterLogin, clearRedirectPath } = useAuth();
-    const navigate = useNavigate();
-
-    const handleLoginSuccess = () => {
-        const pathToGo = redirectPathAfterLogin || "/";
-        console.log("[AppWithAuthModal] Login Success. Closing modal and navigating to:", pathToGo);
-        closeLoginModal(); // Close the modal via context
-        clearRedirectPath(); // Clear the path *after* closing modal but *before* navigating
-        toast.success("Login successful!");
-
-        navigate(pathToGo, { replace: true }); // Navigate
-
-        // Optional: Force reload if necessary for state updates across components
-        // Consider if this is truly needed or if component state/queries can update reactively
-        // setTimeout(() => window.location.reload(), 50); // Delay slightly
-    };
+    const { isLoginModalOpen, closeLoginModal } = useAuth();
 
     return (
         <>
@@ -45,23 +29,23 @@ const AppWithAuthModal: React.FC = () => {
             <LoginModal
                 open={isLoginModalOpen}
                 onOpenChange={(open) => { if (!open) closeLoginModal(); }}
-                onLoginSuccess={handleLoginSuccess}
+                onLoginSuccess={() => {}}
             />
         </>
     );
-}
+};
 
-// Main App Content Structure
+// Main App Content Structure now includes Router
 const AppContent = () => {
     return (
         <Router>
-            <MiddleClickNavigationProvider>
-                <LoadingRouteListener />
-                <Toaster position="top-center" toastOptions={{ className: "bg-[#5865f2] text-white" }} />
-                <AuthProvider> {/* AuthProvider now wraps AppWithAuthModal */}
+            <AuthProvider>
+                <MiddleClickNavigationProvider>
+                    <LoadingRouteListener />
+                    <Toaster position="top-center" toastOptions={{ className: "bg-[#5865f2] text-white" }} />
                     <AppWithAuthModal />
-                </AuthProvider>
-            </MiddleClickNavigationProvider>
+                </MiddleClickNavigationProvider>
+            </AuthProvider>
         </Router>
     );
 };

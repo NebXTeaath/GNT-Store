@@ -27,7 +27,6 @@ export default function GameLoadServiceForm() {
   const navigate = useNavigate();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [addStorage, setAddStorage] = useState(false);
   const [showAIHelp, setShowAIHelp] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
 
@@ -38,10 +37,12 @@ export default function GameLoadServiceForm() {
       availableStorage: 500,
       storageUnit: 'GB',
       games: [{ value: '' }],
+      addStorage: false,
     },
     mode: 'onChange',
   });
-  // --- ADDED: Scroll to top on mount ---
+
+  // Scroll to top on mount
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
@@ -51,18 +52,54 @@ export default function GameLoadServiceForm() {
     name: "games",
   });
 
-  // <<< --- MODIFICATION START --- >>>
-  // Watch the 'games' array to get its current values for the disabled check.
+  const persistFormState = (data: Partial<GameLoadServiceFormData>) => {
+    sessionStorage.setItem('gameLoadFormState', JSON.stringify(data));
+  };
+
+  // Load state from sessionStorage on component mount
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('gameLoadFormState');
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        // Ensure consoleType and storageUnit have valid values
+        const sanitizedState = {
+          ...parsedState,
+          consoleType: parsedState.consoleType && ['PS4', 'PS5'].includes(parsedState.consoleType) 
+            ? parsedState.consoleType 
+            : 'PS5',
+          storageUnit: parsedState.storageUnit && ['GB', 'TB'].includes(parsedState.storageUnit) 
+            ? parsedState.storageUnit 
+            : 'GB',
+        };
+        form.reset(sanitizedState);
+      } catch (error) {
+        console.error('Error parsing saved form state:', error);
+        sessionStorage.removeItem('gameLoadFormState');
+      }
+    }
+  }, [form]);
+
   const watchedGames = form.watch('games');
+  const consoleType = form.watch('consoleType');
+  const storageUnit = form.watch('storageUnit');
+  const addStorage = form.watch('addStorage');
 
-  // Determine if the "Add Game" button should be disabled.
   const isAddButtonDisabled =
-    // Condition 1: Maximum number of games reached.
     fields.length >= 10 ||
-    // Condition 2: The fields array is not empty AND the last game's value is just whitespace.
     (fields.length > 0 && watchedGames[fields.length - 1]?.value.trim() === '');
-  // <<< --- MODIFICATION END --- >>>
 
+  // Subscribe to form changes to persist them
+  useEffect(() => {
+    const subscription = form.watch((value) => {
+      // The `value` here is the entire form state
+      persistFormState({
+        ...value,
+        games: value.games?.filter((game): game is { value: string } => !!game?.value?.trim()) || [],
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [form.watch]);
 
   const handleShowAIPrompt = async () => {
     const isValid = await form.trigger();
@@ -79,15 +116,16 @@ export default function GameLoadServiceForm() {
   };
 
   const onSubmit = async (data: GameLoadServiceFormData) => {
-    if (!isAuthenticated || !user) { openLoginModal(); return; }
+    if (!isAuthenticated || !user) {
+      openLoginModal();
+      return;
+    }
     if (!userProfile) { toast.error("Please complete your profile first."); return; }
-
     setIsSubmitting(true);
     try {
       const payload = {
         ...data,
         games: data.games.map(g => g.value).filter(g => g.trim()),
-        addStorage
       };
       const { error } = await supabase.functions.invoke('console-games-addon-service', { body: payload });
       if (error) throw error;
@@ -96,8 +134,8 @@ export default function GameLoadServiceForm() {
         duration: 5000,
       });
       form.reset();
-      setAddStorage(false);
-      navigate('/');
+      sessionStorage.removeItem('gameLoadFormState');
+      navigate('/game-load/history');
     } catch (err: any) {
       console.error("Error submitting service request:", err);
       toast.error("Submission Failed", { description: err.message });
@@ -106,7 +144,6 @@ export default function GameLoadServiceForm() {
     }
   };
 
-  const consoleType = form.watch('consoleType');
   const storageAddonPrice = consoleType === 'PS4' ? 2499 : 5999;
   const gameLoadPrice = consoleType === 'PS4' ? 6999 : 9999;
   const totalPrice = gameLoadPrice + (addStorage ? storageAddonPrice : 0);
@@ -130,7 +167,15 @@ export default function GameLoadServiceForm() {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="consoleType" className="text-gray-300">Console Type *</Label>
-                <Select onValueChange={(value) => form.setValue('consoleType', value as 'PS4' | 'PS5')} defaultValue={form.getValues('consoleType')}>
+                {/* FIXED: Use value prop with fallback and proper validation */}
+                <Select 
+                  value={consoleType || 'PS5'} 
+                  onValueChange={(value) => {
+                    if (value === 'PS4' || value === 'PS5') {
+                      form.setValue('consoleType', value, { shouldValidate: true, shouldDirty: true });
+                    }
+                  }}
+                >
                   <SelectTrigger id="consoleType" className="bg-[#2a2d36] border-[#3f4354]">
                     <SelectValue placeholder="Select a console" />
                   </SelectTrigger>
@@ -152,7 +197,15 @@ export default function GameLoadServiceForm() {
                     className="bg-[#2a2d36] border-[#3f4354] placeholder:text-gray-500"
                     {...form.register('availableStorage')}
                   />
-                  <Select onValueChange={(value) => form.setValue('storageUnit', value as 'GB' | 'TB')} defaultValue={form.getValues('storageUnit')}>
+                  {/* ALSO FIXED: Use value prop with fallback for storageUnit Select */}
+                  <Select 
+                    value={storageUnit || 'GB'} 
+                    onValueChange={(value) => {
+                      if (value === 'GB' || value === 'TB') {
+                        form.setValue('storageUnit', value, { shouldValidate: true, shouldDirty: true });
+                      }
+                    }}
+                  >
                     <SelectTrigger className="w-[80px] bg-[#2a2d36] border-[#3f4354]">
                       <SelectValue />
                     </SelectTrigger>
@@ -183,9 +236,8 @@ export default function GameLoadServiceForm() {
                   {fields.length > 1 && (<Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-red-500" /></Button>)}
                 </div>
               ))}
-              {form.formState.errors.games && <p className="text-sm text-red-500">{form.formState.errors.games?.message || form.formState.errors.games?.[0]?.value?.message}</p>}
+              {form.formState.errors.games?.[fields.length -1]?.value && <p className="text-sm text-red-500">{form.formState.errors.games[fields.length - 1]?.value?.message}</p>}
               
-              {/* --- MODIFIED BUTTON --- */}
               <Button
                 type="button"
                 variant="outline"
@@ -196,7 +248,6 @@ export default function GameLoadServiceForm() {
               >
                 <PlusCircle className="mr-2 h-4 w-4" />Add Game
               </Button>
-              {/* --- END MODIFIED BUTTON --- */}
 
               <div className="pt-4">
                 <Button type="button" onClick={handleShowAIPrompt} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700">
@@ -222,7 +273,12 @@ export default function GameLoadServiceForm() {
                       <div className="text-lg space-y-2">
                           <div className="flex justify-between"><span>Base Service ({consoleType}):</span> <span>{formatCurrencyWithSeparator(gameLoadPrice)}</span></div>
                           <div className="flex items-center space-x-3 p-3 rounded-md bg-slate-800/50">
-                              <Checkbox id="addStorage" checked={addStorage} onCheckedChange={(checked) => setAddStorage(!!checked)} className="border-gray-500 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600" />
+                              <Checkbox 
+                                id="addStorage" 
+                                checked={addStorage} 
+                                onCheckedChange={(checked) => form.setValue('addStorage', !!checked, { shouldValidate: true, shouldDirty: true })} 
+                                className="border-gray-500 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600" 
+                              />
                               <Label htmlFor="addStorage" className="text-base cursor-pointer text-gray-300">
                                   Optional Storage Add-on (+{formatCurrencyWithSeparator(storageAddonPrice)})
                               </Label>
