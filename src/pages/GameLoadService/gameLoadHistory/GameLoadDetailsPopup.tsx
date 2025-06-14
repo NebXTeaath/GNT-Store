@@ -30,7 +30,7 @@ const GameLoadDetailsContent = ({ request, isMobile }: { request: FetchedGameLoa
     const handleNeedHelpClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!adminWhatsAppNumber) return alert("Support contact is unavailable.");
-        const message = `Need help with my Game Load Service Request #${request.id.substring(0, 8)}`;
+        const message = `Need help with my Game Load Service Request #${request.id.substring(0, 36)}`;
         window.open(`https://wa.me/${adminWhatsAppNumber}?text=${encodeURIComponent(message)}`, "_blank");
     };
 
