@@ -104,7 +104,7 @@ const ProfilePreviewButton: React.FC<{ className?: string }> = ({ className }) =
                 onClick={() => openLoginModal()}
             >
                 <CardContent className="p-4 text-center">
-                    <Button variant="ghost" className="text-white hover:bg-[#5865f2]/20 w-full justify-center">
+                    <Button variant="ghost" className="text-white hover:text-black hover:bg-[#5865f2] w-full justify-center">
                         <UserRound className="mr-2 h-4 w-4" /> Sign In / Sign Up
                     </Button>
                 </CardContent>
