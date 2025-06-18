@@ -4,7 +4,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProducts } from "@/components/global/productsPage/useProducts";
 import { ProductCarousel, ProductCarouselSkeleton } from "../../components/pages/HomePage/ProductCarousel";
-import { HeroCarousel } from "../../components/pages/HomePage/Youtube/heroCarousel";
+import { HeroCarousel } from "../../components/pages/HomePage/Youtube/heroCarousel"; // DEPRECIATED: Commented out for banner experiment
+import ExperimentBanners from "../../components/pages/HomePage/ExperimentBanners"; // ADDED: New banner component for experiment
 import SEO from '@/components/seo/SEO';
 import HomeTestimonialSection from "@/components/global/Testimonials/TestimonialSection";
 import { useProductCategories } from "@/components/global/hooks/useProductCategories";
@@ -245,7 +246,8 @@ const GNTStore: React.FC = () => {
             }}
         />
       <main>
-        <HeroCarousel />
+        {/*<HeroCarousel /> {/* DEPRECIATED: Replaced with static banners for experiment */}
+        <ExperimentBanners /> {/* ADDED: New banner component */}
         <HomeTestimonialSection />
         <DynamicFeaturedSection />
         <RepairServiceSection />
