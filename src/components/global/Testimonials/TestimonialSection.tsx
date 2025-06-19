@@ -30,7 +30,7 @@ const HomeTestimonialSection: React.FC = () => {
         
         <div className="flex flex-wrap justify-center items-center mt-12 gap-8 md:gap-16">
           <div className="flex flex-col items-center">
-            <span className="text-3xl md:text-4xl font-bold text-white mb-2">30+</span>
+            <span className="text-3xl md:text-4xl font-bold text-white mb-2">500+</span>
             <span className="text-gray-400 text-sm">Happy Customers</span>
           </div>
           <div className="flex flex-col items-center">
@@ -42,7 +42,7 @@ const HomeTestimonialSection: React.FC = () => {
             <span className="text-gray-400 text-sm">Customer Support</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-3xl md:text-4xl font-bold text-white mb-2">5+</span>
+            <span className="text-3xl md:text-4xl font-bold text-white mb-2">10+</span>
             <span className="text-gray-400 text-sm">Cities Covered</span>
           </div>
         </div>
