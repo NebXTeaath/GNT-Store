@@ -195,3 +195,36 @@ export interface Testimonial {
     device: "PlayStation 5"
   }
 ];
+
+export const productDiscountTestimonials: Testimonial[] = [
+  {
+    id: "pdisc-001",
+    name: "Aarav Mehra",
+    location: "Delhi, NCR",
+    rating: 5,
+    content: "Found a laptop on Amazon, submitted the link to GNT, and they beat the price by a good margin! The process was simple and the team was very responsive. Saved almost 5k!",
+    date: "2024-05-10",
+    service: "Product Discount Request",
+    productPurchased: "Gaming Laptop"
+  },
+  {
+    id: "pdisc-002",
+    name: "Saanvi Chen",
+    location: "Bengaluru, Karnataka",
+    rating: 5,
+    content: "Was about to buy a graphics card from Flipkart but decided to try GNT's discount request service. They came back with a better offer within a day. Fantastic service for PC builders!",
+    date: "2024-05-08",
+    service: "Product Discount Request",
+    productPurchased: "NVIDIA RTX 4070"
+  },
+  {
+    id: "pdisc-003",
+    name: "Riya Sharma",
+    location: "Mumbai, Maharashtra",
+    rating: 4,
+    content: "The price they offered was lower, which was great. The communication was a bit slow, but the savings were worth the wait. Will definitely use this again.",
+    date: "2024-04-25",
+    service: "Product Discount Request",
+    productPurchased: "PC Accessories"
+  },
+];

@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { Wrench, DownloadCloud } from "lucide-react";
+import { Wrench, DownloadCloud, Tag } from "lucide-react";
 import { useLoading } from "@/components/global/Loading/LoadingContext";
 
 interface ServicesDrawerProps {
@@ -47,6 +47,14 @@ export function ServicesDrawer({ open, onOpenChange }: ServicesDrawerProps) {
           >
             <DownloadCloud className="mr-3 h-6 w-6" />
             Game Load Service
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-center text-lg py-8 bg-transparent border-gray-600 hover:bg-[#2a2d36]"
+            onClick={() => handleNavigation('/product-discount-request', 'Loading Discount Request Service...')}
+          >
+            <Tag className="mr-3 h-6 w-6" />
+            Product Discount Request
           </Button>
         </div>
       </DrawerContent>

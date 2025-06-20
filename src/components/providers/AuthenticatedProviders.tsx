@@ -21,11 +21,14 @@ import WishlistPage from "@/pages/Wishlist/WishlistPage";
 import ResetPassword from "../../context/ResetPassword";
 import ProfileRouteHandler from "@/components/global/Profile/ProfileRouteHandler";
 import NewRequestWrapper from "@/components/pages/repairPage/NewRequestWrapper";
-// Removed WriteReviewPage import as it's not directly routed, OrderReviewPage is
-import OrderReviewPage from '@/pages/reviews/OrderReviewPage'; // Import the new OrderReviewPage
+import OrderReviewPage from '@/pages/reviews/OrderReviewPage';
 import GameLoadServiceForm from '@/pages/GameLoadService/GameLoadServiceForm';
 import GameLoadHistory from '@/pages/GameLoadService/gameLoadHistory/GameLoadHistory';
 import GameLoadServiceIndex from '@/pages/GameLoadService';
+// --- ADDED IMPORTS ---
+import ProductDiscountRequestIndex from '@/pages/ProductDiscountRequest/index';
+import ProductDiscountRequestForm from '@/pages/ProductDiscountRequest/ProductDiscountRequestForm';
+import ProductDiscountHistory from '@/pages/ProductDiscountRequest/history/ProductDiscountHistory';
 
 const AuthenticatedProviders: React.FC = () => {
   return (
@@ -41,6 +44,11 @@ const AuthenticatedProviders: React.FC = () => {
                 <Route path="game-load-service" element={<GameLoadServiceIndex />} />
                 <Route path="game-load-service/new" element={<GameLoadServiceForm />} />
                 <Route path="game-load/history" element={<GameLoadHistory />} />
+                {/* --- ADDED ROUTES --- */}
+                <Route path="product-discount-request" element={<ProductDiscountRequestIndex />} />
+                <Route path="product-discount-request/new" element={<ProductDiscountRequestForm />} />
+                <Route path="product-discount-request/history" element={<ProductDiscountHistory />} />
+                {/* --- END ADDED ROUTES --- */}
                 <Route path="product/details/:id" element={<ProductDetails />} />
                 <Route path="product/:slug" element={<ProductDetails />} />
                 <Route path="search" element={<SearchPage />} />
@@ -54,7 +62,6 @@ const AuthenticatedProviders: React.FC = () => {
                 <Route path="checkout/order-summary" element={<OrderSummary />} />
                 <Route path="order-history" element={<OrderHistory />} />
                 <Route path="profile" element={<ProfileRouteHandler />} />
-                {/* Updated Review Route */}
                 <Route path="review/order/:orderId" element={<OrderReviewPage />} />
                 <Route path="*" element={<NotFound />} />
               </Route>

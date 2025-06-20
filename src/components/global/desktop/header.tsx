@@ -1,6 +1,6 @@
 // src/components/global/desktop/header.tsx
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut, DownloadCloud, MonitorCog, Package } from "lucide-react";
+import { ShoppingBag, ChevronDown, Gamepad2, Cpu, Wrench, User, History, LogIn, Heart, MessageSquareDot, Menu, LogOut, DownloadCloud, MonitorCog, Package, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/assets/logo.svg"; // Ensure path is correct
 import { useAuth } from "@/context/AuthContext";
@@ -366,6 +366,13 @@ export default function Header() {
                 <DownloadCloud className="mr-2 h-4 w-4" />
                 <span>Game Load Service</span>
               </DropdownMenuItem>
+              <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={() => navigateWithLoading('/product-discount-request', 'Loading Discount Request Service...', setIsLoading)}
+                    >
+                        <Tag className="mr-2 h-4 w-4" />
+                        <span>Product Discount Request</span>
+                    </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
