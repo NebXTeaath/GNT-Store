@@ -7,12 +7,20 @@ import { Button } from '@/components/ui/button';
 // Data for the experimental banners, now with unique IDs and navigation links.
 const bannerData = [
   {
-    id: 'game-load-service',
-    src: 'http://images.gnt-store.shop/banner-images/GameLoad banner.webp',
-    alt: 'Creative advertisement for games load service for gaming consoles.',
-    linkUrl: '/game-load-service',
+    id: 'product-discount-request',
+    src: 'https://images.gnt-store.shop/banner-images/product discount request promo creative.webp',
+    alt: 'Creative advertisement for product discount request.',
+    linkUrl: '/product-discount-request',
     loading: 'eager' as const,
     fetchPriority: 'high' as const,
+  },
+  {
+    id: 'game-load-service',
+    src: 'https://images.gnt-store.shop/banner-images/GameLoad banner.webp',
+    alt: 'Creative advertisement for games load service for gaming consoles.',
+    linkUrl: '/game-load-service',
+    loading: 'lazy' as const,
+    fetchPriority: 'auto' as const,
   },
   {
     id: 'gaming-laptops',
