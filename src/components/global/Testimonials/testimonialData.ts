@@ -209,7 +209,7 @@ export const productDiscountTestimonials: Testimonial[] = [
   },
   {
     id: "pdisc-002",
-    name: "Saanvi Chen",
+    name: "Saanvi Chandwadkar",
     location: "Bengaluru, Karnataka",
     rating: 5,
     content: "Was about to buy a graphics card from Flipkart but decided to try GNT's discount request service. They came back with a better offer within a day. Fantastic service for PC builders!",
