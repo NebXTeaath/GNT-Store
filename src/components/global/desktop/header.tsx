@@ -547,6 +547,15 @@ export default function Header() {
                               <DownloadCloud className="mr-2 h-4 w-4" />
                               Game(s) Load History
                             </Button>
+                            {/* Game Load Services */}
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start text-gray-300 hover:text-gray-100 hover:bg-[#ffffff1a]"
+                              onClick={() => navigateWithLoading('/product-discount-request/history', 'Loading product discount history...', setIsLoading)}
+                            >
+                              <Tag className="mr-2 h-4 w-4" />
+                              Product Discount History
+                            </Button>
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>
