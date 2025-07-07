@@ -10,7 +10,7 @@ import NotFound from "../../pages/not-found";
 import GNTStore from "../../pages/HomePage/HomePage";
 import RepairServices from "../../pages/repairPage/index";
 import TrackRepairHistory from "@/pages/repairPage/history/repairHistory";
-import Support from "../../pages/support";
+import Support from "../../pages/support/support";
 import ProductDetails from "@/pages/ProductDetails/ProductDetails";
 import CartDetails from "../../pages/order/checkout/cartDetails";
 import OrderSummary from "../../pages/order/checkout/orderSummary";

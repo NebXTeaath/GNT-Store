@@ -2,15 +2,18 @@
 "use client"
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { HelpCircle, Send, ArrowLeft } from "lucide-react";
+import { HelpCircle, Send, ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import SEO from '@/components/seo/SEO'; // Import SEO component
+import SEO from '@/components/seo/SEO';
+import { Separator } from "@/components/ui/separator";
+import { CopyableEmail } from "@/pages/support/CopyableEmail"; // <-- IMPORT NEW COMPONENT
 
 const adminWhatsAppNumber = import.meta.env.VITE_ADMIN_WHATSAPP;
+const supportEmail = "support@gnt-store.shop";
 
 export default function SupportPage() {
   const [contactReason, setContactReason] = useState("");
@@ -18,29 +21,22 @@ export default function SupportPage() {
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const location = useLocation(); // For canonical URL
-  const siteUrl = window.location.origin; // Get base URL
+  const location = useLocation();
+  const siteUrl = window.location.origin;
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault();
     setIsSubmitting(true);
-
-    // Format the message for WhatsApp
     const message = formatMessageForWhatsApp();
 
-    // Simulate API call
     setTimeout(() => {
-      // Open WhatsApp with pre-populated message to the admin's number
       window.open(
         `https://wa.me/${adminWhatsAppNumber}?text=${encodeURIComponent(message)}`,
         "_blank"
       );
-
       setIsSubmitting(false);
       setIsSubmitted(true);
-
-      // Reset form
       setContactReason("");
       setTitle("");
       setDescription("");
@@ -48,20 +44,17 @@ export default function SupportPage() {
    };
   const formatMessageForWhatsApp = () => { let message = "Hello GNT Store Support,\n\n";
     message += `Contact Reason: ${contactReason}\n`;
-
     if (contactReason !== "Others" && title) {
       message += `Title: ${title}\n`;
     }
-
     message += `\nDescription:\n${description}\n\n`;
     message += "Thank you.";
     return message;
   };
 
-  // SEO Data
   const pageTitle = "Support | GNT Store";
   const pageDescription = "Need help? Contact GNT Store support for assistance with orders, repairs, products, or general inquiries.";
-  const canonicalUrl = `${siteUrl}${location.pathname}`; // Use current path
+  const canonicalUrl = `${siteUrl}${location.pathname}`;
 
   return (
     <div className="min-h-screen bg-[#0f1115] text-white">
@@ -108,7 +101,7 @@ export default function SupportPage() {
                 <Button onClick={() => setIsSubmitted(false)} className="bg-[#5865f2] hover:bg-[#4752c4]">
                   Submit Another Request
                 </Button>
-                <Button asChild variant="outline" className="text-[#000000] border-[#2a2d36] hover:bg-[#cfcfcf]">
+                <Button asChild variant="default" className="border-[#2a2d36] hover:bg-[#2a2d36] hover:text-white">
                   <Link to="/">Return to Home</Link>
                 </Button>
               </div>
@@ -117,6 +110,7 @@ export default function SupportPage() {
             <div className="bg-[#1a1c23] border border-[#2a2d36] rounded-lg p-6">
               <h2 className="text-xl font-bold mb-6">Contact Support</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* ... (form fields remain the same) ... */}
                 <div className="space-y-2">
                   <Label htmlFor="contact-reason">Reason for Contact</Label>
                   <Select value={contactReason} onValueChange={setContactReason} required>
@@ -125,9 +119,8 @@ export default function SupportPage() {
                     </SelectTrigger>
                     <SelectContent className="bg-[#1a1c23] border-[#3f4354]">
                       <SelectItem value="Order Related" className="text-white hover:text-black">Order Related</SelectItem>
-                      <SelectItem value="Repair Related" className="text-white hover:text-black">Repair Related</SelectItem>
+                      <SelectItem value="Discount Request Related" className="text-white hover:text-black">Discount Request Related</SelectItem>
                       <SelectItem value="Product Inquiry" className="text-white hover:text-black">Product Inquiry</SelectItem>
-                      <SelectItem value="Delivery Related" className="text-white hover:text-black">Delivery Related</SelectItem>
                       <SelectItem value="Others" className="text-white hover:text-black">Others</SelectItem>
                     </SelectContent>
                   </Select>
@@ -135,12 +128,12 @@ export default function SupportPage() {
 
                 {contactReason && contactReason !== "Others" && (
                   <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title">Title / Order ID / Request ID</Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Brief summary of your inquiry"
+                      placeholder="e.g., Order #12345 or a brief summary"
                       className="bg-[#2a2d36] border-[#3f4354]"
                       required
                     />
@@ -159,47 +152,36 @@ export default function SupportPage() {
                     required
                   />
                 </div>
+                {/* --- END form fields --- */}
 
                 <Button
                   type="submit"
-                  className="w-full bg-[#5865f2] hover:bg-[#4752c4]"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
                   disabled={isSubmitting || !contactReason || !description}
                 >
                   {isSubmitting ? (
-                    <span className="flex items-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Sending...
-                    </span>
+                     <span className="flex items-center">
+                       <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                       Sending...
+                     </span>
                   ) : (
-                    <span className="flex items-center">
-                      <Send className="mr-2 h-4 w-4" />
-                      Send via WhatsApp
-                    </span>
+                    <span className="flex items-center"><Send className="mr-2 h-4 w-4" /> Send via WhatsApp</span>
                   )}
                 </Button>
 
-                <div className="text-xs text-gray-400 text-center">
-                  By clicking "Send via WhatsApp", you'll be redirected to WhatsApp to send your support request directly to our team.
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="bg-gray-600" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-[#1a1c23] px-2 text-gray-400">Or</span>
+                  </div>
                 </div>
+                
+                {/* --- MODIFIED SECTION --- */}
+                <p className="text-sm text-center text-gray-400">For email support:</p>
+                <CopyableEmail email={supportEmail} />
+                {/* --- END MODIFIED SECTION --- */}
               </form>
             </div>
           )}
