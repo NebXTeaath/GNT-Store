@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SEO from '@/components/seo/SEO';
 import { Separator } from "@/components/ui/separator";
-import { CopyableEmail } from "@/pages/support/CopyableEmail"; // <-- IMPORT NEW COMPONENT
+import { CopyableEmail } from "./CopyableEmail";
 
 const adminWhatsAppNumber = import.meta.env.VITE_ADMIN_WHATSAPP;
 const supportEmail = "support@gnt-store.shop";

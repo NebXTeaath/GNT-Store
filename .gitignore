@@ -15,6 +15,7 @@ supabase
 *.local
 *.env*
 *copy*
+!src/pages/support/CopyableEmail.tsx
 Merger
 scripts
 AI.md

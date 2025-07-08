@@ -42,11 +42,11 @@ export function Footer() {
                   <Link to="/order-history" className="text-sm text-gray-300 hover:text-white">Order History</Link>
                 </div>
                 <div className="flex flex-col gap-3">
-                  <Link to="/cart" className="text-sm text-gray-300 hover:text-white">Cart</Link>
+                  <Link to="/checkout/cart-details" className="text-sm text-gray-300 hover:text-white">Cart</Link>
                   <Link to="/profile" className="text-sm text-gray-300 hover:text-white">Profile</Link>
                   <Link to="/repair-history" className="text-sm text-gray-300 hover:text-white">Repair History</Link>
                   <Link to="/product-discount-request/history" className="text-sm text-gray-300 hover:text-white">Discount Request History</Link>
-                  <Link to="/game-load-history" className="text-sm text-gray-300 hover:text-white">Game Load History</Link>
+                  <Link to="/game-load/history" className="text-sm text-gray-300 hover:text-white">Game Load History</Link>
                   <Link to="/support" className="text-sm text-gray-300 hover:text-white">Support Page</Link>
                 </div>
               </div>
