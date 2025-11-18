@@ -1,0 +1,386 @@
+# .github/workflows/database-backup.yml
+
+name: Database Backup to Cloudflare R2
+
+on:
+  schedule:
+    # PRODUCTION SCHEDULES
+    
+    # Weekly full backup - Every Sunday at 2:00 AM UTC
+    - cron: '0 2 * * 0'
+    
+    # Monthly backup + cleanup - 1st of month at 3:00 AM UTC
+    - cron: '0 3 1 * *'
+    
+    # Weekly health check - Every Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Operation to perform'
+        required: true
+        default: 'health-check'
+        type: choice
+        options:
+          - backup
+          - orchestrate
+          - health-check
+          - cleanup
+
+jobs:
+  determine-operation:
+    name: ${{ github.event_name == 'workflow_dispatch' && format('Manual {0}', inputs.operation) || github.event.schedule == '0 2 * * 0' && 'Weekly Backup (Sunday 2 AM)' || github.event.schedule == '0 3 1 * *' && 'Monthly Orchestrated Backup (1st of Month)' || github.event.schedule == '0 9 * * 1' && 'Weekly Health Check (Monday 9 AM)' || 'Database Backup' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install PostgreSQL 17 Client
+        if: |
+          github.event.schedule == '5,25,45 * * * *' || 
+          github.event.schedule == '15,35,55 * * * *' ||
+          github.event.schedule == '0 2 * * 0' ||
+          github.event.schedule == '0 3 1 * *' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.operation == 'backup' || inputs.operation == 'orchestrate'))
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get remove -y postgresql-client-* || true
+          sudo apt-get install -y postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
+      
+      - name: Verify AWS CLI Installation
+        run: |
+          aws --version
+          echo "AWS CLI is already installed on GitHub Actions runners"
+      
+      - name: Determine operation type
+        id: operation
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            OPERATION="${{ inputs.operation }}"
+            echo "Manual trigger detected: ${OPERATION}"
+          elif [ "${{ github.event.schedule }}" = "0 2 * * 0" ]; then
+            OPERATION="backup"
+            echo "📅 PRODUCTION: Weekly backup (Sunday 2:00 AM UTC)"
+          elif [ "${{ github.event.schedule }}" = "0 3 1 * *" ]; then
+            OPERATION="orchestrate"
+            echo "📅 PRODUCTION: Monthly orchestrated backup (1st of month 3:00 AM UTC)"
+          elif [ "${{ github.event.schedule }}" = "0 9 * * 1" ]; then
+            OPERATION="health-check"
+            echo "📅 PRODUCTION: Weekly health check (Monday 9:00 AM UTC)"
+          else
+            OPERATION="backup"
+          fi
+          echo "operation=${OPERATION}" >> $GITHUB_OUTPUT
+          echo "🎯 Running operation: ${OPERATION}"
+      
+      - name: Health Check
+        if: |
+          steps.operation.outputs.operation == 'health-check' ||
+          steps.operation.outputs.operation == 'orchestrate'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          APP_NAME: ${{ secrets.APP_NAME }}
+        run: |
+          echo "📊 Running health check for app: ${APP_NAME}"
+          
+          aws configure set aws_access_key_id "${R2_ACCESS_KEY_ID}"
+          aws configure set aws_secret_access_key "${R2_SECRET_ACCESS_KEY}"
+          aws configure set default.region auto
+          
+          BACKUP_COUNT=$(aws s3 ls "s3://${R2_BUCKET_NAME}/${APP_NAME}/" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --recursive | wc -l)
+          
+          echo "✅ Health check complete: ${BACKUP_COUNT} backups found"
+          
+          if [ "${BACKUP_COUNT}" -lt 2 ]; then
+            echo "⚠️ WARNING: Less than 2 backups available"
+          fi
+      
+      - name: Create Database Backup
+        if: |
+          steps.operation.outputs.operation == 'backup' ||
+          steps.operation.outputs.operation == 'orchestrate'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          APP_NAME: ${{ secrets.APP_NAME }}
+        run: |
+          echo "💾 Creating database backup for ${APP_NAME}..."
+          
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          BACKUP_FILE="backup_${TIMESTAMP}.sql"
+          BACKUP_PATH="${APP_NAME}/${BACKUP_FILE}"
+          
+          echo "Executing pg_dump..."
+          /usr/lib/postgresql/17/bin/pg_dump "${SUPABASE_DB_URL}" \
+            --clean \
+            --if-exists \
+            --quote-all-identifiers \
+            --no-owner \
+            --no-privileges \
+            --exclude-table-data=cron.job_run_details \
+            --file="${BACKUP_FILE}"
+          
+          BACKUP_SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+          echo "Backup created: ${BACKUP_SIZE}"
+          
+          echo "Compressing backup..."
+          gzip "${BACKUP_FILE}"
+          COMPRESSED_FILE="${BACKUP_FILE}.gz"
+          COMPRESSED_SIZE=$(du -h "${COMPRESSED_FILE}" | cut -f1)
+          echo "Compressed size: ${COMPRESSED_SIZE}"
+          
+          aws configure set aws_access_key_id "${R2_ACCESS_KEY_ID}"
+          aws configure set aws_secret_access_key "${R2_SECRET_ACCESS_KEY}"
+          aws configure set default.region auto
+          
+          echo "Uploading to R2: ${R2_BUCKET_NAME}/${BACKUP_PATH}.gz"
+          aws s3 cp "${COMPRESSED_FILE}" "s3://${R2_BUCKET_NAME}/${BACKUP_PATH}.gz" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --content-type "application/gzip"
+          
+          echo "✅ Backup uploaded successfully"
+          rm -f "${COMPRESSED_FILE}"
+      
+      - name: Cleanup Old Backups
+        if: |
+          steps.operation.outputs.operation == 'cleanup' ||
+          steps.operation.outputs.operation == 'orchestrate'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          APP_NAME: ${{ secrets.APP_NAME }}
+          RETENTION_DAILY: 7
+          RETENTION_WEEKLY: 30
+          RETENTION_MONTHLY: 365
+        run: |
+          echo "🧹 Cleaning up old backups for ${APP_NAME}..."
+          
+          aws configure set aws_access_key_id "${R2_ACCESS_KEY_ID}"
+          aws configure set aws_secret_access_key "${R2_SECRET_ACCESS_KEY}"
+          aws configure set default.region auto
+          
+          BACKUP_LIST=$(aws s3 ls "s3://${R2_BUCKET_NAME}/${APP_NAME}/" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --recursive)
+          
+          TOTAL_BACKUPS=$(echo "${BACKUP_LIST}" | grep -c "backup_" || true)
+          echo "Total backups found: ${TOTAL_BACKUPS}"
+          
+          if [ "${TOTAL_BACKUPS}" -lt 2 ]; then
+            echo "No cleanup needed: fewer than 2 backups exist"
+            exit 0
+          fi
+          
+          python3 << 'EOF'
+          import os
+          import sys
+          from datetime import datetime, timedelta
+          
+          retention_daily = int(os.environ.get('RETENTION_DAILY', 7))
+          retention_weekly = int(os.environ.get('RETENTION_WEEKLY', 30))
+          retention_monthly = int(os.environ.get('RETENTION_MONTHLY', 365))
+          
+          backup_list = """${BACKUP_LIST}"""
+          
+          backups = []
+          for line in backup_list.strip().split('\n'):
+            if not line or 'backup_' not in line:
+              continue
+            parts = line.split()
+            if len(parts) >= 4:
+              date_str = f"{parts[0]} {parts[1]}"
+              filename = parts[3]
+              try:
+                backup_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                backups.append({'date': backup_date, 'filename': filename})
+              except:
+                pass
+          
+          backups.sort(key=lambda x: x['date'], reverse=True)
+          
+          if len(backups) < 2:
+            print("Not enough backups to clean")
+            sys.exit(0)
+          
+          now = datetime.utcnow()
+          kept = set()
+          kept_weekly = set()
+          kept_monthly = set()
+          to_delete = []
+          
+          kept.add(backups[0]['filename'])
+          
+          for backup in backups:
+            if backup['filename'] in kept:
+              continue
+            
+            age_days = (now - backup['date']).days
+            week_of_year = f"{backup['date'].year}-{backup['date'].isocalendar()[1]}"
+            month_of_year = f"{backup['date'].year}-{backup['date'].month}"
+            
+            if age_days <= retention_daily:
+              kept.add(backup['filename'])
+              continue
+            
+            if age_days <= retention_weekly and week_of_year not in kept_weekly:
+              kept.add(backup['filename'])
+              kept_weekly.add(week_of_year)
+              continue
+            
+            if age_days <= retention_monthly and month_of_year not in kept_monthly:
+              kept.add(backup['filename'])
+              kept_monthly.add(month_of_year)
+              continue
+            
+            to_delete.append(backup['filename'])
+          
+          print(f"Backups to keep: {len(kept)}")
+          print(f"Backups to delete: {len(to_delete)}")
+          
+          if to_delete:
+            with open('files_to_delete.txt', 'w') as f:
+              for filename in to_delete:
+                f.write(f"{filename}\n")
+          EOF
+          
+          if [ -f "files_to_delete.txt" ]; then
+            DELETED_COUNT=0
+            while IFS= read -r file; do
+              echo "Deleting: ${file}"
+              aws s3 rm "s3://${R2_BUCKET_NAME}/${file}" \
+                --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+              DELETED_COUNT=$((DELETED_COUNT + 1))
+            done < "files_to_delete.txt"
+            echo "✅ Cleanup complete. Deleted: ${DELETED_COUNT} backups"
+            rm -f files_to_delete.txt
+          else
+            echo "No backups to delete"
+          fi
+      
+      - name: Summary
+        if: always()
+        id: summary
+        run: |
+          echo "=========================================="
+          echo "Backup Operation Summary"
+          echo "=========================================="
+          echo "Operation: ${{ steps.operation.outputs.operation }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "Status: ${{ job.status }}"
+          echo "=========================================="
+          
+          echo "operation=${{ steps.operation.outputs.operation }}" >> $GITHUB_OUTPUT
+          echo "timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_OUTPUT
+      
+      - name: Send Success Email
+        if: success() && vars.BACKUP_NOTIFICATION_EMAIL != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "✅ Backup Success: ${{ steps.operation.outputs.operation }} - ${{ secrets.APP_NAME }}"
+          to: ${{ vars.BACKUP_NOTIFICATION_EMAIL }}
+          from: Database Backup System <${{ secrets.SMTP_USERNAME }}>
+          body: |
+            Database Backup Operation Completed Successfully
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            📊 BACKUP DETAILS
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            Application:     ${{ secrets.APP_NAME }}
+            Operation:       ${{ steps.operation.outputs.operation }}
+            Status:          ✅ SUCCESS
+            Timestamp:       ${{ steps.summary.outputs.timestamp }}
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            📦 WORKFLOW DETAILS
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            Repository:      ${{ github.repository }}
+            Workflow:        ${{ github.workflow }}
+            Run ID:          ${{ github.run_id }}
+            Triggered by:    ${{ github.event_name }}
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            🔗 LINKS
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            View Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            This is an automated message from GitHub Actions.
+            Please do not reply to this email.
+          priority: normal
+      
+      - name: Send Failure Email
+        if: failure() && vars.BACKUP_NOTIFICATION_EMAIL != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "❌ Backup Failed: ${{ steps.operation.outputs.operation }} - ${{ secrets.APP_NAME }}"
+          to: ${{ vars.BACKUP_NOTIFICATION_EMAIL }}
+          from: Database Backup System <${{ secrets.SMTP_USERNAME }}>
+          body: |
+            ⚠️ DATABASE BACKUP OPERATION FAILED ⚠️
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            📊 BACKUP DETAILS
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            Application:     ${{ secrets.APP_NAME }}
+            Operation:       ${{ steps.operation.outputs.operation }}
+            Status:          ❌ FAILED
+            Timestamp:       ${{ steps.summary.outputs.timestamp }}
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            📦 WORKFLOW DETAILS
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            Repository:      ${{ github.repository }}
+            Workflow:        ${{ github.workflow }}
+            Run ID:          ${{ github.run_id }}
+            Triggered by:    ${{ github.event_name }}
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            🔗 ACTION REQUIRED
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            Please review the workflow logs immediately:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Common issues:
+            - Database connection timeout
+            - Invalid credentials
+            - R2 storage quota exceeded
+            - Network connectivity issues
+            
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            This is an automated message from GitHub Actions.
+            Please do not reply to this email.
+          priority: high
