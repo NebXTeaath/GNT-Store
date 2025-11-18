@@ -1,0 +1,32 @@
+# ============================================
+# SECRETS - NEVER COMMIT THESE
+# ============================================
+
+# Actual secrets file (contains real credentials)
+secrets/.env
+
+# Any backup or temp files
+secrets/.env.*
+secrets/*.backup
+secrets/*.bak
+secrets/*.tmp
+
+# Private keys
+secrets/*.key
+secrets/*.pem
+secrets/*.secret
+
+# Credentials files
+secrets/*credentials*
+secrets/*password*
+
+# ============================================
+# EXCEPTIONS - SAFE TO COMMIT
+# ============================================
+
+# Allow the example template
+!secrets/.env.example
+
+# Allow deployment scripts
+!secrets/*.sh
+!secrets/*.md
